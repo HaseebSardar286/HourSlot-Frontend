@@ -1,0 +1,44 @@
+@import '../../auth/login/login.component.css';
+
+.business-reg-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 250px);
+  padding: 20px 0;
+}
+
+.registration-card {
+  width: 100%;
+  max-width: 550px;
+  border-radius: var(--radius-lg);
+  padding: 40px 30px;
+}
+
+.registration-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.reg-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.reg-subtitle {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+
+.registration-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.textarea-field {
+  resize: vertical;
+  font-family: var(--font-body);
+}

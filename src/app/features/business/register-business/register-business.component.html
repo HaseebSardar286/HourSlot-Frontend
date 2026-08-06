@@ -1,0 +1,72 @@
+<div class="business-reg-container">
+  <div class="glass-card registration-card">
+    <div class="registration-header">
+      <span class="reg-icon">💼</span>
+      <h2>Register Your Business</h2>
+      <p class="reg-subtitle">Enter your business details to submit an application for platform verification</p>
+    </div>
+
+    @if (errorMessage) {
+      <div class="error-alert">
+        <span>⚠️</span> {{ errorMessage }}
+      </div>
+    }
+
+    @if (successMessage) {
+      <div class="success-alert">
+        <span>✅</span> {{ successMessage }}
+      </div>
+    }
+
+    <form [formGroup]="businessForm" (ngSubmit)="onSubmit()" class="registration-form">
+      <div class="form-group">
+        <label for="name" class="form-label">Business Name</label>
+        <input 
+          id="name" 
+          type="text" 
+          formControlName="name" 
+          class="input-field" 
+          placeholder="e.g. Apex Health Clinic or Glow Salon"
+          [class.input-error]="businessForm.get('name')?.touched && businessForm.get('name')?.invalid"
+        />
+        @if (businessForm.get('name')?.touched && businessForm.get('name')?.errors?.['required']) {
+          <span class="validation-error">Business name is required.</span>
+        }
+      </div>
+
+      <div class="form-group">
+        <label for="description" class="form-label">Business Description</label>
+        <textarea 
+          id="description" 
+          formControlName="description" 
+          class="input-field textarea-field" 
+          placeholder="Describe the services you offer, your specialization, and what sets you apart..."
+          rows="5"
+          [class.input-error]="businessForm.get('description')?.touched && businessForm.get('description')?.invalid"
+        ></textarea>
+        @if (businessForm.get('description')?.touched && businessForm.get('description')?.errors?.['required']) {
+          <span class="validation-error">Business description is required.</span>
+        }
+      </div>
+
+      <div class="form-group">
+        <label for="logoUrl" class="form-label">Logo Image URL</label>
+        <input 
+          id="logoUrl" 
+          type="text" 
+          formControlName="logoUrl" 
+          class="input-field" 
+          placeholder="https://example.com/logo.png"
+        />
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block" [disabled]="loading">
+        @if (loading) {
+          <span class="spinner"></span> Submitting application...
+        } @else {
+          Submit Application
+        }
+      </button>
+    </form>
+  </div>
+</div>
