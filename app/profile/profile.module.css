@@ -1,0 +1,75 @@
+.profileContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 250px);
+  padding: 20px 0;
+}
+
+.profileCard {
+  width: 100%;
+  max-width: 480px;
+  border-radius: var(--radius-lg);
+  padding: 40px;
+  text-align: center;
+}
+
+.profileHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.avatarCircle {
+  width: 90px;
+  height: 90px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: #ffffff;
+  font-family: var(--font-headers);
+  font-size: 2rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--glow-shadow);
+}
+
+.profileHeader h2 {
+  font-size: 1.5rem;
+}
+
+.profileDivider {
+  border: 0;
+  height: 1px;
+  background: var(--border-color);
+  margin: 24px 0;
+}
+
+.profileDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.95rem;
+}
+
+.detailLabel {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.detailValue {
+  color: var(--text-main);
+  font-weight: 600;
+}
