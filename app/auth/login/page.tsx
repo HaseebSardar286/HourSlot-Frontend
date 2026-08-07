@@ -2,6 +2,7 @@
 
 import { useState, FormEvent, Suspense } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import styles from './login.module.css';
@@ -13,6 +14,7 @@ function LoginForm() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [touched, setTouched] = useState({ email: false, password: false });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -24,8 +26,8 @@ function LoginForm() {
 
   const getDashboardRoute = (role: string): string => {
     switch (role) {
-      case 'PLATFORM_ADMIN': return '/admin/dashboard';
-      case 'BUSINESS_ADMIN':
+      case 'SUPER_ADMIN': return '/admin/dashboard';
+      case 'BUSINESS_OWNER':
       case 'BUSINESS_STAFF': return '/business/dashboard';
       default: return '/profile';
     }
@@ -55,50 +57,102 @@ function LoginForm() {
 
   return (
     <div className={`glass-card ${styles.authCard}`}>
+      <div className={styles.authLogo}>
+        <Image
+          src="/logo-hourslot.png"
+          alt="HourSlot"
+          width={180}
+          height={56}
+          className={styles.authLogoImg}
+          priority
+        />
+      </div>
+
       <div className={styles.authHeader}>
-        <span className={styles.authLogoIcon}>⏳</span>
-        <h2>Welcome Back</h2>
+        <h2 className={styles.authTitle}>Welcome Back</h2>
         <p className={styles.authSubtitle}>Sign in to manage your appointments</p>
       </div>
 
       {errorMessage && (
         <div className="error-alert">
-          <span>⚠️</span> {errorMessage}
+          <i className="fa-solid fa-triangle-exclamation"></i> {errorMessage}
         </div>
       )}
 
       <form onSubmit={handleSubmit} className={styles.authForm} noValidate>
         <div className="form-group">
-          <label htmlFor="email" className="form-label">Email Address</label>
+          <label htmlFor="login-email" className="form-label">Email Address</label>
           <input
-            id="email"
+            id="login-email"
             type="email"
             className={`input-field${emailError ? ' input-error' : ''}`}
-            placeholder="name@domain.com"
+            placeholder="name@company.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             onBlur={() => setTouched((t) => ({ ...t, email: true }))}
+            autoComplete="email"
           />
           {emailError && <span className="validation-error">{emailError}</span>}
         </div>
 
         <div className="form-group">
-          <label htmlFor="password" className="form-label">Password</label>
-          <input
-            id="password"
-            type="password"
-            className={`input-field${passwordError ? ' input-error' : ''}`}
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onBlur={() => setTouched((t) => ({ ...t, password: true }))}
-          />
+          <label htmlFor="login-password" className="form-label">Password</label>
+          <div className={styles.passwordWrapper}>
+            <input
+              id="login-password"
+              type={showPassword ? 'text' : 'password'}
+              className={`input-field${passwordError ? ' input-error' : ''}`}
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onBlur={() => setTouched((t) => ({ ...t, password: true }))}
+              autoComplete="current-password"
+            />
+            <button
+              type="button"
+              className={styles.passwordToggle}
+              onClick={() => setShowPassword(!showPassword)}
+              tabIndex={-1}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? (
+                <i className="fa-solid fa-eye-slash"></i>
+              ) : (
+                <i className="fa-solid fa-eye"></i>
+              )}
+            </button>
+          </div>
           {passwordError && <span className="validation-error">{passwordError}</span>}
         </div>
 
+        <div className={styles.formMeta}>
+          <label className={styles.rememberLabel}>
+            <input type="checkbox" />
+            Remember me
+          </label>
+          <Link href="/auth/forgot-password" className={styles.forgotLink}>
+            Forgot password?
+          </Link>
+        </div>
+
         <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-          {loading ? <><span className="spinner" /> Logging in...</> : 'Sign In'}
+          {loading ? <><span className="spinner" /> Signing in...</> : 'Sign In'}
         </button>
+
+        <div className={styles.orDivider}>
+          <span className={styles.orDividerText}>or continue with</span>
+        </div>
+
+        <div className={styles.socialButtons}>
+          <button type="button" className={styles.socialBtn}>
+            <i className="fa-brands fa-google" style={{ color: '#ea4335' }}></i>
+            Google
+          </button>
+          <button type="button" className={styles.socialBtn}>
+            <i className="fa-brands fa-apple" style={{ color: '#000000' }}></i>
+            Apple
+          </button>
+        </div>
       </form>
 
       <div className={styles.authFooter}>
@@ -110,18 +164,20 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className={styles.authContainer}>
-      <Suspense fallback={
-        <div className={`glass-card ${styles.authCard}`}>
-          <div className={styles.authHeader}>
-            <span className={styles.authLogoIcon}>⏳</span>
-            <h2>Welcome Back</h2>
-            <p className={styles.authSubtitle}>Loading authentication...</p>
+    <>
+      <div className="auth-page-bg" />
+      <div className={styles.authWrapper}>
+        <Suspense fallback={
+          <div className={`glass-card ${styles.authCard}`}>
+            <div className={styles.authHeader}>
+              <h2 className={styles.authTitle}>Welcome Back</h2>
+              <p className={styles.authSubtitle}>Loading...</p>
+            </div>
           </div>
-        </div>
-      }>
-        <LoginForm />
-      </Suspense>
-    </div>
+        }>
+          <LoginForm />
+        </Suspense>
+      </div>
+    </>
   );
 }

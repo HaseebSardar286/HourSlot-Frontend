@@ -54,6 +54,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     const session: UserSession = await res.json();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+    // Also set cookie for middleware SSR access
+    document.cookie = `${STORAGE_KEY}=${encodeURIComponent(JSON.stringify(session))}; path=/; max-age=86400; SameSite=Lax`;
     setUser(session);
     return session;
   }, []);
@@ -72,6 +74,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
+    // Clear middleware cookie
+    document.cookie = `${STORAGE_KEY}=; path=/; max-age=0`;
     setUser(null);
   }, []);
 

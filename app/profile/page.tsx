@@ -25,38 +25,49 @@ export default function ProfilePage() {
     );
   }
 
-  const initial = `${user.firstName?.charAt(0) || 'U'}${user.lastName?.charAt(0) || ''}`;
+  const initials = `${user.firstName?.charAt(0) || 'U'}${user.lastName?.charAt(0) || ''}`;
+
+  const getRoleBadge = (role: string) => {
+    switch (role) {
+      case 'SUPER_ADMIN': return { label: 'Platform Admin', className: 'badge-danger' };
+      case 'BUSINESS_OWNER': return { label: 'Business Owner', className: 'badge-primary' };
+      case 'BUSINESS_STAFF': return { label: 'Staff', className: 'badge-info' };
+      default: return { label: 'Customer', className: 'badge-success' };
+    }
+  };
+
+  const roleBadge = getRoleBadge(user.role);
 
   return (
     <div className={styles.profileContainer}>
       <div className={`glass-card ${styles.profileCard}`}>
         <div className={styles.profileHeader}>
           <div className={styles.avatarCircle}>
-            {initial}
+            {initials}
           </div>
           <h2>{user.firstName} {user.lastName}</h2>
-          <span className="badge badge-primary">{user.role}</span>
+          <span className={`badge ${roleBadge.className}`}>{roleBadge.label}</span>
         </div>
 
         <hr className={styles.profileDivider} />
 
         <div className={styles.profileDetails}>
           <div className={styles.detailRow}>
-            <span className={styles.detailLabel}>Email Address</span>
+            <span className={styles.detailLabel}>📧 Email</span>
             <span className={styles.detailValue}>{user.email}</span>
           </div>
           <div className={styles.detailRow}>
-            <span className={styles.detailLabel}>Account ID</span>
+            <span className={styles.detailLabel}>🆔 Account ID</span>
             <span className={styles.detailValue}>#{user.id}</span>
           </div>
           <div className={styles.detailRow}>
-            <span className={styles.detailLabel}>Status</span>
+            <span className={styles.detailLabel}>✅ Status</span>
             <span className={`${styles.detailValue} text-success`}>Active</span>
           </div>
         </div>
 
-        <button className="btn btn-secondary btn-block logout-btn" onClick={handleLogout}>
-          Log Out
+        <button className="btn btn-outline btn-block" onClick={handleLogout} style={{ marginTop: '8px' }}>
+          Sign Out
         </button>
       </div>
     </div>
