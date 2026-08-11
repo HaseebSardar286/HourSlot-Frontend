@@ -72,7 +72,7 @@ export default function OnboardingPage() {
               </>
             ) : (
               <>
-                <Link href="/profile" className="btn btn-primary">
+                <Link href="/profile/explore" className="btn btn-primary">
                   Explore Businesses
                 </Link>
                 <Link href="/profile" className="btn btn-secondary">

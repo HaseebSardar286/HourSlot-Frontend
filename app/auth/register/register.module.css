@@ -226,6 +226,9 @@
   cursor: pointer;
   transition: var(--transition-smooth);
   text-align: center;
+  font: inherit;
+  color: inherit;
+  width: 100%;
 }
 
 .categoryOption:hover {

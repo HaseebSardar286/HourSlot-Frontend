@@ -1,0 +1,307 @@
+.loaderContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+}
+
+.availabilityContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.branchSelectArea {
+  display: flex;
+  align-items: center;
+}
+
+.scheduleGrid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 992px) {
+  .scheduleGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.hoursColumn,
+.holidaysColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.columnHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.columnHeader h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.daysList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dayRow {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .dayRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}
+
+.dayInfo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.dayLabel {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #ffffff;
+  min-width: 100px;
+}
+
+.openTime {
+  font-size: 0.92rem;
+  color: var(--accent-primary);
+  font-weight: 600;
+  background: rgba(26, 138, 138, 0.08);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+}
+
+.closedText {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.05em;
+}
+
+.notConfiguredText {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.dayActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.breaksList {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.breakBadge {
+  font-size: 0.78rem;
+  color: #f59e0b;
+  font-weight: 600;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.15);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.removeBreakBtn {
+  background: none;
+  border: none;
+  color: #f59e0b;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 0 0 4px;
+}
+
+.removeBreakBtn:hover {
+  color: #ef4444;
+}
+
+.inlineBreakForm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.inlineBreakForm input[type="time"] {
+  width: 90px;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+}
+
+.inlineBreakForm span {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.addBreakBtn {
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: rgba(26, 138, 138, 0.1);
+  border: 1px solid rgba(26, 138, 138, 0.2);
+  color: var(--accent-primary);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.addBreakBtn:hover {
+  background: var(--accent-primary);
+  color: #ffffff;
+}
+
+.resetBtn {
+  background: none;
+  border: none;
+  color: #7a9aa5;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition-fast);
+}
+
+.resetBtn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.05);
+}
+
+/* Holidays styling */
+.holidaysList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.holidayRow {
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.holidayDate {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #ffffff;
+  display: block;
+}
+
+.holidayDesc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  display: block;
+}
+
+.deleteHolidayBtn {
+  background: none;
+  border: none;
+  color: #7a9aa5;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition-fast);
+}
+
+.deleteHolidayBtn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+/* Modal overlays */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.modalContent {
+  width: 100%;
+  max-width: 450px;
+  padding: 24px;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 12px;
+}
+
+.modalHeader h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.8rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.closeBtn:hover {
+  color: #ffffff;
+}

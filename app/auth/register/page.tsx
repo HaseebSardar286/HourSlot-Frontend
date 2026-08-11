@@ -1,23 +1,24 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { apiFetch } from '@/lib/api';
+import type { Category } from '@/lib/types';
 import styles from './register.module.css';
 
-const CATEGORIES = [
-  { id: 'salon', icon: 'fa-scissors', label: 'Salon' },
-  { id: 'clinic', icon: 'fa-house-medical', label: 'Clinic' },
-  { id: 'spa', icon: 'fa-spa', label: 'Spa' },
-  { id: 'dental', icon: 'fa-tooth', label: 'Dental' },
-  { id: 'fitness', icon: 'fa-dumbbell', label: 'Fitness' },
-  { id: 'auto', icon: 'fa-car', label: 'Auto Service' },
-  { id: 'education', icon: 'fa-graduation-cap', label: 'Education' },
-  { id: 'legal', icon: 'fa-scale-balanced', label: 'Legal' },
-  { id: 'other', icon: 'fa-building', label: 'Other' },
-];
+const FALLBACK_CATEGORY_ICONS: Record<string, string> = {
+  salon: 'fa-scissors',
+  clinic: 'fa-house-medical',
+  spa: 'fa-spa',
+  dental: 'fa-tooth',
+  fitness: 'fa-dumbbell',
+  auto: 'fa-car',
+  education: 'fa-graduation-cap',
+  legal: 'fa-scale-balanced',
+};
 
 const TOTAL_STEPS = 3; // Step 1: Role, Step 2: Info, Step 3: Business (conditional) or Password
 
@@ -58,9 +59,40 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [categories, setCategories] = useState<{ id: string; icon: string; label: string }[]>([]);
 
   const isBusiness = formData.role === 'BUSINESS_OWNER';
   const totalSteps = isBusiness ? 3 : 2;
+
+  useEffect(() => {
+    apiFetch<Category[]>('/api/public/categories', { skipAuth: true })
+      .then((data) => {
+        const flat: { id: string; icon: string; label: string }[] = [];
+        const walk = (nodes: Category[]) => {
+          nodes.forEach((n) => {
+            flat.push({
+              id: n.slug || n.name,
+              icon: FALLBACK_CATEGORY_ICONS[(n.slug || '').toLowerCase()] || 'fa-building',
+              label: n.name,
+            });
+            if (n.subcategories?.length) walk(n.subcategories);
+          });
+        };
+        walk(data || []);
+        setCategories(flat.length ? flat : [
+          { id: 'salon', icon: 'fa-scissors', label: 'Salon' },
+          { id: 'clinic', icon: 'fa-house-medical', label: 'Clinic' },
+          { id: 'spa', icon: 'fa-spa', label: 'Spa' },
+        ]);
+      })
+      .catch(() => {
+        setCategories([
+          { id: 'salon', icon: 'fa-scissors', label: 'Salon' },
+          { id: 'clinic', icon: 'fa-house-medical', label: 'Clinic' },
+          { id: 'spa', icon: 'fa-spa', label: 'Spa' },
+        ]);
+      });
+  }, []);
 
   // Validation
   const errors: Record<string, string | null> = {};
@@ -447,8 +479,9 @@ export default function RegisterPage() {
                 <div className="form-group">
                   <label className="form-label">Business Category</label>
                   <div className={styles.categoryGrid}>
-                    {CATEGORIES.map((cat) => (
-                      <div
+                    {categories.map((cat) => (
+                      <button
+                        type="button"
                         key={cat.id}
                         className={`${styles.categoryOption} ${formData.businessCategory === cat.id ? styles.selected : ''}`}
                         onClick={() => handleChange('businessCategory', cat.id)}
@@ -457,7 +490,7 @@ export default function RegisterPage() {
                           <i className={`fa-solid ${cat.icon}`}></i>
                         </span>
                         <span className={styles.categoryText}>{cat.label}</span>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>

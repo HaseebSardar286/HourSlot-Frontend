@@ -1,0 +1,571 @@
+.wizardContainer {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 10px 0 40px;
+  font-family: var(--font-body);
+}
+
+.wizardHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 36px;
+}
+
+.wizardHeader h2 {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+/* Stepper Progress bar matching mockup */
+.stepsStepper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+  width: 100%;
+  max-width: 650px;
+  justify-content: space-between;
+}
+
+.stepBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  z-index: 2;
+}
+
+.stepBlock span {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.stepCircle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #e2e8f0;
+  color: #64748b;
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s ease;
+}
+
+.stepCurrent {
+  border-color: var(--accent-primary) !important;
+  color: var(--accent-primary) !important;
+  box-shadow: 0 0 12px rgba(79, 70, 229, 0.15);
+}
+
+.stepChecked {
+  background: var(--accent-primary) !important;
+  border-color: var(--accent-primary) !important;
+  color: #ffffff !important;
+}
+
+.stepLine {
+  flex: 1;
+  height: 2.5px;
+  background: #e2e8f0;
+  margin-bottom: 24px;
+  transition: all 0.25s ease;
+}
+
+.stepLineActive {
+  background: var(--accent-primary);
+}
+
+/* Grid Layout columns split */
+.wizardGrid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 30px;
+}
+
+@media (max-width: 768px) {
+  .wizardGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.leftColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.rightColumn {
+  display: flex;
+  flex-direction: column;
+}
+
+.glassCardPanel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.glassCardPanel h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 16px;
+}
+
+/* Step 1 Services catalog */
+.catalogList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.catalogRow {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.catalogRow:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.selectedRow {
+  border-color: var(--accent-primary) !important;
+  background: rgba(79, 70, 229, 0.02) !important;
+}
+
+.rowRadio {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.selectedRow .rowRadio {
+  border-color: var(--accent-primary);
+}
+
+.radioFill {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+}
+
+.catalogRow h5 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 2px;
+}
+
+.duration {
+  font-size: 0.8rem;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.price {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* Step 2 Provider selection matching mockup */
+.providerGrid {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.providerCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 12px;
+  width: 110px;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.providerCard:hover {
+  border-color: #cbd5e1;
+}
+
+.providerSelected {
+  border-color: var(--accent-primary) !important;
+  box-shadow: 0 0 12px rgba(79, 70, 229, 0.08);
+}
+
+.avatarWrapper {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  padding: 2.5px;
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.25s ease;
+}
+
+.providerSelected .avatarWrapper {
+  border-color: var(--accent-primary);
+}
+
+.avatarAnyStaff {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: var(--accent-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+
+.staffAvatarImg {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.providerCard span {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+/* Weekly calendar strip section */
+.calendarStripHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.calendarStripHeader h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 0;
+}
+
+.calendarArrows {
+  display: flex;
+  gap: 8px;
+}
+
+.calendarArrows button {
+  background: transparent;
+  border: 1px solid #e2e8f0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+}
+
+.calendarArrows button:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.dateStrip {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+
+.dateCell {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px 4px;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.dateCell:hover {
+  border-color: #cbd5e1;
+}
+
+.dateCellActive {
+  background: var(--accent-primary) !important;
+  border-color: var(--accent-primary) !important;
+  color: #ffffff !important;
+}
+
+.dateCellLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.dateCellActive .dateCellLabel {
+  color: rgba(255,255,255,0.7) !important;
+}
+
+.dateCellNum {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.dateCellActive .dateCellNum {
+  color: #ffffff !important;
+}
+
+/* Available timeslots grouped morning/afternoon */
+.timeOfDayLabel {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.slotsSubGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
+  gap: 8px;
+}
+
+.slotButton {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  color: #334155;
+  border-radius: 10px;
+  padding: 10px 0;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.slotButton:hover {
+  border-color: #cbd5e1;
+}
+
+.slotBtnSelected {
+  background: var(--accent-primary) !important;
+  border-color: var(--accent-primary) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 10px rgba(79, 70, 229, 0.2);
+}
+
+.noSlotsText {
+  color: #ef4444;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.placeholderText {
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+/* Wizard Summary Card Sidebar on right */
+.summaryCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.summaryCard h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 10px;
+}
+
+.summaryContent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.summaryServiceRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.summaryServiceRow h5 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.summaryServiceRow p {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.summaryPrice {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.summarySlotWidget {
+  background: rgba(79, 70, 229, 0.05);
+  border: 1px dashed rgba(79, 70, 229, 0.15);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.summarySlotItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+  color: #4338ca;
+  font-weight: 600;
+}
+
+.summarySlotItem i {
+  color: var(--accent-primary);
+  width: 14px;
+}
+
+.summaryTotalRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 16px;
+  font-size: 1rem;
+  color: #0f172a;
+}
+
+.summaryTotalRow strong {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--accent-primary);
+}
+
+.policyText {
+  font-size: 0.75rem;
+  color: #64748b;
+  line-height: 1.4;
+  margin-top: 4px;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.policyText i {
+  margin-top: 2px;
+}
+
+.summaryEmptyHint {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 20px 0;
+}
+
+/* Wizard Buttons Control Footer */
+.wizardFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.prevBtn {
+  background: transparent;
+  border: 1.5px solid #cbd5e1;
+  color: #475569;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 10px 24px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.prevBtn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.nextBtn {
+  background: var(--accent-primary);
+  border: none;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 10px 28px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.nextBtn:hover {
+  background: #4338ca;
+}
+
+.loaderContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+}
+
+.successWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(100vh - 200px);
+}

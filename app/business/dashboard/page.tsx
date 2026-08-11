@@ -1,151 +1,114 @@
 'use client';
 
 import { useState, useEffect, FormEvent } from 'react';
+import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import styles from './dashboard.module.css';
+
+interface Category {
+  id: number;
+  name: string;
+}
 
 interface BusinessProfile {
   id: number;
   name: string;
   description: string;
   logoUrl?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
   verified: boolean;
-  rating?: string;
-}
-
-interface Branch {
-  id: number;
-  name: string;
-  address: string;
-  latitude: number;
-  longitude: number;
-  phoneNumber?: string;
-}
-
-interface Service {
-  id: number;
-  name: string;
-  description?: string;
-  price: number;
-  durationMinutes: number;
-}
-
-interface Staff {
-  id: number;
-  name: string;
-  designation?: string;
-  rating?: string;
+  commissionRate: number;
+  rating: number;
+  rejectionReason?: string;
+  slug?: string;
+  registrationNumber?: string;
+  galleryUrls?: string;
+  primaryCategory?: Category | null;
+  secondaryCategories?: Category[];
 }
 
 export default function BusinessDashboardPage() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'branches', 'services', 'staff', 'availability'
-
-  // Data State
   const [business, setBusiness] = useState<BusinessProfile | null>(null);
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
-  const [staffList, setStaffList] = useState<Staff[]>([]);
-
-  // Alerts
+  const [availableCategories, setAvailableCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  // Form States
-  const [branchForm, setBranchForm] = useState({
-    name: '',
-    address: '',
-    latitude: 37.7749,
-    longitude: -122.4194,
-    phoneNumber: '',
+  const [setup, setSetup] = useState({
+    branches: 0,
+    services: 0,
+    staff: 0,
+    hours: 0,
   });
 
-  const [serviceForm, setServiceForm] = useState({
+  // Form states
+  const [formData, setFormData] = useState<{
+    name: string;
+    description: string;
+    logoUrl: string;
+    registrationNumber: string;
+    primaryCategoryId: string;
+    secondaryCategoryIds: number[];
+  }>({
     name: '',
     description: '',
-    price: 0,
-    durationMinutes: 30,
+    logoUrl: '',
+    registrationNumber: '',
+    primaryCategoryId: '',
+    secondaryCategoryIds: [],
   });
 
-  const [staffForm, setStaffForm] = useState({
-    name: '',
-    designation: '',
-    branchId: '',
-  });
-
-  const [hoursForm, setHoursForm] = useState({
-    branchId: '',
-    dayOfWeek: 1,
-    startTime: '09:00',
-    endTime: '17:00',
-    closed: false,
-  });
-
-  const [holidayForm, setHolidayForm] = useState({
-    branchId: '',
-    date: '',
-    description: '',
-  });
-
-  const clearAlerts = () => {
-    setMessage(null);
-    setError(null);
-  };
-
-  const handleTabChange = (tab: string) => {
-    setActiveTab(tab);
-    clearAlerts();
-  };
-
-  // API Call Helpers
   const loadBusinessProfile = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const profile = await apiFetch<BusinessProfile>('/api/business/profile');
-      setBusiness(profile);
-      await Promise.all([loadBranches(), loadServices()]);
+      const [data, categoriesData, branches, services, staff] = await Promise.all([
+        apiFetch<BusinessProfile>('/api/business/profile'),
+        apiFetch<any[]>('/api/public/categories'),
+        apiFetch<{ id: number }[]>('/api/business/branches').catch(() => []),
+        apiFetch<{ id: number }[]>('/api/business/services').catch(() => []),
+        apiFetch<{ id: number }[]>('/api/business/staff').catch(() => []),
+      ]);
+      setBusiness(data);
+
+      let hoursCount = 0;
+      if (branches.length > 0) {
+        const hours = await apiFetch<unknown[]>(
+          `/api/business/branches/${branches[0].id}/working-hours`
+        ).catch(() => []);
+        hoursCount = hours.length;
+      }
+      setSetup({
+        branches: branches.length,
+        services: services.length,
+        staff: staff.length,
+        hours: hoursCount,
+      });
+
+      const flat: Category[] = [];
+      const traverse = (node: any) => {
+        flat.push({ id: node.id, name: node.name });
+        if (node.subcategories && node.subcategories.length > 0) {
+          node.subcategories.forEach(traverse);
+        }
+      };
+      categoriesData.forEach(traverse);
+      setAvailableCategories(flat);
+
+      setFormData({
+        name: data.name || '',
+        description: data.description || '',
+        logoUrl: data.logoUrl || '',
+        registrationNumber: data.registrationNumber || '',
+        primaryCategoryId: data.primaryCategory ? data.primaryCategory.id.toString() : '',
+        secondaryCategoryIds: data.secondaryCategories ? data.secondaryCategories.map(c => c.id) : [],
+      });
     } catch (err: any) {
-      setError('Could not load business profile. Have you registered your business yet?');
+      setError(err?.message || 'Could not load business profile. Have you registered yet?');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadBranches = async () => {
-    try {
-      const data = await apiFetch<Branch[]>('/api/business/branches');
-      setBranches(data);
-      if (data.length > 0) {
-        const defaultBranchId = data[0].id.toString();
-        setStaffForm((prev) => ({ ...prev, branchId: defaultBranchId }));
-        setHoursForm((prev) => ({ ...prev, branchId: defaultBranchId }));
-        setHolidayForm((prev) => ({ ...prev, branchId: defaultBranchId }));
-
-        // Load staff for default branch
-        await loadStaff(data[0].id);
-      }
-    } catch {
-      // ignore
-    }
-  };
-
-  const loadServices = async () => {
-    try {
-      const data = await apiFetch<Service[]>('/api/business/services');
-      setServices(data);
-    } catch {
-      // ignore
-    }
-  };
-
-  const loadStaff = async (branchId: number) => {
-    try {
-      const data = await apiFetch<Staff[]>(`/api/business/branches/${branchId}/staff`);
-      setStaffList(data);
-    } catch {
-      // ignore
     }
   };
 
@@ -153,687 +116,322 @@ export default function BusinessDashboardPage() {
     loadBusinessProfile();
   }, []);
 
-  // Form Submissions
-  const onAddBranch = async (e: FormEvent) => {
+  const handleInputChange = (field: string, value: any) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSecondaryCategoryChange = (categoryId: number) => {
+    setFormData((prev) => {
+      const current = prev.secondaryCategoryIds;
+      const updated = current.includes(categoryId)
+        ? current.filter(id => id !== categoryId)
+        : [...current, categoryId];
+      return { ...prev, secondaryCategoryIds: updated };
+    });
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!branchForm.name || !branchForm.address) return;
+    if (!formData.name.trim()) {
+      setError('Business name is required.');
+      return;
+    }
+
+    setSubmitting(true);
+    setMessage(null);
+    setError(null);
 
     try {
-      const res = await apiFetch<{ message: string }>('/api/business/branches', {
-        method: 'POST',
-        body: JSON.stringify(branchForm),
+      await apiFetch('/api/business/profile', {
+        method: 'PUT',
+        body: JSON.stringify({
+          ...formData,
+          primaryCategoryId: formData.primaryCategoryId ? parseInt(formData.primaryCategoryId) : null,
+          galleryUrls: business?.galleryUrls || '', // Preserve gallery URLs
+        }),
       });
-      setMessage(res.message);
-      setBranchForm({
-        name: '',
-        address: '',
-        latitude: 37.7749,
-        longitude: -122.4194,
-        phoneNumber: '',
-      });
-      await loadBranches();
+      setMessage('Profile updated successfully!');
+      await loadBusinessProfile();
     } catch (err: any) {
-      setError(err?.message || 'Failed to add branch');
+      setError(err?.message || 'Failed to update profile.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const onAddService = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!serviceForm.name) return;
-
-    try {
-      const res = await apiFetch<{ message: string }>('/api/business/services', {
-        method: 'POST',
-        body: JSON.stringify(serviceForm),
-      });
-      setMessage(res.message);
-      setServiceForm({
-        name: '',
-        description: '',
-        price: 0,
-        durationMinutes: 30,
-      });
-      await loadServices();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to add service');
-    }
-  };
-
-  const onAddStaff = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!staffForm.name || !staffForm.branchId) return;
-
-    try {
-      const res = await apiFetch<{ message: string }>('/api/business/staff', {
-        method: 'POST',
-        body: JSON.stringify(staffForm),
-      });
-      setMessage(res.message);
-      const currentBranchId = staffForm.branchId;
-      setStaffForm((prev) => ({ ...prev, name: '', designation: '' }));
-      await loadStaff(Number(currentBranchId));
-    } catch (err: any) {
-      setError(err?.message || 'Failed to add staff');
-    }
-  };
-
-  const onConfigureHours = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!hoursForm.branchId) return;
-
-    try {
-      const res = await apiFetch<{ message: string }>('/api/business/working-hours', {
-        method: 'POST',
-        body: JSON.stringify(hoursForm),
-      });
-      setMessage(res.message);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to update hours');
-    }
-  };
-
-  const onAddHoliday = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!holidayForm.branchId || !holidayForm.date) return;
-
-    try {
-      const res = await apiFetch<{ message: string }>('/api/business/holidays', {
-        method: 'POST',
-        body: JSON.stringify(holidayForm),
-      });
-      setMessage(res.message);
-      setHolidayForm((prev) => ({ ...prev, date: '', description: '' }));
-    } catch (err: any) {
-      setError(err?.message || 'Failed to register holiday');
-    }
-  };
-
-  if (loading && !business) {
+  if (loading) {
     return (
-      <div className={styles.dashboardWrapper}>
-        <p>Loading business dashboard...</p>
+      <div className={styles.loaderContainer}>
+        <div className="spinner" />
       </div>
     );
   }
 
-  return (
-    <div className={styles.dashboardWrapper}>
-      {/* Sidebar navigation */}
-      <div className={styles.dashboardSidebar}>
-        <div className="glass-card">
-          <div className={styles.sidebarHeader}>
-            <div className={styles.sidebarAvatar}>💼</div>
-            <h3>{business?.name || 'My Business'}</h3>
-            <span
-              className={`badge ${
-                business?.verified ? 'badge-success' : 'badge-warning'
-              }`}
-            >
-              {business?.verified ? 'Verified' : 'Pending Verification'}
-            </span>
-          </div>
-
-          <hr className="divider" />
-
-          <ul className={styles.navMenu}>
-            <li>
-              <button
-                className={`${styles.menuItem} ${
-                  activeTab === 'overview' ? styles.active : ''
-                }`}
-                onClick={() => handleTabChange('overview')}
-              >
-                <span>🏠</span> Overview
-              </button>
-            </li>
-            <li>
-              <button
-                className={`${styles.menuItem} ${
-                  activeTab === 'branches' ? styles.active : ''
-                }`}
-                onClick={() => handleTabChange('branches')}
-              >
-                <span>🏢</span> Branches
-              </button>
-            </li>
-            <li>
-              <button
-                className={`${styles.menuItem} ${
-                  activeTab === 'services' ? styles.active : ''
-                }`}
-                onClick={() => handleTabChange('services')}
-              >
-                <span>✂️</span> Services
-              </button>
-            </li>
-            <li>
-              <button
-                className={`${styles.menuItem} ${
-                  activeTab === 'staff' ? styles.active : ''
-                }`}
-                onClick={() => handleTabChange('staff')}
-              >
-                <span>👥</span> Staff Members
-              </button>
-            </li>
-            <li>
-              <button
-                className={`${styles.menuItem} ${
-                  activeTab === 'availability' ? styles.active : ''
-                }`}
-                onClick={() => handleTabChange('availability')}
-              >
-                <span>📅</span> Working Hours
-              </button>
-            </li>
-          </ul>
+  if (error && !business) {
+    return (
+      <div className={styles.errorState}>
+        <div className="glass-card text-center" style={{ padding: '40px', maxWidth: '500px', margin: '40px auto' }}>
+          <div style={{ fontSize: '3rem', marginBottom: '20px' }}>💼</div>
+          <h3>No Business Registered</h3>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
+            It looks like you haven't registered your business on HourSlot yet. Register now to list branches, staff, and start taking bookings.
+          </p>
+          <a href="/business/register" className="btn btn-primary">
+            Register Business
+          </a>
         </div>
       </div>
+    );
+  }
 
-      {/* Main dashboard content area */}
-      <div className={styles.dashboardContent}>
-        {message && (
-          <div className="success-alert">
-            <span>✅</span> {message}
+  const getStatusBadgeClass = (status: string) => {
+    switch (status) {
+      case 'APPROVED': return styles.badgeApproved;
+      case 'REJECTED': return styles.badgeRejected;
+      case 'SUSPENDED': return styles.badgeSuspended;
+      default: return styles.badgePending;
+    }
+  };
+
+  const checklist = [
+    { done: !!business?.name && !!business?.description, label: 'Complete business profile', href: '/business/dashboard' },
+    { done: setup.branches > 0, label: 'Add at least one branch', href: '/business/branches' },
+    { done: setup.services > 0, label: 'Add a bookable service', href: '/business/services' },
+    { done: setup.staff > 0, label: 'Add staff members', href: '/business/staff' },
+    { done: setup.hours > 0, label: 'Configure working hours', href: '/business/availability' },
+  ];
+  const readyForReview = checklist.every((c) => c.done);
+
+  return (
+    <div className={styles.dashboardContainer}>
+      <div className="glass-card" style={{ padding: 24, marginBottom: 20 }}>
+        <h3 style={{ marginTop: 0 }}>Setup checklist</h3>
+        <p style={{ color: 'var(--text-secondary)', marginTop: 0 }}>
+          Finish these steps so customers can book once your business is approved.
+        </p>
+        <ul style={{ listStyle: 'none', padding: 0, margin: '16px 0 0', display: 'grid', gap: 10 }}>
+          {checklist.map((item) => (
+            <li key={item.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <span>
+                <i
+                  className={`fa-solid ${item.done ? 'fa-circle-check' : 'fa-circle'}`}
+                  style={{ color: item.done ? 'var(--accent-green)' : 'var(--text-muted)', marginRight: 8 }}
+                />
+                {item.label}
+              </span>
+              {!item.done && (
+                <Link href={item.href} className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }}>
+                  Continue
+                </Link>
+              )}
+            </li>
+          ))}
+        </ul>
+        {business?.status === 'APPROVED' ? (
+          <div className="success-alert" style={{ marginTop: 16 }}>
+            You&apos;re live — share your booking page: <Link href={`/profile/business/${business.id}`}>/profile/business/{business.id}</Link>
+          </div>
+        ) : readyForReview ? (
+          <div className="success-alert" style={{ marginTop: 16 }}>
+            Setup complete. Waiting for admin approval before customers can book.
+          </div>
+        ) : (
+          <div className="error-alert" style={{ marginTop: 16, background: 'rgba(245,158,11,0.08)', color: '#b45309' }}>
+            Complete the checklist before going live.
           </div>
         )}
-        {error && (
-          <div className="error-alert">
-            <span>⚠️</span> {error}
+      </div>
+
+      {/* Top Banner Alert depending on verification status */}
+      {business?.status === 'PENDING' && (
+        <div className={styles.statusAlertPending}>
+          <i className="fa-solid fa-clock-rotate-left"></i>
+          <div>
+            <strong>Registration Pending Review</strong>
+            <p>Our administrators are currently verifying your business application. Some branch and scheduling configurations will unlock after approval.</p>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* TAB 1: OVERVIEW */}
-        {activeTab === 'overview' && (
-          <div className={styles.tabPanel}>
-            <div className="glass-card">
-              <h2>Overview</h2>
-              <p className={styles.panelSubtitle}>
-                Performance metrics and details for {business?.name}
-              </p>
+      {business?.status === 'REJECTED' && (
+        <div className={styles.statusAlertRejected}>
+          <i className="fa-solid fa-circle-xmark"></i>
+          <div>
+            <strong>Registration Rejected</strong>
+            <p>Reason: {business.rejectionReason || 'No reason specified'}. You can update your business details and re-submit for approval.</p>
+          </div>
+        </div>
+      )}
 
-              <div className={styles.metricsGrid}>
-                <div className={styles.metricCard}>
-                  <span className={styles.metricIcon}>💰</span>
-                  <div className={styles.metricInfo}>
-                    <h4>Revenue</h4>
-                    <p className={styles.metricValue}>$0.00</p>
-                  </div>
-                </div>
-                <div className={styles.metricCard}>
-                  <span className={styles.metricIcon}>📅</span>
-                  <div className={styles.metricInfo}>
-                    <h4>Bookings</h4>
-                    <p className={styles.metricValue}>0</p>
-                  </div>
-                </div>
-                <div className={styles.metricCard}>
-                  <span className={styles.metricIcon}>⭐</span>
-                  <div className={styles.metricInfo}>
-                    <h4>Rating</h4>
-                    <p className={styles.metricValue}>
-                      {business?.rating || '0.0'}
-                    </p>
-                  </div>
-                </div>
-              </div>
+      {business?.status === 'SUSPENDED' && (
+        <div className={styles.statusAlertSuspended}>
+          <i className="fa-solid fa-triangle-exclamation"></i>
+          <div>
+            <strong>Account Suspended</strong>
+            <p>Your business page is suspended. Customers cannot book services at this time. Please contact HourSlot Support.</p>
+          </div>
+        </div>
+      )}
 
-              <div className={styles.businessProfileDetail}>
-                <h3>About Your Business</h3>
-                <p>{business?.description || 'No description provided.'}</p>
+      {message && <div className="success-alert" style={{ marginBottom: '20px' }}><i className="fa-solid fa-circle-check"></i> {message}</div>}
+      {error && <div className="error-alert" style={{ marginBottom: '20px' }}><i className="fa-solid fa-triangle-exclamation"></i> {error}</div>}
+
+      <div className={styles.dashboardGrid}>
+        {/* Profile Card & Details */}
+        <div className="glass-card" style={{ padding: '24px' }}>
+          <div className={styles.profileHeader}>
+            <div className={styles.profileLogoContainer}>
+              {formData.logoUrl ? (
+                <img src={formData.logoUrl} alt="Logo" className={styles.profileLogo} />
+              ) : (
+                <div className={styles.logoPlaceholder}>💼</div>
+              )}
+            </div>
+            <div className={styles.profileTitleInfo}>
+              <h2>{business?.name}</h2>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '6px' }}>
+                <span className={`${styles.statusBadge} ${getStatusBadgeClass(business?.status || 'PENDING')}`}>
+                  {business?.status}
+                </span>
+                {business?.verified && (
+                  <span className={styles.verifiedBadge}>
+                    <i className="fa-solid fa-circle-check"></i> Verified Partner
+                  </span>
+                )}
               </div>
             </div>
           </div>
-        )}
 
-        {/* TAB 2: BRANCHES */}
-        {activeTab === 'branches' && (
-          <div className={styles.tabPanel}>
-            <div className="glass-card">
-              <h2>Manage Branches</h2>
-              <p className={styles.panelSubtitle}>
-                Add and configure physical location coordinates for discovery
-              </p>
-
-              <form onSubmit={onAddBranch} className={styles.horizontalFormGrid}>
-                <div className="form-group">
-                  <label className="form-label">Branch Name</label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    placeholder="Main Branch"
-                    value={branchForm.name}
-                    onChange={(e) =>
-                      setBranchForm((prev) => ({ ...prev, name: e.target.value }))
-                    }
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Address</label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    placeholder="123 Main St"
-                    value={branchForm.address}
-                    onChange={(e) =>
-                      setBranchForm((prev) => ({ ...prev, address: e.target.value }))
-                    }
-                  />
-                </div>
-                <div className="form-row">
-                  <div className="form-group half-width">
-                    <label className="form-label">Latitude</label>
-                    <input
-                      type="number"
-                      step="0.0001"
-                      className="input-field"
-                      value={branchForm.latitude}
-                      onChange={(e) =>
-                        setBranchForm((prev) => ({
-                          ...prev,
-                          latitude: parseFloat(e.target.value),
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="form-group half-width">
-                    <label className="form-label">Longitude</label>
-                    <input
-                      type="number"
-                      step="0.0001"
-                      className="input-field"
-                      value={branchForm.longitude}
-                      onChange={(e) =>
-                        setBranchForm((prev) => ({
-                          ...prev,
-                          longitude: parseFloat(e.target.value),
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Phone Number</label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    placeholder="555-0199"
-                    value={branchForm.phoneNumber}
-                    onChange={(e) =>
-                      setBranchForm((prev) => ({ ...prev, phoneNumber: e.target.value }))
-                    }
-                  />
-                </div>
-                <button type="submit" className="btn btn-primary">
-                  Add Branch
-                </button>
-              </form>
-
-              <div className={styles.listSection}>
-                <h3>Branch List</h3>
-                <div className={styles.listGrid}>
-                  {branches.length > 0 ? (
-                    branches.map((branch) => (
-                      <div key={branch.id} className={styles.listItemCard}>
-                        <h4>{branch.name}</h4>
-                        <p className={styles.itemMeta}>📍 {branch.address}</p>
-                        <p className={styles.itemMeta}>
-                          📞 {branch.phoneNumber || 'No phone'}
-                        </p>
-                      </div>
-                    ))
-                  ) : (
-                    <p className={styles.noItems}>No branches registered yet.</p>
-                  )}
-                </div>
-              </div>
+          <form onSubmit={handleSubmit} className={styles.profileForm}>
+            <div className="form-group">
+              <label className="form-label" htmlFor="name">Business Name</label>
+              <input
+                id="name"
+                type="text"
+                className="input-field"
+                value={formData.name}
+                onChange={(e) => handleInputChange('name', e.target.value)}
+                placeholder="e.g. Apex Health Clinic"
+                disabled={business?.status === 'SUSPENDED'}
+              />
             </div>
-          </div>
-        )}
 
-        {/* TAB 3: SERVICES */}
-        {activeTab === 'services' && (
-          <div className={styles.tabPanel}>
-            <div className="glass-card">
-              <h2>Services Offered</h2>
-              <p className={styles.panelSubtitle}>
-                Setup the menu of services and price points
-              </p>
-
-              <form onSubmit={onAddService} className={styles.horizontalFormGrid}>
-                <div className="form-group">
-                  <label className="form-label">Service Name</label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    placeholder="e.g. Haircut or Consultation"
-                    value={serviceForm.name}
-                    onChange={(e) =>
-                      setServiceForm((prev) => ({ ...prev, name: e.target.value }))
-                    }
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Price ($)</label>
-                  <input
-                    type="number"
-                    className="input-field"
-                    value={serviceForm.price}
-                    onChange={(e) =>
-                      setServiceForm((prev) => ({
-                        ...prev,
-                        price: parseFloat(e.target.value),
-                      }))
-                    }
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Duration (minutes)</label>
-                  <input
-                    type="number"
-                    className="input-field"
-                    value={serviceForm.durationMinutes}
-                    onChange={(e) =>
-                      setServiceForm((prev) => ({
-                        ...prev,
-                        durationMinutes: parseInt(e.target.value),
-                      }))
-                    }
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Description</label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    placeholder="Details about this service"
-                    value={serviceForm.description}
-                    onChange={(e) =>
-                      setServiceForm((prev) => ({
-                        ...prev,
-                        description: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <button type="submit" className="btn btn-primary">
-                  Add Service
-                </button>
-              </form>
-
-              <div className={styles.listSection}>
-                <h3>Service Catalog</h3>
-                <div className={styles.listGrid}>
-                  {services.length > 0 ? (
-                    services.map((svc) => (
-                      <div key={svc.id} className={styles.listItemCard}>
-                        <div className={styles.itemHeader}>
-                          <h4>{svc.name}</h4>
-                          <span className={styles.priceTag}>${svc.price}</span>
-                        </div>
-                        <p className={styles.itemMeta}>⏳ {svc.durationMinutes} minutes</p>
-                        <p className={styles.itemDesc}>{svc.description}</p>
-                      </div>
-                    ))
-                  ) : (
-                    <p className={styles.noItems}>No services cataloged yet.</p>
-                  )}
-                </div>
-              </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="description">Description</label>
+              <textarea
+                id="description"
+                className="input-field"
+                style={{ minHeight: '100px', resize: 'vertical' }}
+                value={formData.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                placeholder="Briefly describe your services..."
+                disabled={business?.status === 'SUSPENDED'}
+              />
             </div>
-          </div>
-        )}
 
-        {/* TAB 4: STAFF */}
-        {activeTab === 'staff' && (
-          <div className={styles.tabPanel}>
-            <div className="glass-card">
-              <h2>Manage Staff</h2>
-              <p className={styles.panelSubtitle}>
-                Register service providers and link them to branches
-              </p>
-
-              <form onSubmit={onAddStaff} className={styles.horizontalFormGrid}>
-                <div className="form-group">
-                  <label className="form-label">Staff Name</label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    placeholder="e.g. Dr. Sarah Smith"
-                    value={staffForm.name}
-                    onChange={(e) =>
-                      setStaffForm((prev) => ({ ...prev, name: e.target.value }))
-                    }
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Designation</label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    placeholder="e.g. Therapist or Barber"
-                    value={staffForm.designation}
-                    onChange={(e) =>
-                      setStaffForm((prev) => ({
-                        ...prev,
-                        designation: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Assigned Branch</label>
-                  <select
-                    className="input-field"
-                    value={staffForm.branchId}
-                    onChange={(e) => {
-                      const bId = e.target.value;
-                      setStaffForm((prev) => ({ ...prev, branchId: bId }));
-                      loadStaff(Number(bId));
-                    }}
-                  >
-                    {branches.map((branch) => (
-                      <option key={branch.id} value={branch.id}>
-                        {branch.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <button type="submit" className="btn btn-primary">
-                  Add Staff
-                </button>
-              </form>
-
-              <div className={styles.listSection}>
-                <h3>Staff Roster</h3>
-                <div className={styles.listGrid}>
-                  {staffList.length > 0 ? (
-                    staffList.map((staff) => (
-                      <div key={staff.id} className={styles.listItemCard}>
-                        <h4>{staff.name}</h4>
-                        <p className={styles.itemMeta}>
-                          🎓 {staff.designation || 'No designation'}
-                        </p>
-                        <p className={styles.itemMeta}>
-                          ⭐ {staff.rating || '0.0'} (No reviews)
-                        </p>
-                      </div>
-                    ))
-                  ) : (
-                    <p className={styles.noItems}>
-                      No staff registered for this branch.
-                    </p>
-                  )}
-                </div>
-              </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="logoUrl">Logo Image URL</label>
+              <input
+                id="logoUrl"
+                type="text"
+                className="input-field"
+                value={formData.logoUrl}
+                onChange={(e) => handleInputChange('logoUrl', e.target.value)}
+                placeholder="https://example.com/logo.png"
+                disabled={business?.status === 'SUSPENDED'}
+              />
             </div>
-          </div>
-        )}
 
-        {/* TAB 5: AVAILABILITY */}
-        {activeTab === 'availability' && (
-          <div className={styles.tabPanel}>
-            <div className="glass-card">
-              <h2>Working Hours & Holidays</h2>
-              <p className={styles.panelSubtitle}>
-                Configure slot limits, breaks, and off days
-              </p>
+            <div className="form-group">
+              <label className="form-label" htmlFor="registrationNumber">Government Reg / License Number</label>
+              <input
+                id="registrationNumber"
+                type="text"
+                className="input-field"
+                value={formData.registrationNumber}
+                onChange={(e) => handleInputChange('registrationNumber', e.target.value)}
+                placeholder="e.g. REG-776483-ABC"
+                disabled={business?.status === 'SUSPENDED'}
+              />
+            </div>
 
-              <div className={styles.splitForms}>
-                <div className={styles.subFormBlock}>
-                  <h3>Weekly Schedule</h3>
-                  <form onSubmit={onConfigureHours} className={styles.verticalFormBlock}>
-                    <div className="form-group">
-                      <label className="form-label">Select Branch</label>
-                      <select
-                        className="input-field"
-                        value={hoursForm.branchId}
-                        onChange={(e) =>
-                          setHoursForm((prev) => ({
-                            ...prev,
-                            branchId: e.target.value,
-                          }))
-                        }
-                      >
-                        {branches.map((branch) => (
-                          <option key={branch.id} value={branch.id}>
-                            {branch.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Day of the Week</label>
-                      <select
-                        className="input-field"
-                        value={hoursForm.dayOfWeek}
-                        onChange={(e) =>
-                          setHoursForm((prev) => ({
-                            ...prev,
-                            dayOfWeek: parseInt(e.target.value),
-                          }))
-                        }
-                      >
-                        <option value={1}>Monday</option>
-                        <option value={2}>Tuesday</option>
-                        <option value={3}>Wednesday</option>
-                        <option value={4}>Thursday</option>
-                        <option value={5}>Friday</option>
-                        <option value={6}>Saturday</option>
-                        <option value={7}>Sunday</option>
-                      </select>
-                    </div>
-                    <div className="form-row">
-                      <div className="form-group half-width">
-                        <label className="form-label">Start Time</label>
-                        <input
-                          type="time"
-                          className="input-field"
-                          value={hoursForm.startTime}
-                          onChange={(e) =>
-                            setHoursForm((prev) => ({
-                              ...prev,
-                              startTime: e.target.value,
-                            }))
-                          }
-                        />
-                      </div>
-                      <div className="form-group half-width">
-                        <label className="form-label">End Time</label>
-                        <input
-                          type="time"
-                          className="input-field"
-                          value={hoursForm.endTime}
-                          onChange={(e) =>
-                            setHoursForm((prev) => ({
-                              ...prev,
-                              endTime: e.target.value,
-                            }))
-                          }
-                        />
-                      </div>
-                    </div>
-                    <div className="form-group checkbox-group">
-                      <label className={styles.checkboxLabel}>
-                        <input
-                          type="checkbox"
-                          checked={hoursForm.closed}
-                          onChange={(e) =>
-                            setHoursForm((prev) => ({
-                              ...prev,
-                              closed: e.target.checked,
-                            }))
-                          }
-                        />
-                        Branch Closed on this day
-                      </label>
-                    </div>
-                    <button type="submit" className="btn btn-primary">
-                      Save Schedule
-                    </button>
-                  </form>
-                </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="primaryCategorySelect">Primary Category</label>
+              <select
+                id="primaryCategorySelect"
+                className="input-field"
+                value={formData.primaryCategoryId}
+                onChange={(e) => handleInputChange('primaryCategoryId', e.target.value)}
+                disabled={business?.status === 'SUSPENDED'}
+              >
+                <option value="">-- Select Primary Category --</option>
+                {availableCategories.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
 
-                <div className={styles.subFormBlock}>
-                  <h3>Register Holidays (Days Off)</h3>
-                  <form onSubmit={onAddHoliday} className={styles.verticalFormBlock}>
-                    <div className="form-group">
-                      <label className="form-label">Select Branch</label>
-                      <select
-                        className="input-field"
-                        value={holidayForm.branchId}
-                        onChange={(e) =>
-                          setHolidayForm((prev) => ({
-                            ...prev,
-                            branchId: e.target.value,
-                          }))
-                        }
-                      >
-                        {branches.map((branch) => (
-                          <option key={branch.id} value={branch.id}>
-                            {branch.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Holiday Date</label>
+            <div className="form-group">
+              <label className="form-label">Secondary Categories</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '10px', marginTop: '6px', background: 'rgba(255,255,255,0.01)', padding: '10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                {availableCategories
+                  .filter((c) => c.id.toString() !== formData.primaryCategoryId)
+                  .map((c) => (
+                    <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: '#ffffff' }}>
                       <input
-                        type="date"
-                        className="input-field"
-                        value={holidayForm.date}
-                        onChange={(e) =>
-                          setHolidayForm((prev) => ({
-                            ...prev,
-                            date: e.target.value,
-                          }))
-                        }
+                        type="checkbox"
+                        checked={formData.secondaryCategoryIds.includes(c.id)}
+                        onChange={() => handleSecondaryCategoryChange(c.id)}
+                        disabled={business?.status === 'SUSPENDED'}
                       />
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Description</label>
-                      <input
-                        type="text"
-                        className="input-field"
-                        placeholder="e.g. Labor Day"
-                        value={holidayForm.description}
-                        onChange={(e) =>
-                          setHolidayForm((prev) => ({
-                            ...prev,
-                            description: e.target.value,
-                          }))
-                        }
-                      />
-                    </div>
-                    <button type="submit" className="btn btn-primary">
-                      Add Holiday
-                    </button>
-                  </form>
-                </div>
+                      {c.name}
+                    </label>
+                  ))}
               </div>
             </div>
+
+            <button 
+              type="submit" 
+              className="btn btn-primary" 
+              style={{ width: '100%', marginTop: '10px' }}
+              disabled={submitting || business?.status === 'SUSPENDED'}
+            >
+              {submitting ? 'Saving changes...' : 'Save Profile'}
+            </button>
+          </form>
+        </div>
+
+        {/* Stats and Info Sidebar */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Quick Metrics */}
+          <div className="glass-card" style={{ padding: '24px' }}>
+            <h3 style={{ marginBottom: '16px', fontSize: '1.1rem' }}>Business Metrics</h3>
+            <div className={styles.metricRow}>
+              <span>Platform Commission</span>
+              <strong>{business?.commissionRate}%</strong>
+            </div>
+            <div className={styles.metricRow}>
+              <span>Average Rating</span>
+              <strong style={{ color: '#f59e0b' }}>
+                ⭐ {business?.rating ? business.rating.toFixed(1) : '0.0'}
+              </strong>
+            </div>
+            <div className={styles.metricRow}>
+              <span>Public Link Preview</span>
+              <span className={styles.slugLink}>
+                {business?.slug ? `/b/${business.slug}` : 'No slug configured'}
+              </span>
+            </div>
           </div>
-        )}
+
+          {/* Guidelines info box */}
+          <div className="glass-card" style={{ padding: '24px', borderLeft: '4px solid var(--accent-primary)' }}>
+            <h4 style={{ marginBottom: '8px', color: '#ffffff' }}>Verification Badges</h4>
+            <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+              Add your official government registration number to apply for the verified green checkmark. Verified businesses receive higher visibility in local coordinate search matches.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
