@@ -3,6 +3,7 @@
 import { useState, FormEvent } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { apiFetch } from '@/lib/api';
 import styles from './forgot.module.css';
 
 export default function ForgotPasswordPage() {
@@ -10,6 +11,7 @@ export default function ForgotPasswordPage() {
   const [touched, setTouched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [devToken, setDevToken] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const emailError = touched && !email ? 'Email is required.' :
@@ -23,10 +25,19 @@ export default function ForgotPasswordPage() {
     setLoading(true);
     setErrorMessage(null);
 
-    // Simulate API call — backend endpoint to be implemented
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setLoading(false);
-    setSent(true);
+    try {
+      const res = await apiFetch<{ message: string; token?: string }>('/api/auth/forgot-password', {
+        method: 'POST',
+        skipAuth: true,
+        body: JSON.stringify({ email }),
+      });
+      if (res?.token) setDevToken(res.token);
+      setSent(true);
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Could not start password reset.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (sent) {
@@ -41,10 +52,15 @@ export default function ForgotPasswordPage() {
               </span>
               <h2 className={styles.successTitle}>Check Your Inbox</h2>
               <p className={styles.successMessage}>
-                We&apos;ve sent a password reset link to <strong>{email}</strong>. 
-                Please check your email and follow the instructions.
+                If an account exists for <strong>{email}</strong>, a password reset link was generated.
+                In local development the token is also written to the backend logs.
               </p>
-              <Link href="/auth/login" className="btn btn-primary btn-block">
+              {devToken && (
+                <Link href={`/auth/reset-password?token=${devToken}`} className="btn btn-primary btn-block" style={{ marginBottom: 12 }}>
+                  Continue with reset token
+                </Link>
+              )}
+              <Link href="/auth/login" className="btn btn-secondary btn-block">
                 Back to Login
               </Link>
             </div>
@@ -77,7 +93,7 @@ export default function ForgotPasswordPage() {
           <div className={styles.authHeader}>
             <h2 className={styles.authTitle}>Forgot Password?</h2>
             <p className={styles.authSubtitle}>
-              No worries! Enter your email and we&apos;ll send you instructions to reset your password.
+              Enter your email and we&apos;ll generate a reset link for your HourSlot account.
             </p>
           </div>
 

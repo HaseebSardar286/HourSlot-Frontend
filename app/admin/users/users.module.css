@@ -1,0 +1,228 @@
+.usersWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Filter controls row */
+.filterBar {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  box-shadow: var(--card-shadow);
+  flex-wrap: wrap;
+}
+
+.searchGroup {
+  display: flex;
+  align-items: center;
+  background: rgba(240, 247, 247, 0.6);
+  border: 1.5px solid rgba(26, 138, 138, 0.12);
+  border-radius: var(--radius-sm);
+  padding: 2px 12px;
+  flex: 1;
+  max-width: 400px;
+  transition: var(--transition-smooth);
+}
+
+.searchGroup:focus-within {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--border-focus);
+  background: #ffffff;
+}
+
+.searchIcon {
+  color: var(--text-muted);
+  margin-right: 8px;
+}
+
+.searchInput {
+  border: none;
+  background: transparent;
+  outline: none;
+  padding: 10px 0;
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  color: var(--text-main);
+}
+
+.filterControls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.selectRole {
+  padding: 10px 32px 10px 14px;
+  border-radius: var(--radius-sm);
+  background-color: rgba(240, 247, 247, 0.6);
+  border: 1.5px solid rgba(26, 138, 138, 0.12);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--text-main);
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237a9aa5' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  transition: var(--transition-smooth);
+}
+
+.selectRole:focus {
+  border-color: var(--accent-primary);
+  background-color: #ffffff;
+}
+
+/* User Table */
+.tableCard {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+}
+
+.usersTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.usersTable th {
+  background: rgba(26, 138, 138, 0.02);
+  padding: 16px 24px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  text-align: left;
+  border-bottom: 1.5px solid var(--border-color);
+}
+
+.usersTable td {
+  padding: 18px 24px;
+  font-size: 0.92rem;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+
+.usersTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.usersTable tbody tr:hover td {
+  background-color: rgba(26, 138, 138, 0.01);
+}
+
+.userInfoCell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatarCircle {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(26, 138, 138, 0.08);
+  color: var(--accent-primary);
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-headers);
+}
+
+.userMeta {
+  display: flex;
+  flex-direction: column;
+}
+
+.userName {
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.userEmail {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Switch styling for Toggle Status */
+.switchLabel {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 22px;
+  cursor: pointer;
+}
+
+.switchLabel input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #cbd5e1;
+  transition: .3s;
+  border-radius: 34px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .3s;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+input:checked + .slider {
+  background: var(--accent-gradient);
+}
+
+input:checked + .slider:before {
+  transform: translateX(22px);
+}
+
+/* Action Buttons */
+.actionBtns {
+  display: flex;
+  gap: 8px;
+}
+
+.deleteBtn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.deleteBtn:hover {
+  color: var(--accent-red);
+  background: rgba(239, 68, 68, 0.08);
+}

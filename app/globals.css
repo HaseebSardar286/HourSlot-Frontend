@@ -2,11 +2,11 @@
 
 /* ==========================================================================
    DESIGN TOKENS & UTILITIES - SYSTEM CONFIGURATION (HourSlot Design System)
-   Light Theme — Teal/Green palette matching logo-hourslot.png
+   Light Theme — Teal HourSlot palette
    ========================================================================== */
 
 :root {
-  /* Color Palette (Light Theme — Logo-matched) */
+  /* Color Palette (Light Theme — Teal/Green palette matching logo-hourslot.png) */
   --bg-primary: #f0f7f7;
   --bg-secondary: #ffffff;
   --bg-card: rgba(255, 255, 255, 0.85);
@@ -15,9 +15,10 @@
   --accent-primary: #1a8a8a;         /* Teal — primary from logo */
   --accent-secondary: #5bb88c;       /* Green — secondary from logo */
   --accent-gradient: linear-gradient(135deg, #1a8a8a, #5bb88c);
-  --accent-green: #10b981;           /* Emerald */
-  --accent-yellow: #f59e0b;          /* Amber */
-  --accent-red: #ef4444;             /* Rose */
+  --accent-primary-rgb: 26, 138, 138;
+  --accent-green: #10b981;
+  --accent-yellow: #f59e0b;
+  --accent-red: #ef4444;
 
   --text-main: #1a2e35;              /* Dark teal-slate */
   --text-secondary: #3d5a65;         /* Medium teal-slate */
@@ -57,13 +58,14 @@
 
 html, body {
   width: 100%;
-  min-height: 100%;
+  min-height: 100vh;
   background-color: var(--bg-primary);
   color: var(--text-main);
   font-family: var(--font-body);
-  font-size: 16px;
-  line-height: 1.6;
+  font-size: 13.5px;
+  line-height: 1.5;
   overflow-x: hidden;
+  overflow-y: auto;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -569,4 +571,34 @@ a {
   height: 600px;
   background: radial-gradient(circle, rgba(91, 184, 140, 0.06) 0%, transparent 70%);
   border-radius: 50%;
+}
+
+/* Intentional motion for page presence */
+@keyframes hsFadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes hsScaleIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.app-main,
+.pageBody {
+  animation: hsFadeUp 0.35s ease both;
+}
+
+.glass-card,
+.successWrapper .glass-card {
+  animation: hsScaleIn 0.3s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-main,
+  .pageBody,
+  .glass-card,
+  .successWrapper .glass-card {
+    animation: none;
+  }
 }

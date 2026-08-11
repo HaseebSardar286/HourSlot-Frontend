@@ -1,0 +1,267 @@
+.detailWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-family: var(--font-headers);
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: var(--transition-fast);
+  text-decoration: none;
+  width: fit-content;
+}
+
+.backLink:hover {
+  color: var(--accent-primary);
+  transform: translateX(-3px);
+}
+
+/* Detail Card Layout */
+.bizHeaderCard {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  box-shadow: var(--card-shadow);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.bizHeaderLeft {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+
+.largeLogo {
+  width: 80px;
+  height: 80px;
+  border-radius: var(--radius-lg);
+  object-fit: cover;
+  border: 1px solid var(--border-color);
+}
+
+.largeInitials {
+  width: 80px;
+  height: 80px;
+  border-radius: var(--radius-lg);
+  background: var(--accent-gradient);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 2.2rem;
+  font-family: var(--font-headers);
+}
+
+.headerTitle {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--text-main);
+  line-height: 1.2;
+}
+
+.headerCategory {
+  font-size: 0.88rem;
+  color: var(--accent-primary);
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-top: 4px;
+  letter-spacing: 0.05em;
+}
+
+/* Three Columns Grid */
+.detailGrid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 900px) {
+  .detailGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.infoCard {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  box-shadow: var(--card-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sectionTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-main);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 12px;
+  margin-bottom: 8px;
+}
+
+.infoGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.infoRow {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px dashed rgba(26, 138, 138, 0.06);
+  padding-bottom: 8px;
+}
+
+.infoLabel {
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+}
+
+.infoValue {
+  color: var(--text-main);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+/* Action Controls Panel */
+.actionPanel {
+  background: rgba(26, 138, 138, 0.02);
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.actionBtns {
+  display: flex;
+  gap: 12px;
+}
+
+/* Commission Setting Form */
+.commissionForm {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.commissionInput {
+  width: 70px;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid rgba(26, 138, 138, 0.15);
+  outline: none;
+  font-weight: 700;
+  text-align: center;
+  font-family: var(--font-headers);
+}
+
+.commissionInput:focus {
+  border-color: var(--accent-primary);
+}
+
+/* Branches, services items list */
+.itemList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.itemRow {
+  background: var(--bg-primary);
+  padding: 14px 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(26, 138, 138, 0.05);
+}
+
+.itemName {
+  font-weight: 700;
+  color: var(--text-main);
+  font-size: 0.92rem;
+}
+
+.itemSub {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* Overlay Modal dialogue */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(17, 34, 34, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.25s ease;
+}
+
+.modalContent {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  width: 480px;
+  max-width: 90%;
+  padding: 28px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-color);
+  animation: scaleIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.modalTitle {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--text-main);
+}
+
+.modalTextarea {
+  width: 100%;
+  height: 120px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid rgba(26, 138, 138, 0.15);
+  padding: 12px;
+  outline: none;
+  resize: none;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  margin-bottom: 20px;
+}
+
+.modalTextarea:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--border-focus);
+}
+
+.modalBtns {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
