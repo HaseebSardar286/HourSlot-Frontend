@@ -1,5 +1,7 @@
 'use client';
 
+import styles from './ui.module.css';
+
 interface EmptyStateProps {
   icon?: string;
   title: string;
@@ -16,16 +18,12 @@ export default function EmptyState({
   onAction,
 }: EmptyStateProps) {
   return (
-    <div className="glass-card text-center" style={{ padding: '48px 32px' }}>
-      <i
-        className={`fa-solid ${icon}`}
-        style={{ fontSize: '2.2rem', color: 'var(--accent-primary)', marginBottom: 12 }}
-        aria-hidden
-      />
-      <h3 style={{ margin: '0 0 8px', fontSize: '1.15rem' }}>{title}</h3>
-      {description && (
-        <p style={{ color: 'var(--text-secondary)', margin: '0 0 20px' }}>{description}</p>
-      )}
+    <div className={styles.emptyState}>
+      <div className={styles.emptyIcon}>
+        <i className={`fa-solid ${icon}`} aria-hidden />
+      </div>
+      <h3 className={styles.emptyTitle}>{title}</h3>
+      {description && <p className={styles.emptyDesc}>{description}</p>}
       {actionLabel && onAction && (
         <button type="button" className="btn btn-primary" onClick={onAction}>
           {actionLabel}

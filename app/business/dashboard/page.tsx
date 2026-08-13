@@ -3,7 +3,11 @@
 import { useState, useEffect, FormEvent } from 'react';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
-import { useAuth } from '@/lib/auth-context';
+import PageHeader from '@/components/PageHeader';
+import EmptyState from '@/components/EmptyState';
+import Skeleton from '@/components/Skeleton';
+import StatusBadge from '@/components/StatusBadge';
+import { StatCard, MetricGrid } from '@/components/StatCard';
 import styles from './dashboard.module.css';
 
 interface Category {
@@ -29,7 +33,6 @@ interface BusinessProfile {
 }
 
 export default function BusinessDashboardPage() {
-  const { user } = useAuth();
   const [business, setBusiness] = useState<BusinessProfile | null>(null);
   const [availableCategories, setAvailableCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +46,6 @@ export default function BusinessDashboardPage() {
     hours: 0,
   });
 
-  // Form states
   const [formData, setFormData] = useState<{
     name: string;
     description: string;
@@ -103,7 +105,7 @@ export default function BusinessDashboardPage() {
         logoUrl: data.logoUrl || '',
         registrationNumber: data.registrationNumber || '',
         primaryCategoryId: data.primaryCategory ? data.primaryCategory.id.toString() : '',
-        secondaryCategoryIds: data.secondaryCategories ? data.secondaryCategories.map(c => c.id) : [],
+        secondaryCategoryIds: data.secondaryCategories ? data.secondaryCategories.map((c) => c.id) : [],
       });
     } catch (err: any) {
       setError(err?.message || 'Could not load business profile. Have you registered yet?');
@@ -124,7 +126,7 @@ export default function BusinessDashboardPage() {
     setFormData((prev) => {
       const current = prev.secondaryCategoryIds;
       const updated = current.includes(categoryId)
-        ? current.filter(id => id !== categoryId)
+        ? current.filter((id) => id !== categoryId)
         : [...current, categoryId];
       return { ...prev, secondaryCategoryIds: updated };
     });
@@ -147,7 +149,7 @@ export default function BusinessDashboardPage() {
         body: JSON.stringify({
           ...formData,
           primaryCategoryId: formData.primaryCategoryId ? parseInt(formData.primaryCategoryId) : null,
-          galleryUrls: business?.galleryUrls || '', // Preserve gallery URLs
+          galleryUrls: business?.galleryUrls || '',
         }),
       });
       setMessage('Profile updated successfully!');
@@ -161,37 +163,31 @@ export default function BusinessDashboardPage() {
 
   if (loading) {
     return (
-      <div className={styles.loaderContainer}>
-        <div className="spinner" />
+      <div className={styles.dashboardContainer}>
+        <Skeleton variant="title" />
+        <Skeleton variant="card" count={2} />
+        <div className={styles.skeletonGrid}>
+          <Skeleton variant="card" count={4} />
+        </div>
       </div>
     );
   }
 
   if (error && !business) {
     return (
-      <div className={styles.errorState}>
-        <div className="glass-card text-center" style={{ padding: '40px', maxWidth: '500px', margin: '40px auto' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '20px' }}>💼</div>
-          <h3>No Business Registered</h3>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
-            It looks like you haven't registered your business on HourSlot yet. Register now to list branches, staff, and start taking bookings.
-          </p>
-          <a href="/business/register" className="btn btn-primary">
-            Register Business
-          </a>
-        </div>
+      <div className={styles.dashboardContainer}>
+        <EmptyState
+          icon="fa-briefcase"
+          title="No business registered"
+          description="Register your business on HourSlot to list branches, staff, and start taking bookings."
+          actionLabel="Register Business"
+          onAction={() => {
+            window.location.href = '/business/register';
+          }}
+        />
       </div>
     );
   }
-
-  const getStatusBadgeClass = (status: string) => {
-    switch (status) {
-      case 'APPROVED': return styles.badgeApproved;
-      case 'REJECTED': return styles.badgeRejected;
-      case 'SUSPENDED': return styles.badgeSuspended;
-      default: return styles.badgePending;
-    }
-  };
 
   const checklist = [
     { done: !!business?.name && !!business?.description, label: 'Complete business profile', href: '/business/dashboard' },
@@ -201,17 +197,88 @@ export default function BusinessDashboardPage() {
     { done: setup.hours > 0, label: 'Configure working hours', href: '/business/availability' },
   ];
   const readyForReview = checklist.every((c) => c.done);
+  const doneCount = checklist.filter((c) => c.done).length;
 
   return (
     <div className={styles.dashboardContainer}>
-      <div className="glass-card" style={{ padding: 24, marginBottom: 20 }}>
-        <h3 style={{ marginTop: 0 }}>Setup checklist</h3>
-        <p style={{ color: 'var(--text-secondary)', marginTop: 0 }}>
-          Finish these steps so customers can book once your business is approved.
-        </p>
-        <ul style={{ listStyle: 'none', padding: 0, margin: '16px 0 0', display: 'grid', gap: 10 }}>
+      <PageHeader
+        title={business?.name || 'Business Dashboard'}
+        subtitle="Track setup progress, status, and keep your public profile up to date."
+        actions={
+          business?.status === 'APPROVED' ? (
+            <Link href={`/profile/business/${business.id}`} className="btn btn-secondary">
+              View public page
+            </Link>
+          ) : undefined
+        }
+      />
+
+      {business?.status === 'PENDING' && (
+        <div className={styles.statusAlertPending}>
+          <i className="fa-solid fa-clock-rotate-left" />
+          <div>
+            <strong>Registration pending review</strong>
+            <p>Administrators are verifying your application. Some scheduling features unlock after approval.</p>
+          </div>
+        </div>
+      )}
+
+      {business?.status === 'REJECTED' && (
+        <div className={styles.statusAlertRejected}>
+          <i className="fa-solid fa-circle-xmark" />
+          <div>
+            <strong>Registration rejected</strong>
+            <p>
+              Reason: {business.rejectionReason || 'No reason specified'}. Update your details and resubmit for
+              approval.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {business?.status === 'SUSPENDED' && (
+        <div className={styles.statusAlertSuspended}>
+          <i className="fa-solid fa-triangle-exclamation" />
+          <div>
+            <strong>Account suspended</strong>
+            <p>Customers cannot book right now. Please contact HourSlot Support.</p>
+          </div>
+        </div>
+      )}
+
+      {message && (
+        <div className="success-alert">
+          <i className="fa-solid fa-circle-check" /> {message}
+        </div>
+      )}
+      {error && (
+        <div className="error-alert">
+          <i className="fa-solid fa-triangle-exclamation" /> {error}
+        </div>
+      )}
+
+      <MetricGrid>
+        <StatCard label="Status" value={business?.status?.replace('_', ' ') || '—'} icon="fa-shield-halved" />
+        <StatCard label="Setup progress" value={`${doneCount}/${checklist.length}`} hint="Checklist items complete" icon="fa-list-check" />
+        <StatCard
+          label="Rating"
+          value={business?.rating ? business.rating.toFixed(1) : '0.0'}
+          icon="fa-star"
+        />
+        <StatCard label="Commission" value={`${business?.commissionRate ?? 0}%`} icon="fa-percent" />
+      </MetricGrid>
+
+      <div className={`surface ${styles.checklistCard}`}>
+        <div className={styles.checklistHeader}>
+          <div>
+            <h3>Setup checklist</h3>
+            <p>Finish these steps so customers can book once your business is approved.</p>
+          </div>
+          <StatusBadge status={business?.status || 'PENDING'} />
+        </div>
+        <ul className={styles.checklist}>
           {checklist.map((item) => (
-            <li key={item.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <li key={item.label}>
               <span>
                 <i
                   className={`fa-solid ${item.done ? 'fa-circle-check' : 'fa-circle'}`}
@@ -220,7 +287,7 @@ export default function BusinessDashboardPage() {
                 {item.label}
               </span>
               {!item.done && (
-                <Link href={item.href} className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }}>
+                <Link href={item.href} className="btn btn-secondary btn-sm">
                   Continue
                 </Link>
               )}
@@ -228,74 +295,36 @@ export default function BusinessDashboardPage() {
           ))}
         </ul>
         {business?.status === 'APPROVED' ? (
-          <div className="success-alert" style={{ marginTop: 16 }}>
-            You&apos;re live — share your booking page: <Link href={`/profile/business/${business.id}`}>/profile/business/{business.id}</Link>
+          <div className="success-alert">
+            You&apos;re live — share your booking page:{' '}
+            <Link href={`/profile/business/${business.id}`}>/profile/business/{business.id}</Link>
           </div>
         ) : readyForReview ? (
-          <div className="success-alert" style={{ marginTop: 16 }}>
-            Setup complete. Waiting for admin approval before customers can book.
-          </div>
+          <div className="success-alert">Setup complete. Waiting for admin approval before customers can book.</div>
         ) : (
-          <div className="error-alert" style={{ marginTop: 16, background: 'rgba(245,158,11,0.08)', color: '#b45309' }}>
-            Complete the checklist before going live.
-          </div>
+          <div className={`error-alert ${styles.warnAlert}`}>Complete the checklist before going live.</div>
         )}
       </div>
 
-      {/* Top Banner Alert depending on verification status */}
-      {business?.status === 'PENDING' && (
-        <div className={styles.statusAlertPending}>
-          <i className="fa-solid fa-clock-rotate-left"></i>
-          <div>
-            <strong>Registration Pending Review</strong>
-            <p>Our administrators are currently verifying your business application. Some branch and scheduling configurations will unlock after approval.</p>
-          </div>
-        </div>
-      )}
-
-      {business?.status === 'REJECTED' && (
-        <div className={styles.statusAlertRejected}>
-          <i className="fa-solid fa-circle-xmark"></i>
-          <div>
-            <strong>Registration Rejected</strong>
-            <p>Reason: {business.rejectionReason || 'No reason specified'}. You can update your business details and re-submit for approval.</p>
-          </div>
-        </div>
-      )}
-
-      {business?.status === 'SUSPENDED' && (
-        <div className={styles.statusAlertSuspended}>
-          <i className="fa-solid fa-triangle-exclamation"></i>
-          <div>
-            <strong>Account Suspended</strong>
-            <p>Your business page is suspended. Customers cannot book services at this time. Please contact HourSlot Support.</p>
-          </div>
-        </div>
-      )}
-
-      {message && <div className="success-alert" style={{ marginBottom: '20px' }}><i className="fa-solid fa-circle-check"></i> {message}</div>}
-      {error && <div className="error-alert" style={{ marginBottom: '20px' }}><i className="fa-solid fa-triangle-exclamation"></i> {error}</div>}
-
       <div className={styles.dashboardGrid}>
-        {/* Profile Card & Details */}
-        <div className="glass-card" style={{ padding: '24px' }}>
+        <div className="surface">
           <div className={styles.profileHeader}>
             <div className={styles.profileLogoContainer}>
               {formData.logoUrl ? (
                 <img src={formData.logoUrl} alt="Logo" className={styles.profileLogo} />
               ) : (
-                <div className={styles.logoPlaceholder}>💼</div>
+                <div className={styles.logoPlaceholder}>
+                  <i className="fa-solid fa-briefcase" />
+                </div>
               )}
             </div>
             <div className={styles.profileTitleInfo}>
               <h2>{business?.name}</h2>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '6px' }}>
-                <span className={`${styles.statusBadge} ${getStatusBadgeClass(business?.status || 'PENDING')}`}>
-                  {business?.status}
-                </span>
+              <div className={styles.badgeRow}>
+                <StatusBadge status={business?.status || 'PENDING'} />
                 {business?.verified && (
                   <span className={styles.verifiedBadge}>
-                    <i className="fa-solid fa-circle-check"></i> Verified Partner
+                    <i className="fa-solid fa-circle-check" /> Verified Partner
                   </span>
                 )}
               </div>
@@ -304,7 +333,9 @@ export default function BusinessDashboardPage() {
 
           <form onSubmit={handleSubmit} className={styles.profileForm}>
             <div className="form-group">
-              <label className="form-label" htmlFor="name">Business Name</label>
+              <label className="form-label" htmlFor="name">
+                Business Name
+              </label>
               <input
                 id="name"
                 type="text"
@@ -317,11 +348,12 @@ export default function BusinessDashboardPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="description">Description</label>
+              <label className="form-label" htmlFor="description">
+                Description
+              </label>
               <textarea
                 id="description"
-                className="input-field"
-                style={{ minHeight: '100px', resize: 'vertical' }}
+                className={`input-field ${styles.textarea}`}
                 value={formData.description}
                 onChange={(e) => handleInputChange('description', e.target.value)}
                 placeholder="Briefly describe your services..."
@@ -330,7 +362,9 @@ export default function BusinessDashboardPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="logoUrl">Logo Image URL</label>
+              <label className="form-label" htmlFor="logoUrl">
+                Logo Image URL
+              </label>
               <input
                 id="logoUrl"
                 type="text"
@@ -343,7 +377,9 @@ export default function BusinessDashboardPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="registrationNumber">Government Reg / License Number</label>
+              <label className="form-label" htmlFor="registrationNumber">
+                Government Reg / License Number
+              </label>
               <input
                 id="registrationNumber"
                 type="text"
@@ -356,28 +392,32 @@ export default function BusinessDashboardPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="primaryCategorySelect">Primary Category</label>
+              <label className="form-label" htmlFor="primaryCategorySelect">
+                Primary Category
+              </label>
               <select
                 id="primaryCategorySelect"
-                className="input-field"
+                className="select-field"
                 value={formData.primaryCategoryId}
                 onChange={(e) => handleInputChange('primaryCategoryId', e.target.value)}
                 disabled={business?.status === 'SUSPENDED'}
               >
                 <option value="">-- Select Primary Category --</option>
                 {availableCategories.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
                 ))}
               </select>
             </div>
 
             <div className="form-group">
               <label className="form-label">Secondary Categories</label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '10px', marginTop: '6px', background: 'rgba(255,255,255,0.01)', padding: '10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+              <div className={styles.categoryGrid}>
                 {availableCategories
                   .filter((c) => c.id.toString() !== formData.primaryCategoryId)
                   .map((c) => (
-                    <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: '#ffffff' }}>
+                    <label key={c.id} className={styles.categoryItem}>
                       <input
                         type="checkbox"
                         checked={formData.secondaryCategoryIds.includes(c.id)}
@@ -390,10 +430,9 @@ export default function BusinessDashboardPage() {
               </div>
             </div>
 
-            <button 
-              type="submit" 
-              className="btn btn-primary" 
-              style={{ width: '100%', marginTop: '10px' }}
+            <button
+              type="submit"
+              className="btn btn-primary"
               disabled={submitting || business?.status === 'SUSPENDED'}
             >
               {submitting ? 'Saving changes...' : 'Save Profile'}
@@ -401,34 +440,30 @@ export default function BusinessDashboardPage() {
           </form>
         </div>
 
-        {/* Stats and Info Sidebar */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Quick Metrics */}
-          <div className="glass-card" style={{ padding: '24px' }}>
-            <h3 style={{ marginBottom: '16px', fontSize: '1.1rem' }}>Business Metrics</h3>
+        <div className={styles.sideColumn}>
+          <div className="surface">
+            <h3 className={styles.sideTitle}>Business metrics</h3>
             <div className={styles.metricRow}>
-              <span>Platform Commission</span>
+              <span>Platform commission</span>
               <strong>{business?.commissionRate}%</strong>
             </div>
             <div className={styles.metricRow}>
-              <span>Average Rating</span>
-              <strong style={{ color: '#f59e0b' }}>
-                ⭐ {business?.rating ? business.rating.toFixed(1) : '0.0'}
+              <span>Average rating</span>
+              <strong className={styles.ratingValue}>
+                <i className="fa-solid fa-star" /> {business?.rating ? business.rating.toFixed(1) : '0.0'}
               </strong>
             </div>
             <div className={styles.metricRow}>
-              <span>Public Link Preview</span>
-              <span className={styles.slugLink}>
-                {business?.slug ? `/b/${business.slug}` : 'No slug configured'}
-              </span>
+              <span>Public link</span>
+              <span className={styles.slugLink}>{business?.slug ? `/b/${business.slug}` : 'No slug yet'}</span>
             </div>
           </div>
 
-          {/* Guidelines info box */}
-          <div className="glass-card" style={{ padding: '24px', borderLeft: '4px solid var(--accent-primary)' }}>
-            <h4 style={{ marginBottom: '8px', color: '#ffffff' }}>Verification Badges</h4>
-            <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-              Add your official government registration number to apply for the verified green checkmark. Verified businesses receive higher visibility in local coordinate search matches.
+          <div className={`surface ${styles.tipCard}`}>
+            <h4>Verification badges</h4>
+            <p>
+              Add your official registration number to apply for the verified checkmark. Verified businesses get higher
+              visibility in local search.
             </p>
           </div>
         </div>

@@ -2,6 +2,13 @@
 
 import { useState, useEffect, FormEvent } from 'react';
 import { apiFetch } from '@/lib/api';
+import PageHeader from '@/components/PageHeader';
+import EmptyState from '@/components/EmptyState';
+import Skeleton from '@/components/Skeleton';
+import Modal from '@/components/Modal';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import DataTable from '@/components/DataTable';
+import StatusBadge from '@/components/StatusBadge';
 import styles from './packages.module.css';
 
 interface Service {
@@ -28,10 +35,10 @@ export default function PackagesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-
-  // Form states
   const [showModal, setShowModal] = useState(false);
   const [editingPackage, setEditingPackage] = useState<ServicePackage | null>(null);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -153,197 +160,234 @@ export default function PackagesPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this package?')) return;
+  const handleDelete = async () => {
+    if (deleteId == null) return;
+    setDeleting(true);
     setError(null);
     setMessage(null);
     try {
-      await apiFetch(`/api/business/packages/${id}`, {
-        method: 'DELETE',
-      });
+      await apiFetch(`/api/business/packages/${deleteId}`, { method: 'DELETE' });
       setMessage('Package deleted.');
+      setDeleteId(null);
       await loadData();
     } catch (err: any) {
       setError(err?.message || 'Delete operation failed.');
+    } finally {
+      setDeleting(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className={styles.loaderContainer}>
-        <div className="spinner" />
-      </div>
-    );
-  }
-
   return (
-    <div className={styles.packagesContainer}>
-      <div className={styles.headerRow}>
-        <p style={{ color: 'var(--text-secondary)' }}>
-          Create service packages and combos with promotional discounts.
-        </p>
-        <button className="btn btn-primary" onClick={handleAddClick}>
-          <i className="fa-solid fa-plus"></i> Create Package
-        </button>
-      </div>
+    <div className={styles.page}>
+      <PageHeader
+        title="Packages"
+        subtitle="Create session bundles and combo deals for repeat customers."
+        actions={
+          <button type="button" className="btn btn-primary" onClick={handleAddClick}>
+            <i className="fa-solid fa-plus" /> Create Package
+          </button>
+        }
+      />
 
-      {message && <div className="success-alert" style={{ marginBottom: '20px' }}><i className="fa-solid fa-circle-check"></i> {message}</div>}
-      {error && <div className="error-alert" style={{ marginBottom: '20px' }}><i className="fa-solid fa-triangle-exclamation"></i> {error}</div>}
-
-      {packages.length === 0 ? (
-        <div className="glass-card text-center" style={{ padding: '60px 20px' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🎁</div>
-          <h3>No Packages Available</h3>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>Create combo deals for repeat customer bookings.</p>
-          <button className="btn btn-primary" onClick={handleAddClick}>Create Package</button>
+      {message && (
+        <div className="success-alert">
+          <i className="fa-solid fa-circle-check" /> {message}
         </div>
+      )}
+      {error && (
+        <div className="error-alert">
+          <i className="fa-solid fa-triangle-exclamation" /> {error}
+        </div>
+      )}
+
+      {loading ? (
+        <Skeleton variant="row" count={4} />
+      ) : packages.length === 0 ? (
+        <EmptyState
+          icon="fa-box-open"
+          title="No packages available"
+          description="Create combo deals for repeat customer bookings."
+          actionLabel="Create package"
+          onAction={handleAddClick}
+        />
       ) : (
-        <div className={styles.packagesGrid}>
-          {packages.map((pkg) => (
-            <div key={pkg.id} className={`${styles.packageCard} ${!pkg.active ? styles.inactiveCard : ''}`}>
-              <div className={styles.cardHeader}>
+        <DataTable
+          columns={[
+            {
+              key: 'name',
+              header: 'Package',
+              render: (pkg) => (
                 <div>
-                  <h3 className={styles.pkgName}>{pkg.name}</h3>
-                  <span className={styles.sessionsBadge}>{pkg.sessionsCount} Sessions</span>
+                  <strong>{pkg.name}</strong>
+                  {pkg.description && <div className={styles.desc}>{pkg.description}</div>}
                 </div>
-                <div className={styles.pkgPrice}>${pkg.price}</div>
-              </div>
-
-              {pkg.description && <p className={styles.pkgDesc}>{pkg.description}</p>}
-
-              <div className={styles.servicesBundled}>
-                <h4>Bundled Services:</h4>
-                <div className={styles.servicesBadgesList}>
-                  {pkg.services && pkg.services.map((s) => (
-                    <span key={s.id} className={styles.serviceBadge}>{s.name}</span>
-                  ))}
+              ),
+            },
+            { key: 'price', header: 'Price', render: (pkg) => `$${pkg.price}` },
+            { key: 'sessions', header: 'Sessions', render: (pkg) => pkg.sessionsCount },
+            {
+              key: 'expiry',
+              header: 'Expiry',
+              render: (pkg) => (pkg.expiryDays > 0 ? `${pkg.expiryDays} days` : 'No expiry'),
+            },
+            {
+              key: 'status',
+              header: 'Status',
+              render: (pkg) => <StatusBadge status={pkg.active ? 'ACTIVE' : 'SUSPENDED'} />,
+            },
+            {
+              key: 'actions',
+              header: 'Actions',
+              render: (pkg) => (
+                <div className={styles.actions}>
+                  <button type="button" className="btn btn-sm btn-outline" onClick={() => handleEditClick(pkg)}>
+                    Edit
+                  </button>
+                  <button type="button" className="btn btn-sm btn-danger" onClick={() => setDeleteId(pkg.id)}>
+                    Delete
+                  </button>
                 </div>
-              </div>
-
-              <div className={styles.cardFooter}>
-                <span className={styles.expiryInfo}>
-                  <i className="fa-solid fa-clock-rotate-left"></i> {pkg.expiryDays > 0 ? `Expires in ${pkg.expiryDays} days` : 'No Expiry'}
-                </span>
-                <div className={styles.cardActions}>
-                  <button className="btn btn-sm" onClick={() => handleEditClick(pkg)}>Edit</button>
-                  <button className="btn btn-sm btn-danger" onClick={() => handleDelete(pkg.id)}>Delete</button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+              ),
+            },
+          ]}
+          rows={packages}
+          rowKey={(pkg) => pkg.id}
+        />
       )}
 
-      {/* Package Form Modal */}
-      {showModal && (
-        <div className={styles.modalOverlay}>
-          <div className={`glass-card ${styles.modalContent}`}>
-            <div className={styles.modalHeader}>
-              <h3>{editingPackage ? 'Edit Package Combo' : 'Create Package Combo'}</h3>
-              <button className={styles.closeBtn} onClick={() => setShowModal(false)}>&times;</button>
-            </div>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
-              <div className="form-group">
-                <label className="form-label" htmlFor="pkgNameInput">Package Name</label>
-                <input
-                  id="pkgNameInput"
-                  type="text"
-                  className="input-field"
-                  value={formData.name}
-                  onChange={(e) => handleInputChange('name', e.target.value)}
-                  placeholder="e.g. 5x Whitening Treatment Bundle"
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="pkgDescInput">Description (Optional)</label>
-                <textarea
-                  id="pkgDescInput"
-                  className="input-field"
-                  value={formData.description}
-                  onChange={(e) => handleInputChange('description', e.target.value)}
-                  placeholder="Describe what's included and any bundle benefits..."
-                  style={{ minHeight: '60px', resize: 'vertical' }}
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="pkgPriceInput">Bundle Price ($)</label>
-                  <input
-                    id="pkgPriceInput"
-                    type="number"
-                    step="0.01"
-                    className="input-field"
-                    value={formData.price}
-                    onChange={(e) => handleInputChange('price', e.target.value)}
-                    placeholder="e.g. 199.99"
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="pkgSessionsInput">Sessions Count</label>
-                  <input
-                    id="pkgSessionsInput"
-                    type="number"
-                    className="input-field"
-                    value={formData.sessionsCount}
-                    onChange={(e) => handleInputChange('sessionsCount', e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="pkgExpiryInput">Expiry Period (Days)</label>
-                  <input
-                    id="pkgExpiryInput"
-                    type="number"
-                    className="input-field"
-                    value={formData.expiryDays}
-                    onChange={(e) => handleInputChange('expiryDays', e.target.value)}
-                    placeholder="e.g. 90 (0 for no expiry)"
-                  />
-                </div>
-                <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '28px' }}>
-                  <input
-                    id="pkgActiveInput"
-                    type="checkbox"
-                    checked={formData.active}
-                    onChange={(e) => handleInputChange('active', e.target.checked)}
-                  />
-                  <label htmlFor="pkgActiveInput" className="form-label" style={{ marginBottom: 0 }}>Active</label>
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Include Services in Bundle</label>
-                {services.length === 0 ? (
-                  <p style={{ fontSize: '0.85rem', color: '#ef4444', marginTop: '4px' }}>
-                    Create services first under the Services Catalog tab before creating combos.
-                  </p>
-                ) : (
-                  <div className={styles.servicesCheckboxList}>
-                    {services.map((svc) => (
-                      <label key={svc.id} className={styles.serviceCheckboxItem}>
-                        <input
-                          type="checkbox"
-                          checked={formData.serviceIds.includes(svc.id)}
-                          onChange={() => handleServiceCheckboxChange(svc.id)}
-                        />
-                        <span>{svc.name} (${svc.price})</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '10px' }} disabled={submitting || services.length === 0}>
-                {submitting ? 'Saving...' : editingPackage ? 'Update Combo Package' : 'Create Combo Package'}
-              </button>
-            </form>
+      <Modal
+        open={showModal}
+        title={editingPackage ? 'Edit package' : 'Create package'}
+        onClose={() => setShowModal(false)}
+        wide
+        footer={
+          <>
+            <button type="button" className="btn btn-outline" onClick={() => setShowModal(false)} disabled={submitting}>
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="package-form"
+              className="btn btn-primary"
+              disabled={submitting || services.length === 0}
+            >
+              {submitting ? 'Saving...' : editingPackage ? 'Update package' : 'Create package'}
+            </button>
+          </>
+        }
+      >
+        <form id="package-form" onSubmit={handleSubmit} className={styles.form}>
+          <div className="form-group">
+            <label className="form-label" htmlFor="pkgNameInput">
+              Package name
+            </label>
+            <input
+              id="pkgNameInput"
+              type="text"
+              className="input-field"
+              value={formData.name}
+              onChange={(e) => handleInputChange('name', e.target.value)}
+              placeholder="e.g. 5x Whitening Bundle"
+            />
           </div>
-        </div>
-      )}
+          <div className="form-group">
+            <label className="form-label" htmlFor="pkgDescInput">
+              Description
+            </label>
+            <textarea
+              id="pkgDescInput"
+              className={`input-field ${styles.textarea}`}
+              value={formData.description}
+              onChange={(e) => handleInputChange('description', e.target.value)}
+              placeholder="Describe what's included..."
+            />
+          </div>
+          <div className={styles.twoCol}>
+            <div className="form-group">
+              <label className="form-label" htmlFor="pkgPriceInput">
+                Bundle price ($)
+              </label>
+              <input
+                id="pkgPriceInput"
+                type="number"
+                step="0.01"
+                className="input-field"
+                value={formData.price}
+                onChange={(e) => handleInputChange('price', e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="pkgSessionsInput">
+                Sessions count
+              </label>
+              <input
+                id="pkgSessionsInput"
+                type="number"
+                className="input-field"
+                value={formData.sessionsCount}
+                onChange={(e) => handleInputChange('sessionsCount', e.target.value)}
+              />
+            </div>
+          </div>
+          <div className={styles.twoCol}>
+            <div className="form-group">
+              <label className="form-label" htmlFor="pkgExpiryInput">
+                Expiry (days)
+              </label>
+              <input
+                id="pkgExpiryInput"
+                type="number"
+                className="input-field"
+                value={formData.expiryDays}
+                onChange={(e) => handleInputChange('expiryDays', e.target.value)}
+              />
+            </div>
+            <div className={`form-group ${styles.checkRow}`}>
+              <input
+                id="pkgActiveInput"
+                type="checkbox"
+                checked={formData.active}
+                onChange={(e) => handleInputChange('active', e.target.checked)}
+              />
+              <label htmlFor="pkgActiveInput" className="form-label">
+                Active
+              </label>
+            </div>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Include services</label>
+            {services.length === 0 ? (
+              <p className={styles.warn}>Create services first before creating packages.</p>
+            ) : (
+              <div className={styles.checkboxList}>
+                {services.map((svc) => (
+                  <label key={svc.id} className={styles.checkboxItem}>
+                    <input
+                      type="checkbox"
+                      checked={formData.serviceIds.includes(svc.id)}
+                      onChange={() => handleServiceCheckboxChange(svc.id)}
+                    />
+                    <span>
+                      {svc.name} (${svc.price})
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        open={deleteId != null}
+        title="Delete package"
+        message="Are you sure you want to delete this package?"
+        confirmLabel="Delete"
+        danger
+        loading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteId(null)}
+      />
     </div>
   );
 }

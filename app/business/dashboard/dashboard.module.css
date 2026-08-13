@@ -1,20 +1,15 @@
-.loaderContainer {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 300px;
-}
-
-.errorState {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 400px;
-}
-
 .dashboardContainer {
   max-width: 1200px;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.skeletonGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
 }
 
 .statusAlertPending,
@@ -24,7 +19,6 @@
   gap: 16px;
   padding: 16px;
   border-radius: var(--radius-md);
-  margin-bottom: 24px;
   font-size: 0.95rem;
   line-height: 1.5;
 }
@@ -32,34 +26,66 @@
 .statusAlertPending {
   background: rgba(245, 158, 11, 0.08);
   border: 1px solid rgba(245, 158, 11, 0.2);
-  color: #f59e0b;
+  color: #b45309;
 }
 
-.statusAlertPending i {
-  font-size: 1.4rem;
-  margin-top: 2px;
-}
-
-.statusAlertRejected {
+.statusAlertRejected,
+.statusAlertSuspended {
   background: rgba(239, 68, 68, 0.08);
   border: 1px solid rgba(239, 68, 68, 0.2);
-  color: #ef4444;
+  color: #b91c1c;
 }
 
-.statusAlertRejected i {
-  font-size: 1.4rem;
-  margin-top: 2px;
-}
-
-.statusAlertSuspended {
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  color: #ef4444;
-}
-
+.statusAlertPending i,
+.statusAlertRejected i,
 .statusAlertSuspended i {
   font-size: 1.4rem;
   margin-top: 2px;
+}
+
+.statusAlertPending p,
+.statusAlertRejected p,
+.statusAlertSuspended p {
+  margin: 4px 0 0;
+}
+
+.checklistCard h3 {
+  margin: 0 0 4px;
+  font-size: 1.1rem;
+}
+
+.checklistCard p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.checklistHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.checklist {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.checklist li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.warnAlert {
+  background: rgba(245, 158, 11, 0.08) !important;
+  color: #b45309 !important;
 }
 
 .dashboardGrid {
@@ -78,7 +104,7 @@
   display: flex;
   gap: 20px;
   align-items: center;
-  margin-bottom: 30px;
+  margin-bottom: 24px;
   padding-bottom: 20px;
   border-bottom: 1px solid var(--border-color);
 }
@@ -87,12 +113,13 @@
   width: 70px;
   height: 70px;
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(26, 138, 138, 0.06);
   border: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .profileLogo {
@@ -102,47 +129,28 @@
 }
 
 .logoPlaceholder {
-  font-size: 2rem;
+  font-size: 1.5rem;
+  color: var(--accent-primary);
 }
 
 .profileTitleInfo h2 {
-  font-size: 1.5rem;
+  margin: 0;
+  font-size: 1.35rem;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--text-main);
 }
 
-.statusBadge {
-  font-size: 0.7rem;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: var(--radius-sm);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.badgePending {
-  background: rgba(245, 158, 11, 0.15);
-  color: #f59e0b;
-}
-
-.badgeApproved {
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
-}
-
-.badgeRejected {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-}
-
-.badgeSuspended {
-  background: rgba(239, 68, 68, 0.2);
-  color: #ef4444;
+.badgeRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 6px;
+  flex-wrap: wrap;
 }
 
 .verifiedBadge {
   font-size: 0.75rem;
-  color: #10b981;
+  color: #047857;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -155,21 +163,62 @@
   gap: 16px;
 }
 
+.textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.categoryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+  margin-top: 6px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: rgba(240, 247, 247, 0.4);
+}
+
+.categoryItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-main);
+}
+
+.sideColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sideTitle {
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+}
+
 .metricRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 12px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--border-color);
   font-size: 0.92rem;
+  gap: 12px;
 }
 
 .metricRow:last-child {
   border-bottom: none;
 }
 
-.metricRow span {
+.metricRow span:first-child {
   color: var(--text-secondary);
+}
+
+.ratingValue {
+  color: #b45309;
 }
 
 .slugLink {
@@ -179,4 +228,20 @@
   background: rgba(26, 138, 138, 0.08);
   padding: 2px 8px;
   border-radius: var(--radius-sm);
+}
+
+.tipCard {
+  border-left: 4px solid var(--accent-primary);
+}
+
+.tipCard h4 {
+  margin: 0 0 8px;
+  color: var(--text-main);
+}
+
+.tipCard p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
 }

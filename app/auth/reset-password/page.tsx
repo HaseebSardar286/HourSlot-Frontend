@@ -1,13 +1,12 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useState, Suspense } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import styles from '../forgot-password/forgot.module.css';
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [token, setToken] = useState(searchParams.get('token') || '');
@@ -49,64 +48,78 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <>
-      <div className="auth-page-bg" />
-      <div className={styles.authWrapper}>
-        <div className={`glass-card ${styles.authCard}`}>
-          <div className={styles.authLogo}>
-            <Image src="/logo-hourslot.png" alt="HourSlot" width={150} height={48} priority />
-          </div>
-          <div className={styles.authHeader}>
-            <h2 className={styles.authTitle}>Reset Password</h2>
-            <p className={styles.authSubtitle}>Choose a new password for your HourSlot account.</p>
-          </div>
-
-          {error && (
-            <div className="error-alert">
-              <i className="fa-solid fa-triangle-exclamation"></i> {error}
-            </div>
-          )}
-          {done && (
-            <div className="success-alert">Password updated. Redirecting to login…</div>
-          )}
-
-          <form onSubmit={handleSubmit} className={styles.authForm}>
-            <div className="form-group">
-              <label className="form-label" htmlFor="reset-token">Reset token</label>
-              <input
-                id="reset-token"
-                className="input-field"
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label" htmlFor="reset-pass">New password</label>
-              <input
-                id="reset-pass"
-                type="password"
-                className="input-field"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label" htmlFor="reset-confirm">Confirm password</label>
-              <input
-                id="reset-confirm"
-                type="password"
-                className="input-field"
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-              />
-            </div>
-            <button type="submit" className="btn btn-primary btn-block" disabled={loading || done}>
-              {loading ? 'Saving…' : 'Update password'}
-            </button>
-          </form>
-          <Link href="/auth/login" className={styles.backLink}>← Back to Login</Link>
-        </div>
+    <div className={`surface ${styles.authCard}`}>
+      <div className={styles.authHeader}>
+        <h2 className={styles.authTitle}>Reset password</h2>
+        <p className={styles.authSubtitle}>Choose a new password for your HourSlot account.</p>
       </div>
-    </>
+
+      {error && (
+        <div className="error-alert">
+          <i className="fa-solid fa-triangle-exclamation" /> {error}
+        </div>
+      )}
+      {done && <div className="success-alert">Password updated. Redirecting to login…</div>}
+
+      <form onSubmit={handleSubmit} className={styles.authForm}>
+        <div className="form-group">
+          <label className="form-label" htmlFor="reset-token">
+            Reset token
+          </label>
+          <input
+            id="reset-token"
+            className="input-field"
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label" htmlFor="reset-pass">
+            New password
+          </label>
+          <input
+            id="reset-pass"
+            type="password"
+            className="input-field"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label" htmlFor="reset-confirm">
+            Confirm password
+          </label>
+          <input
+            id="reset-confirm"
+            type="password"
+            className="input-field"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            autoComplete="new-password"
+          />
+        </div>
+        <button type="submit" className="btn btn-primary btn-block" disabled={loading || done}>
+          {loading ? 'Saving…' : 'Update password'}
+        </button>
+      </form>
+      <Link href="/auth/login" className={styles.backLink}>
+        ← Back to login
+      </Link>
+    </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="surface" style={{ padding: 24, textAlign: 'center' }}>
+          Loading…
+        </div>
+      }
+    >
+      <ResetPasswordForm />
+    </Suspense>
   );
 }

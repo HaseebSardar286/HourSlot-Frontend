@@ -8,6 +8,9 @@
 .availabilityContainer {
   max-width: 1200px;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .headerRow {
@@ -305,3 +308,33 @@
 .closeBtn:hover {
   color: #ffffff;
 }
+
+.modalForm {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.twoCol {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.checkRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkRow .form-label {
+  margin-bottom: 0;
+}
+
+.emptyHolidays {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  padding: 12px 0;
+}
+

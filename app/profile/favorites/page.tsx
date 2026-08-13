@@ -3,6 +3,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
+import PageHeader from '@/components/PageHeader';
+import EmptyState from '@/components/EmptyState';
+import Skeleton from '@/components/Skeleton';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import styles from './favorites.module.css';
 
 interface Category {
@@ -27,6 +31,8 @@ export default function FavoritesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [removeId, setRemoveId] = useState<number | null>(null);
+  const [removing, setRemoving] = useState(false);
 
   const loadFavorites = async () => {
     setLoading(true);
@@ -45,48 +51,66 @@ export default function FavoritesPage() {
     loadFavorites();
   }, []);
 
-  const handleRemoveFavorite = async (businessId: number) => {
-    if (!confirm('Remove this business from your favorites?')) return;
+  const handleRemoveFavorite = async () => {
+    if (removeId == null) return;
+    setRemoving(true);
     setError(null);
     setSuccess(null);
     try {
-      await apiFetch(`/api/favorites/${businessId}`, {
-        method: 'DELETE',
-      });
+      await apiFetch(`/api/favorites/${removeId}`, { method: 'DELETE' });
       setSuccess('Removed from favorites.');
-      setFavorites((prev) => prev.filter((f) => f.business.id !== businessId));
+      setFavorites((prev) => prev.filter((f) => f.business.id !== removeId));
+      setRemoveId(null);
     } catch (err: any) {
       setError(err?.message || 'Failed to remove favorite.');
+    } finally {
+      setRemoving(false);
     }
   };
 
   return (
     <div className={styles.favsContainer}>
-      <div className={styles.headerRow}>
-        <h2>My Favorite Businesses</h2>
-        <p style={{ color: 'var(--text-secondary)' }}>Quickly access and book appointments with your preferred providers.</p>
-      </div>
+      <PageHeader
+        title="Favorites"
+        subtitle="Quickly access and book with your preferred providers."
+        actions={
+          <Link href="/profile/explore" className="btn btn-outline btn-sm">
+            Explore
+          </Link>
+        }
+      />
 
-      {success && <div className="success-alert" style={{ marginBottom: '20px' }}><i className="fa-solid fa-circle-check"></i> {success}</div>}
-      {error && <div className="error-alert" style={{ marginBottom: '20px' }}><i className="fa-solid fa-triangle-exclamation"></i> {error}</div>}
+      {success && (
+        <div className="success-alert" style={{ marginBottom: 16 }}>
+          <i className="fa-solid fa-circle-check" /> {success}
+        </div>
+      )}
+      {error && (
+        <div className="error-alert" style={{ marginBottom: 16 }}>
+          <i className="fa-solid fa-triangle-exclamation" /> {error}
+        </div>
+      )}
 
       {loading ? (
-        <div className={styles.loaderContainer}>
-          <div className="spinner" />
+        <div className={styles.skeletonGrid}>
+          {[1, 2, 3].map((n) => (
+            <Skeleton key={n} variant="card" height={200} />
+          ))}
         </div>
       ) : favorites.length === 0 ? (
-        <div className="glass-card text-center" style={{ padding: '60px 20px' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '16px' }}>❤️</div>
-          <h3>No Favorites Added</h3>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>Bookmark businesses to find them here for fast bookings.</p>
-          <Link href="/profile/explore" className="btn btn-primary">
-            Explore Businesses
-          </Link>
-        </div>
+        <EmptyState
+          icon="fa-heart"
+          title="No favorites yet"
+          description="Bookmark businesses while exploring to find them here for fast bookings."
+          actionLabel="Explore businesses"
+          onAction={() => {
+            window.location.href = '/profile/explore';
+          }}
+        />
       ) : (
         <div className={styles.favGrid}>
           {favorites.map((f) => (
-            <div key={f.id} className={`glass-card ${styles.favCard}`}>
+            <div key={f.id} className={`surface ${styles.favCard}`}>
               <div className={styles.cardHeader}>
                 <div>
                   <span className={styles.categoryTag}>
@@ -94,31 +118,42 @@ export default function FavoritesPage() {
                   </span>
                   <h4>{f.business.name}</h4>
                 </div>
-                <button 
+                <button
+                  type="button"
                   className={styles.removeBtn}
-                  onClick={() => handleRemoveFavorite(f.business.id)}
+                  onClick={() => setRemoveId(f.business.id)}
                   title="Remove bookmark"
+                  aria-label="Remove from favorites"
                 >
-                  <i className="fa-solid fa-heart-broken"></i>
+                  <i className="fa-solid fa-heart-crack" />
                 </button>
               </div>
 
-              {f.business.description && (
-                <p className={styles.desc}>{f.business.description}</p>
-              )}
+              {f.business.description && <p className={styles.desc}>{f.business.description}</p>}
 
               <div className={styles.cardFooter}>
-                <Link href={`/profile/business/${f.business.id}`} className="btn btn-outline btn-sm" style={{ flex: 1, textAlign: 'center' }}>
-                  View Profile
+                <Link href={`/profile/business/${f.business.id}`} className="btn btn-outline btn-sm">
+                  View
                 </Link>
-                <Link href={`/profile/book/${f.business.id}`} className="btn btn-primary btn-sm" style={{ flex: 1, textAlign: 'center' }}>
-                  Book Now
+                <Link href={`/profile/book/${f.business.id}`} className="btn btn-primary btn-sm">
+                  Book
                 </Link>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={removeId != null}
+        title="Remove favorite?"
+        message="This business will be removed from your favorites list."
+        confirmLabel="Remove"
+        danger
+        loading={removing}
+        onConfirm={handleRemoveFavorite}
+        onCancel={() => setRemoveId(null)}
+      />
     </div>
   );
 }

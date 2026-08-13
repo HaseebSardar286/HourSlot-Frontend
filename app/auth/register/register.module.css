@@ -1,119 +1,27 @@
-.authWrapper {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-  width: 100vw;
-  overflow: hidden;
-  padding: 16px;
-  box-sizing: border-box;
-}
-
 .authCard {
   width: 100%;
-  max-width: 420px;
+  padding: 28px 26px;
   border-radius: var(--radius-lg);
-  padding: 24px 28px;
-  animation: fadeInUp 0.5s ease forwards;
-  box-sizing: border-box;
-  background: var(--bg-card);
 }
 
-/* Logo */
-.authLogo {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 6px;
-}
-
-.authLogoImg {
-  height: 38px;
-  width: auto;
-  object-fit: contain;
-}
-
-/* Header */
 .authHeader {
-  text-align: center;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .authTitle {
-  font-size: 1.25rem;
+  font-size: 1.45rem;
   font-weight: 800;
-  margin-top: 8px;
+  margin: 0;
   letter-spacing: -0.03em;
 }
 
 .authSubtitle {
   color: var(--text-muted);
-  font-size: 0.78rem;
-  margin-top: 4px;
+  font-size: 0.9rem;
+  margin-top: 6px;
+  line-height: 1.45;
 }
 
-/* Progress Steps */
-.progressBar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0;
-  margin-bottom: 18px;
-  padding: 0 10px;
-}
-
-.stepItem {
-  display: flex;
-  align-items: center;
-  gap: 0;
-}
-
-.stepCircle {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-headers);
-  font-size: 0.75rem;
-  font-weight: 700;
-  border: 2px solid var(--border-color);
-  background: #ffffff;
-  color: var(--text-muted);
-  transition: var(--transition-smooth);
-  flex-shrink: 0;
-}
-
-.stepCircle.active {
-  border-color: var(--accent-primary);
-  background: var(--accent-primary);
-  color: #ffffff;
-  box-shadow: 0 3px 10px rgba(26, 138, 138, 0.2);
-}
-
-.stepCircle.completed {
-  border-color: var(--accent-secondary);
-  background: var(--accent-secondary);
-  color: #ffffff;
-}
-
-.stepConnector {
-  width: 32px;
-  height: 2px;
-  background: var(--border-color);
-  transition: var(--transition-smooth);
-  flex-shrink: 0;
-}
-
-.stepConnector.active {
-  background: var(--accent-gradient);
-}
-
-.stepLabel {
-  display: none;
-}
-
-/* Form */
 .authForm {
   display: flex;
   flex-direction: column;
@@ -121,21 +29,19 @@
 }
 
 .stepContent {
-  animation: fadeInUp 0.35s ease forwards;
+  animation: hsFadeUp 0.3s ease;
 }
 
 .stepTitle {
   font-size: 0.92rem;
   font-weight: 700;
-  margin-bottom: 10px;
+  margin: 0 0 12px;
   color: var(--text-main);
 }
 
-/* Role Selector */
 .roleSelector {
   display: flex;
   gap: 10px;
-  margin-top: 2px;
 }
 
 .roleOption {
@@ -144,17 +50,16 @@
   flex-direction: column;
   align-items: center;
   padding: 14px 10px;
-  background: #ffffff;
+  background: #fff;
   border: 2px solid var(--border-color);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: var(--transition-smooth);
+  transition: var(--transition-fast);
   text-align: center;
 }
 
 .roleOption:hover {
-  border-color: rgba(26, 138, 138, 0.3);
-  transform: translateY(-1px);
+  border-color: rgba(26, 138, 138, 0.35);
 }
 
 .roleOption.selected {
@@ -171,14 +76,14 @@
 }
 
 .roleIcon {
-  font-size: 1.6rem;
+  font-size: 1.5rem;
   margin-bottom: 6px;
-  display: block;
+  color: var(--accent-primary);
 }
 
 .roleText {
   font-family: var(--font-headers);
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   font-weight: 700;
   color: var(--text-secondary);
 }
@@ -186,7 +91,7 @@
 .roleDescription {
   font-size: 0.72rem;
   color: var(--text-muted);
-  margin-top: 2px;
+  margin-top: 4px;
   line-height: 1.3;
 }
 
@@ -194,20 +99,16 @@
   color: var(--accent-primary);
 }
 
-/* Button Row */
 .buttonRow {
   display: flex;
   gap: 10px;
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 .buttonRow .btn {
   flex: 1;
-  padding: 10px 16px;
-  font-size: 0.88rem;
 }
 
-/* Category Grid */
 .categoryGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -220,11 +121,11 @@
   flex-direction: column;
   align-items: center;
   padding: 10px 4px;
-  background: #ffffff;
+  background: #fff;
   border: 1.5px solid var(--border-color);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: var(--transition-smooth);
+  transition: var(--transition-fast);
   text-align: center;
   font: inherit;
   color: inherit;
@@ -232,7 +133,7 @@
 }
 
 .categoryOption:hover {
-  border-color: rgba(26, 138, 138, 0.3);
+  border-color: rgba(26, 138, 138, 0.35);
 }
 
 .categoryOption.selected {
@@ -241,8 +142,9 @@
 }
 
 .categoryIcon {
-  font-size: 1.2rem;
+  font-size: 1.15rem;
   margin-bottom: 3px;
+  color: var(--accent-primary);
 }
 
 .categoryText {
@@ -255,11 +157,10 @@
   color: var(--accent-primary);
 }
 
-/* Password strength */
 .passwordStrength {
   display: flex;
   gap: 3px;
-  margin-top: 2px;
+  margin-top: 4px;
 }
 
 .strengthBar {
@@ -267,19 +168,26 @@
   height: 3px;
   border-radius: 2px;
   background: rgba(26, 138, 138, 0.1);
-  transition: var(--transition-fast);
 }
 
-.strengthBar.weak { background: var(--accent-red); }
-.strengthBar.medium { background: var(--accent-yellow); }
-.strengthBar.strong { background: var(--accent-green); }
+.strengthBar.weak {
+  background: var(--accent-red);
+}
+
+.strengthBar.medium {
+  background: var(--accent-yellow);
+}
+
+.strengthBar.strong {
+  background: var(--accent-green);
+}
 
 .strengthText {
   font-size: 0.7rem;
-  margin-top: 1px;
+  margin-top: 2px;
+  color: var(--text-muted);
 }
 
-/* Password Field Wrapper */
 .passwordWrapper {
   position: relative;
 }
@@ -295,72 +203,59 @@
   cursor: pointer;
   font-size: 0.95rem;
   padding: 4px;
-  transition: var(--transition-fast);
 }
 
 .passwordToggle:hover {
   color: var(--accent-primary);
 }
 
-/* Footer */
 .authFooter {
   text-align: center;
-  margin-top: 16px;
-  font-size: 0.78rem;
+  margin-top: 20px;
+  font-size: 0.88rem;
   color: var(--text-muted);
 }
 
 .authFooter a {
   color: var(--accent-primary);
-  text-decoration: none;
   font-weight: 600;
-  transition: var(--transition-fast);
 }
 
-.authFooter a:hover {
-  text-decoration: underline;
-}
-
-/* Success State */
 .successState {
   text-align: center;
-  padding: 10px 0;
-  animation: fadeInUp 0.4s ease forwards;
+  padding: 8px 0;
 }
 
 .successIcon {
-  font-size: 3rem;
+  font-size: 2.75rem;
   margin-bottom: 12px;
   display: block;
+  color: var(--accent-secondary);
 }
 
 .successTitle {
-  font-size: 1.2rem;
+  font-size: 1.25rem;
   font-weight: 800;
-  margin-bottom: 6px;
+  margin: 0 0 8px;
 }
 
 .successMessage {
   color: var(--text-muted);
-  font-size: 0.8rem;
-  margin-bottom: 18px;
-  line-height: 1.4;
+  font-size: 0.88rem;
+  margin: 0 0 18px;
+  line-height: 1.45;
 }
 
 @media (max-width: 480px) {
-  .authCard {
-    padding: 16px;
-  }
   .roleSelector {
     flex-direction: column;
   }
+
   .categoryGrid {
     grid-template-columns: repeat(2, 1fr);
   }
+
   .buttonRow {
     flex-direction: column;
-  }
-  .stepConnector {
-    width: 18px;
   }
 }

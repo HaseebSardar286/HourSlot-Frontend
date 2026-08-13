@@ -2,6 +2,12 @@
 
 import { useState, useEffect, FormEvent } from 'react';
 import { apiFetch } from '@/lib/api';
+import PageHeader from '@/components/PageHeader';
+import EmptyState from '@/components/EmptyState';
+import Skeleton from '@/components/Skeleton';
+import Modal from '@/components/Modal';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import DataTable from '@/components/DataTable';
 import styles from './peak-pricing.module.css';
 
 interface Service {
@@ -14,8 +20,8 @@ interface TimeOfDayPricing {
   id: number;
   service: Service;
   dayOfWeek: number;
-  startTime: string; // "HH:mm:ss"
-  endTime: string;   // "HH:mm:ss"
+  startTime: string;
+  endTime: string;
   priceMultiplier: number;
 }
 
@@ -32,18 +38,17 @@ const DAYS_OF_WEEK = [
 export default function PeakPricingPage() {
   const [rules, setRules] = useState<TimeOfDayPricing[]>([]);
   const [services, setServices] = useState<Service[]>([]);
-  
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-
-  // Form states
   const [showModal, setShowModal] = useState(false);
   const [editingRule, setEditingRule] = useState<TimeOfDayPricing | null>(null);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [formData, setFormData] = useState({
     serviceId: '',
-    dayOfWeek: 6, // default Saturday
+    dayOfWeek: 6,
     startTime: '09:00',
     endTime: '17:00',
     priceMultiplier: '1.2',
@@ -140,184 +145,210 @@ export default function PeakPricingPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this pricing rule?')) return;
+  const handleDelete = async () => {
+    if (deleteId == null) return;
+    setDeleting(true);
     setError(null);
     setMessage(null);
     try {
-      await apiFetch(`/api/business/time-pricing/${id}`, {
-        method: 'DELETE',
-      });
+      await apiFetch(`/api/business/time-pricing/${deleteId}`, { method: 'DELETE' });
       setMessage('Peak pricing rule deleted.');
+      setDeleteId(null);
       await loadData();
     } catch (err: any) {
       setError(err?.message || 'Deactivation failed.');
+    } finally {
+      setDeleting(false);
     }
   };
 
-  const getDayName = (dayVal: number) => {
-    return DAYS_OF_WEEK.find((d) => d.value === dayVal)?.label || 'Everyday';
-  };
-
-  if (loading) {
-    return (
-      <div className={styles.loaderContainer}>
-        <div className="spinner" />
-      </div>
-    );
-  }
+  const getDayName = (dayVal: number) => DAYS_OF_WEEK.find((d) => d.value === dayVal)?.label || 'Everyday';
 
   return (
-    <div className={styles.peakContainer}>
-      <div className={styles.headerRow}>
-        <p style={{ color: 'var(--text-secondary)' }}>
-          Configure time-of-day and day-of-week demand multipliers (e.g. peak hours or weekend surcharges).
-        </p>
-        <button className="btn btn-primary" onClick={handleAddClick} disabled={services.length === 0}>
-          <i className="fa-solid fa-plus"></i> Configure Peak Rate
-        </button>
-      </div>
+    <div className={styles.page}>
+      <PageHeader
+        title="Peak pricing"
+        subtitle="Configure day-of-week and time-of-day demand multipliers."
+        actions={
+          <button type="button" className="btn btn-primary" onClick={handleAddClick} disabled={services.length === 0}>
+            <i className="fa-solid fa-plus" /> Configure Peak Rate
+          </button>
+        }
+      />
 
-      {message && <div className="success-alert" style={{ marginBottom: '20px' }}><i className="fa-solid fa-circle-check"></i> {message}</div>}
-      {error && <div className="error-alert" style={{ marginBottom: '20px' }}><i className="fa-solid fa-triangle-exclamation"></i> {error}</div>}
-
-      {services.length === 0 ? (
-        <div className="glass-card text-center" style={{ padding: '60px 20px' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🏷️</div>
-          <h3>Services Required</h3>
-          <p style={{ color: 'var(--text-secondary)' }}>Create services first under the Services Catalog tab before defining peak rates.</p>
+      {message && (
+        <div className="success-alert">
+          <i className="fa-solid fa-circle-check" /> {message}
         </div>
+      )}
+      {error && (
+        <div className="error-alert">
+          <i className="fa-solid fa-triangle-exclamation" /> {error}
+        </div>
+      )}
+
+      {loading ? (
+        <Skeleton variant="row" count={4} />
+      ) : services.length === 0 ? (
+        <EmptyState
+          icon="fa-tags"
+          title="Services required"
+          description="Create services first before defining peak rates."
+          actionLabel="Go to services"
+          onAction={() => {
+            window.location.href = '/business/services';
+          }}
+        />
       ) : rules.length === 0 ? (
-        <div className="glass-card text-center" style={{ padding: '60px 20px' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '16px' }}>⚡</div>
-          <h3>No Peak Pricing Configured</h3>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>Charge multiplier fees on premium slots (e.g. weekend afternoons).</p>
-          <button className="btn btn-primary" onClick={handleAddClick}>Configure Peak Rate</button>
-        </div>
+        <EmptyState
+          icon="fa-bolt"
+          title="No peak pricing configured"
+          description="Charge multipliers on premium slots such as weekend afternoons."
+          actionLabel="Configure peak rate"
+          onAction={handleAddClick}
+        />
       ) : (
-        <div className="glass-card table-responsive" style={{ padding: '10px 0' }}>
-          <table className="custom-table">
-            <thead>
-              <tr>
-                <th>Service Name</th>
-                <th>Target Day</th>
-                <th>Hours Window</th>
-                <th>Pricing Multiplier</th>
-                <th>Effective Rate</th>
-                <th className="text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rules.map((rule) => {
-                const basePrice = rule.service.price;
-                const peakPrice = (basePrice * rule.priceMultiplier).toFixed(2);
-                return (
-                  <tr key={rule.id}>
-                    <td style={{ fontWeight: 700, color: '#ffffff' }}>{rule.service.name}</td>
-                    <td style={{ color: '#ffffff' }}>{getDayName(rule.dayOfWeek)}</td>
-                    <td>{rule.startTime.slice(0, 5)} to {rule.endTime.slice(0, 5)}</td>
-                    <td>
-                      <span className={styles.multiplierBadge}>
-                        {rule.priceMultiplier}x Surge
-                      </span>
-                    </td>
-                    <td style={{ fontWeight: 700, color: 'var(--accent-primary)' }}>
-                      ${peakPrice} <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 400 }}>(${basePrice} base)</span>
-                    </td>
-                    <td className="text-right">
-                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                        <button className="btn btn-sm" onClick={() => handleEditClick(rule)}>Edit</button>
-                        <button className="btn btn-sm btn-danger" onClick={() => handleDelete(rule.id)}>Delete</button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          columns={[
+            { key: 'service', header: 'Service', render: (r) => <strong>{r.service.name}</strong> },
+            { key: 'day', header: 'Day', render: (r) => getDayName(r.dayOfWeek) },
+            {
+              key: 'window',
+              header: 'Hours',
+              render: (r) => `${r.startTime.slice(0, 5)} – ${r.endTime.slice(0, 5)}`,
+            },
+            {
+              key: 'mult',
+              header: 'Multiplier',
+              render: (r) => <span className={styles.badge}>{r.priceMultiplier}x</span>,
+            },
+            {
+              key: 'rate',
+              header: 'Effective rate',
+              render: (r) => `$${(r.service.price * r.priceMultiplier).toFixed(2)}`,
+            },
+            {
+              key: 'actions',
+              header: 'Actions',
+              render: (r) => (
+                <div className={styles.actions}>
+                  <button type="button" className="btn btn-sm btn-outline" onClick={() => handleEditClick(r)}>
+                    Edit
+                  </button>
+                  <button type="button" className="btn btn-sm btn-danger" onClick={() => setDeleteId(r.id)}>
+                    Delete
+                  </button>
+                </div>
+              ),
+            },
+          ]}
+          rows={rules}
+          rowKey={(r) => r.id}
+        />
       )}
 
-      {/* Modal Dialog */}
-      {showModal && (
-        <div className={styles.modalOverlay}>
-          <div className={`glass-card ${styles.modalContent}`}>
-            <div className={styles.modalHeader}>
-              <h3>{editingRule ? 'Edit Peak Price Rule' : 'Add Peak Price Rule'}</h3>
-              <button className={styles.closeBtn} onClick={() => setShowModal(false)}>&times;</button>
-            </div>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
-              <div className="form-group">
-                <label className="form-label" htmlFor="peakServiceSelect">Select Service</label>
-                <select
-                  id="peakServiceSelect"
-                  className="input-field"
-                  value={formData.serviceId}
-                  onChange={(e) => handleInputChange('serviceId', e.target.value)}
-                >
-                  {services.map((svc) => (
-                    <option key={svc.id} value={svc.id}>{svc.name} (${svc.price})</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="peakDaySelect">Applicable Day of Week</label>
-                <select
-                  id="peakDaySelect"
-                  className="input-field"
-                  value={formData.dayOfWeek}
-                  onChange={(e) => handleInputChange('dayOfWeek', parseInt(e.target.value))}
-                >
-                  {DAYS_OF_WEEK.map((d) => (
-                    <option key={d.value} value={d.value}>{d.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="peakStartTime">Start Time</label>
-                  <input
-                    id="peakStartTime"
-                    type="time"
-                    className="input-field"
-                    value={formData.startTime}
-                    onChange={(e) => handleInputChange('startTime', e.target.value)}
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="peakEndTime">End Time</label>
-                  <input
-                    id="peakEndTime"
-                    type="time"
-                    className="input-field"
-                    value={formData.endTime}
-                    onChange={(e) => handleInputChange('endTime', e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="multiplierInput">Price Multiplier (e.g. 1.2 = +20%)</label>
-                <input
-                  id="multiplierInput"
-                  type="number"
-                  step="0.05"
-                  className="input-field"
-                  value={formData.priceMultiplier}
-                  onChange={(e) => handleInputChange('priceMultiplier', e.target.value)}
-                  placeholder="e.g. 1.30"
-                />
-              </div>
-
-              <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '10px' }} disabled={submitting}>
-                {submitting ? 'Saving...' : editingRule ? 'Update Rule' : 'Save Pricing Rule'}
-              </button>
-            </form>
+      <Modal
+        open={showModal}
+        title={editingRule ? 'Edit peak price rule' : 'Add peak price rule'}
+        onClose={() => setShowModal(false)}
+        footer={
+          <>
+            <button type="button" className="btn btn-outline" onClick={() => setShowModal(false)} disabled={submitting}>
+              Cancel
+            </button>
+            <button type="submit" form="peak-form" className="btn btn-primary" disabled={submitting}>
+              {submitting ? 'Saving...' : editingRule ? 'Update rule' : 'Save rule'}
+            </button>
+          </>
+        }
+      >
+        <form id="peak-form" onSubmit={handleSubmit} className={styles.form}>
+          <div className="form-group">
+            <label className="form-label" htmlFor="peakServiceSelect">
+              Service
+            </label>
+            <select
+              id="peakServiceSelect"
+              className="select-field"
+              value={formData.serviceId}
+              onChange={(e) => handleInputChange('serviceId', e.target.value)}
+            >
+              {services.map((svc) => (
+                <option key={svc.id} value={svc.id}>
+                  {svc.name} (${svc.price})
+                </option>
+              ))}
+            </select>
           </div>
-        </div>
-      )}
+          <div className="form-group">
+            <label className="form-label" htmlFor="peakDaySelect">
+              Day of week
+            </label>
+            <select
+              id="peakDaySelect"
+              className="select-field"
+              value={formData.dayOfWeek}
+              onChange={(e) => handleInputChange('dayOfWeek', parseInt(e.target.value))}
+            >
+              {DAYS_OF_WEEK.map((d) => (
+                <option key={d.value} value={d.value}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className={styles.twoCol}>
+            <div className="form-group">
+              <label className="form-label" htmlFor="peakStartTime">
+                Start time
+              </label>
+              <input
+                id="peakStartTime"
+                type="time"
+                className="input-field"
+                value={formData.startTime}
+                onChange={(e) => handleInputChange('startTime', e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="peakEndTime">
+                End time
+              </label>
+              <input
+                id="peakEndTime"
+                type="time"
+                className="input-field"
+                value={formData.endTime}
+                onChange={(e) => handleInputChange('endTime', e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="multiplierInput">
+              Price multiplier
+            </label>
+            <input
+              id="multiplierInput"
+              type="number"
+              step="0.05"
+              className="input-field"
+              value={formData.priceMultiplier}
+              onChange={(e) => handleInputChange('priceMultiplier', e.target.value)}
+            />
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        open={deleteId != null}
+        title="Delete pricing rule"
+        message="Are you sure you want to delete this pricing rule?"
+        confirmLabel="Delete"
+        danger
+        loading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteId(null)}
+      />
     </div>
   );
 }

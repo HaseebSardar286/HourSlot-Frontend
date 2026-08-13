@@ -4,8 +4,9 @@ import { AuthProvider } from '@/lib/auth-context';
 import { ToastProvider } from '@/components/Toast';
 
 export const metadata: Metadata = {
-  title: 'HourSlot — Smart Booking',
-  description: 'Book appointments easily with businesses near you, or manage your business schedule with HourSlot.',
+  title: 'HourSlot — Smart appointment booking',
+  description:
+    'Discover nearby services, book the perfect slot, and manage your business schedule with HourSlot.',
 };
 
 export default function RootLayout({

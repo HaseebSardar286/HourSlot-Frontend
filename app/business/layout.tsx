@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import NotificationPanel from '@/components/NotificationPanel';
 import styles from './business-layout.module.css';
 
 const OWNER_LINKS = [
@@ -157,13 +158,15 @@ export default function BusinessLayout({ children }: { children: React.ReactNode
             <h1 className={styles.pageTitle}>{getPageTitle()}</h1>
           </div>
 
-          <div className={styles.topbarActions}>
+          <div className={styles.topbarActions} style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
             {!isStaff && (
               <Link href="/profile/explore" className={styles.roleSwitchBtn} title="Switch to customer view">
                 <i className="fa-solid fa-users"></i>
                 <span>Customer Mode</span>
               </Link>
             )}
+
+            <NotificationPanel />
 
             <div className={styles.userProfile}>
               <div className={styles.userAvatar}>{initials}</div>

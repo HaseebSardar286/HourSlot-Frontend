@@ -3,6 +3,7 @@
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
+import FormField from '@/components/FormField';
 import styles from './register-business.module.css';
 
 export default function RegisterBusinessPage() {
@@ -64,70 +65,69 @@ export default function RegisterBusinessPage() {
 
   return (
     <div className={styles.businessRegContainer}>
-      <div className={`glass-card ${styles.registrationCard}`}>
+      <div className={`surface ${styles.registrationCard}`}>
         <div className={styles.registrationHeader}>
-          <span className={styles.regIcon}>💼</span>
-          <h2>Register Your Business</h2>
+          <div className={styles.regIcon}>
+            <i className="fa-solid fa-briefcase" />
+          </div>
+          <h2>Register your business</h2>
           <p className={styles.regSubtitle}>
-            Enter your business details to submit an application for platform verification
+            Enter your details to submit an application for platform verification.
           </p>
         </div>
 
         {errorMessage && (
           <div className="error-alert">
-            <span>⚠️</span> {errorMessage}
+            <i className="fa-solid fa-triangle-exclamation" /> {errorMessage}
           </div>
         )}
 
         {successMessage && (
           <div className="success-alert">
-            <span>✅</span> {successMessage}
+            <i className="fa-solid fa-circle-check" /> {successMessage}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className={styles.registrationForm} noValidate>
-          <div className="form-group">
-            <label htmlFor="name" className="form-label">Business Name</label>
-            <input
-              id="name"
-              type="text"
-              className={`input-field${errors.name ? ' input-error' : ''}`}
-              placeholder="e.g. Apex Health Clinic or Glow Salon"
-              value={formData.name}
-              onChange={(e) => handleInputChange('name', e.target.value)}
-              onBlur={() => handleBlur('name')}
-            />
-            {errors.name && <span className="validation-error">{errors.name}</span>}
-          </div>
+          <FormField
+            label="Business name"
+            htmlFor="name"
+            value={formData.name}
+            onChange={(e) => handleInputChange('name', e.target.value)}
+            onBlur={() => handleBlur('name')}
+            placeholder="e.g. Apex Health Clinic or Glow Salon"
+            error={errors.name}
+          />
 
-          <div className="form-group">
-            <label htmlFor="description" className="form-label">Business Description</label>
-            <textarea
-              id="description"
-              className={`input-field ${styles.textareaField}${errors.description ? ' input-error' : ''}`}
-              placeholder="Describe the services you offer, your specialization, and what sets you apart..."
-              rows={5}
-              value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              onBlur={() => handleBlur('description')}
-            />
-            {errors.description && <span className="validation-error">{errors.description}</span>}
-          </div>
+          <FormField
+            as="textarea"
+            label="Business description"
+            htmlFor="description"
+            value={formData.description}
+            onChange={(e) => handleInputChange('description', e.target.value)}
+            onBlur={() => handleBlur('description')}
+            placeholder="Describe the services you offer and what sets you apart..."
+            error={errors.description}
+            rows={5}
+          />
 
-          <div className="form-group">
-            <label htmlFor="logoUrl" className="form-label">Logo Image URL</label>
-            <input
-              id="logoUrl"
-              type="text"
-              className="input-field"
-              placeholder="https://example.com/logo.png"
-              value={formData.logoUrl}
-              onChange={(e) => handleInputChange('logoUrl', e.target.value)}
-            />
-          </div>
+          <FormField
+            label="Logo image URL"
+            htmlFor="logoUrl"
+            value={formData.logoUrl}
+            onChange={(e) => handleInputChange('logoUrl', e.target.value)}
+            placeholder="https://example.com/logo.png"
+            hint="Optional — you can add this later from your dashboard."
+          />
 
-          <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-            {loading ? <><span className="spinner" /> Submitting application...</> : 'Submit Application'}
+          <button type="submit" className="btn btn-primary" disabled={loading}>
+            {loading ? (
+              <>
+                <span className="spinner" /> Submitting application...
+              </>
+            ) : (
+              'Submit application'
+            )}
           </button>
         </form>
       </div>

@@ -1,119 +1,37 @@
 .bookingsContainer {
-  padding: 30px;
-  max-width: 1400px;
+  max-width: 1200px;
   margin: 0 auto;
-  min-height: calc(100vh - 100px);
-}
-
-.headerRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-
-.branchSelectArea {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.controlsArea {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 20px;
-  margin-bottom: 24px;
-}
-
-.tabsContainer {
-  display: flex;
-  gap: 8px;
-  background: rgba(255, 255, 255, 0.03);
-  padding: 4px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.tabBtn {
-  background: transparent;
-  border: none;
-  padding: 10px 20px;
-  color: var(--text-secondary);
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.95rem;
-}
-
-.tabBtn:hover {
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.tabActive {
-  background: var(--accent-primary);
-  color: #ffffff;
-  box-shadow: 0 4px 15px rgba(var(--accent-primary-rgb), 0.3);
-}
-
-.tabActive:hover {
-  background: var(--accent-primary);
-  color: #ffffff;
-}
-
-.searchBox {
-  position: relative;
-  width: 300px;
-}
-
-.searchBox i {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-secondary);
-  pointer-events: none;
-  font-size: 0.9rem;
-}
-
-.searchInput {
-  padding-left: 40px !important;
-}
-
-.bookingsList {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
+.bookingsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .bookingCard {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 16px;
-  padding: 24px;
-  transition: all 0.3s ease;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 20px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  padding: 20px !important;
 }
 
 .bookingCard:hover {
-  border-color: rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
-  transform: translateY(-2px);
+  border-color: rgba(26, 138, 138, 0.28);
 }
 
 .mainInfo {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 20px;
   flex: 1;
+  min-width: 0;
 }
 
 .timeBlock {
@@ -121,61 +39,57 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  width: 90px;
-  height: 90px;
+  background: rgba(26, 138, 138, 0.06);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  width: 88px;
+  height: 88px;
   text-align: center;
+  flex-shrink: 0;
 }
 
 .timeHour {
-  font-size: 1.4rem;
+  font-size: 1.15rem;
   font-weight: 700;
   color: var(--accent-primary);
 }
 
 .timeDate {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: var(--text-secondary);
   text-transform: uppercase;
   margin-top: 4px;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.04em;
 }
 
 .detailsBlock {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
 }
 
 .serviceName {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: var(--text-primary);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-main);
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
-.customerName {
-  font-size: 0.95rem;
+.metaLine {
+  font-size: 0.88rem;
   color: var(--text-secondary);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
-.specialistName {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  background: rgba(255, 255, 255, 0.03);
-  padding: 4px 10px;
-  border-radius: 6px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  width: fit-content;
+.sep {
+  color: var(--text-muted);
 }
 
 .metaInfo {
@@ -183,131 +97,96 @@
   flex-direction: column;
   align-items: flex-end;
   gap: 10px;
-  min-width: 150px;
+  flex-shrink: 0;
 }
 
 .priceText {
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: #10b981;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--accent-primary);
 }
 
 .actionArea {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.actionBtn {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  color: var(--text-primary);
-  padding: 8px 16px;
-  border-radius: 8px;
-  cursor: pointer;
+.modalStack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.detailTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.detailTitle {
+  margin: 0 0 6px;
+  font-size: 1.2rem;
+}
+
+.detailSection {
+  border-top: 1px solid var(--border-color);
+  padding-top: 12px;
+}
+
+.detailSection h5 {
+  margin: 0 0 8px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.strong {
+  margin: 0 0 4px;
+  font-weight: 700;
+}
+
+.muted {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+}
+
+.slotGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 8px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.slotBtn {
+  padding: 8px 4px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-main);
+  font-weight: 600;
   font-size: 0.85rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  cursor: pointer;
+  font-family: inherit;
 }
 
-.actionBtn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.15);
+.slotSelected {
+  border-color: var(--accent-primary);
+  background: var(--accent-gradient);
+  color: #fff;
 }
 
-.btnComplete {
-  background: rgba(16, 185, 129, 0.1) !important;
-  border-color: rgba(16, 185, 129, 0.2) !important;
-  color: #10b981 !important;
-}
+@media (max-width: 768px) {
+  .bookingCard {
+    flex-direction: column;
+    align-items: stretch;
+  }
 
-.btnComplete:hover {
-  background: rgba(16, 185, 129, 0.2) !important;
-}
-
-.btnCancel {
-  background: rgba(239, 68, 68, 0.1) !important;
-  border-color: rgba(239, 68, 68, 0.2) !important;
-  color: #ef4444 !important;
-}
-
-.btnCancel:hover {
-  background: rgba(239, 68, 68, 0.2) !important;
-}
-
-.loaderContainer {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 200px;
-}
-
-/* Status Badges */
-.badgePending {
-  background: rgba(245, 158, 11, 0.1);
-  color: #f59e0b;
-  border: 1px solid rgba(245, 158, 11, 0.2);
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-}
-
-.badgeConfirmed {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.2);
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-}
-
-.badgeCompleted {
-  background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-}
-
-.badgeCancelled {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-}
-
-.badgeNoShow {
-  background: rgba(107, 114, 128, 0.1);
-  color: #9ca3af;
-  border: 1px solid rgba(107, 114, 128, 0.2);
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-}
-
-.badgeInProgress {
-  background: rgba(139, 92, 246, 0.1);
-  color: #8b5cf6;
-  border: 1px solid rgba(139, 92, 246, 0.2);
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.5px;
+  .metaInfo {
+    align-items: flex-start;
+  }
 }

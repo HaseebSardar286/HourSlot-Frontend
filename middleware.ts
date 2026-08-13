@@ -33,7 +33,7 @@ export function middleware(request: NextRequest) {
       }
       return NextResponse.redirect(new URL('/profile/explore', request.url));
     }
-    return NextResponse.redirect(new URL('/auth/login', request.url));
+    return NextResponse.next();
   }
 
   if (AUTH_ROUTES.some((r) => pathname.startsWith(r))) {

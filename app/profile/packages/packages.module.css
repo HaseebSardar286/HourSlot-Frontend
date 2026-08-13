@@ -1,0 +1,70 @@
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 0 40px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  min-height: 180px;
+  transition: var(--transition-fast);
+}
+
+.card:hover {
+  border-color: rgba(26, 138, 138, 0.3);
+}
+
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.bizName {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.pkgName {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0 0 10px;
+  color: var(--text-main);
+}
+
+.sessions {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--accent-primary);
+  font-family: var(--font-headers);
+  margin-bottom: 12px;
+}
+
+.sessions span {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+}
+
+.meta {
+  border-top: 1px solid var(--border-color);
+  padding-top: 12px;
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}

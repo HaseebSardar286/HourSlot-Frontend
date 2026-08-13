@@ -1,6 +1,7 @@
 'use client';
 
 import { ReactNode, useEffect } from 'react';
+import styles from './ui.module.css';
 
 interface ModalProps {
   open: boolean;
@@ -8,9 +9,10 @@ interface ModalProps {
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
+  wide?: boolean;
 }
 
-export default function Modal({ open, title, onClose, children, footer }: ModalProps) {
+export default function Modal({ open, title, onClose, children, footer, wide }: ModalProps) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -27,36 +29,22 @@ export default function Modal({ open, title, onClose, children, footer }: ModalP
       role="dialog"
       aria-modal="true"
       aria-label={title}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(15, 30, 35, 0.45)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 2000,
-        padding: 16,
-      }}
+      className={styles.modalOverlay}
       onClick={onClose}
     >
       <div
-        className="glass-card"
-        style={{ width: '100%', maxWidth: 520, padding: 24 }}
+        className={styles.modalPanel}
+        style={wide ? { maxWidth: 720 } : undefined}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h3 style={{ margin: 0 }}>{title}</h3>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close dialog"
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.1rem' }}
-          >
+        <div className={styles.modalHeader}>
+          <h3>{title}</h3>
+          <button type="button" className={styles.modalClose} onClick={onClose} aria-label="Close dialog">
             <i className="fa-solid fa-xmark" />
           </button>
         </div>
         <div>{children}</div>
-        {footer && <div style={{ marginTop: 20, display: 'flex', gap: 10, justifyContent: 'flex-end' }}>{footer}</div>}
+        {footer && <div className={styles.modalFooter}>{footer}</div>}
       </div>
     </div>
   );

@@ -2,6 +2,12 @@
 
 import { useState, useEffect, FormEvent } from 'react';
 import { apiFetch } from '@/lib/api';
+import PageHeader from '@/components/PageHeader';
+import EmptyState from '@/components/EmptyState';
+import Skeleton from '@/components/Skeleton';
+import Modal from '@/components/Modal';
+import FilterBar from '@/components/FilterBar';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import styles from './availability.module.css';
 
 interface Branch {
@@ -66,7 +72,6 @@ export default function AvailabilityPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  // Form states
   const [showHourForm, setShowHourForm] = useState(false);
   const [hourForm, setHourForm] = useState({
     dayOfWeek: 1,
@@ -81,8 +86,11 @@ export default function AvailabilityPage() {
     description: '',
   });
 
-  // Inline break form mapping: workingHourId -> { startTime, endTime }
   const [breakForms, setBreakForms] = useState<Record<number, { startTime: string; endTime: string }>>({});
+  const [pendingHourDelete, setPendingHourDelete] = useState<number | null>(null);
+  const [pendingBreakDelete, setPendingBreakDelete] = useState<number | null>(null);
+  const [pendingHolidayDelete, setPendingHolidayDelete] = useState<number | null>(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
 
   const loadInitialData = async () => {
     setLoading(true);
@@ -199,18 +207,22 @@ export default function AvailabilityPage() {
     }
   };
 
-  const handleHourDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to remove this day configuration?')) return;
+  const handleHourDelete = async () => {
+    if (pendingHourDelete == null) return;
+    setConfirmLoading(true);
     setError(null);
     setMessage(null);
     try {
-      await apiFetch(`/api/business/working-hours/${id}`, {
+      await apiFetch(`/api/business/working-hours/${pendingHourDelete}`, {
         method: 'DELETE',
       });
       setMessage('Working hour record removed.');
+      setPendingHourDelete(null);
       await loadScheduleData(selectedBranchId, scheduleType, selectedStaffId);
     } catch (err: any) {
       setError(err?.message || 'Failed to remove working hour record.');
+    } finally {
+      setConfirmLoading(false);
     }
   };
 
@@ -248,18 +260,22 @@ export default function AvailabilityPage() {
     }
   };
 
-  const handleBreakDelete = async (breakId: number) => {
-    if (!confirm('Remove this break period?')) return;
+  const handleBreakDelete = async () => {
+    if (pendingBreakDelete == null) return;
+    setConfirmLoading(true);
     setError(null);
     setMessage(null);
     try {
-      await apiFetch(`/api/business/breaks/${breakId}`, {
+      await apiFetch(`/api/business/breaks/${pendingBreakDelete}`, {
         method: 'DELETE',
       });
       setMessage('Break period removed.');
+      setPendingBreakDelete(null);
       await loadScheduleData(selectedBranchId, scheduleType, selectedStaffId);
     } catch (err: any) {
       setError(err?.message || 'Failed to remove break.');
+    } finally {
+      setConfirmLoading(false);
     }
   };
 
@@ -289,113 +305,131 @@ export default function AvailabilityPage() {
     }
   };
 
-  const handleHolidayDelete = async (id: number) => {
-    if (!confirm('Cancel this holiday closure?')) return;
+  const handleHolidayDelete = async () => {
+    if (pendingHolidayDelete == null) return;
+    setConfirmLoading(true);
     setError(null);
     setMessage(null);
     try {
-      await apiFetch(`/api/business/holidays/${id}`, {
+      await apiFetch(`/api/business/holidays/${pendingHolidayDelete}`, {
         method: 'DELETE',
       });
       setMessage('Holiday closure cancelled.');
+      setPendingHolidayDelete(null);
       await loadScheduleData(selectedBranchId, scheduleType, selectedStaffId);
     } catch (err: any) {
       setError(err?.message || 'Failed to cancel holiday.');
+    } finally {
+      setConfirmLoading(false);
     }
   };
 
   if (loading) {
     return (
-      <div className={styles.loaderContainer}>
-        <div className="spinner" />
+      <div className={styles.availabilityContainer}>
+        <Skeleton variant="title" />
+        <Skeleton variant="row" count={4} />
       </div>
     );
   }
 
   return (
     <div className={styles.availabilityContainer}>
-      <div className={styles.headerRow}>
-        <div className={styles.branchSelectArea}>
-          <label className="form-label" htmlFor="branchFilter" style={{ marginBottom: 0, marginRight: '10px' }}>
-            Select Branch:
-          </label>
-          <select
-            id="branchFilter"
-            className="input-field"
-            style={{ width: '180px', padding: '6px 12px', marginRight: '15px' }}
-            value={selectedBranchId}
-            onChange={(e) => setSelectedBranchId(e.target.value)}
-          >
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
+      <PageHeader
+        title="Availability"
+        subtitle="Configure branch hours, staff overrides, breaks, and closures."
+      />
 
-          <label className="form-label" htmlFor="schedTypeSelect" style={{ marginBottom: 0, marginRight: '10px' }}>
-            Schedule:
-          </label>
-          <select
-            id="schedTypeSelect"
-            className="input-field"
-            style={{ width: '160px', padding: '6px 12px', marginRight: '15px' }}
-            value={scheduleType}
-            onChange={(e) => setScheduleType(e.target.value as any)}
-          >
-            <option value="general">Branch Default</option>
-            <option value="staff">Staff Overrides</option>
-          </select>
+      <FilterBar>
+        <label className="form-label" htmlFor="branchFilter">
+          Branch
+        </label>
+        <select
+          id="branchFilter"
+          className="select-field"
+          value={selectedBranchId}
+          onChange={(e) => setSelectedBranchId(e.target.value)}
+        >
+          {branches.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.name}
+            </option>
+          ))}
+        </select>
 
-          {scheduleType === 'staff' && (
-            <>
-              <label className="form-label" htmlFor="staffFilter" style={{ marginBottom: 0, marginRight: '10px' }}>
-                Staff Member:
-              </label>
-              <select
-                id="staffFilter"
-                className="input-field"
-                style={{ width: '180px', padding: '6px 12px' }}
-                value={selectedStaffId}
-                onChange={(e) => setSelectedStaffId(e.target.value)}
-              >
-                <option value="">-- Choose Staff --</option>
-                {filteredStaff.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name} ({s.specialty || 'Generalist'})</option>
-                ))}
-              </select>
-            </>
-          )}
+        <label className="form-label" htmlFor="schedTypeSelect">
+          Schedule
+        </label>
+        <select
+          id="schedTypeSelect"
+          className="select-field"
+          value={scheduleType}
+          onChange={(e) => setScheduleType(e.target.value as any)}
+        >
+          <option value="general">Branch default</option>
+          <option value="staff">Staff overrides</option>
+        </select>
+
+        {scheduleType === 'staff' && (
+          <>
+            <label className="form-label" htmlFor="staffFilter">
+              Staff
+            </label>
+            <select
+              id="staffFilter"
+              className="select-field"
+              value={selectedStaffId}
+              onChange={(e) => setSelectedStaffId(e.target.value)}
+            >
+              <option value="">-- Choose staff --</option>
+              {filteredStaff.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} ({s.specialty || 'Generalist'})
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+      </FilterBar>
+
+      {message && (
+        <div className="success-alert">
+          <i className="fa-solid fa-circle-check" /> {message}
         </div>
-      </div>
-
-      {message && <div className="success-alert" style={{ marginBottom: '20px' }}><i className="fa-solid fa-circle-check"></i> {message}</div>}
-      {error && <div className="error-alert" style={{ marginBottom: '20px' }}><i className="fa-solid fa-triangle-exclamation"></i> {error}</div>}
+      )}
+      {error && (
+        <div className="error-alert">
+          <i className="fa-solid fa-triangle-exclamation" /> {error}
+        </div>
+      )}
 
       {branches.length === 0 ? (
-        <div className="glass-card text-center" style={{ padding: '60px 20px' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '16px' }}>📍</div>
-          <h3>Branches Required</h3>
-          <p style={{ color: 'var(--text-secondary)' }}>You must create at least one branch before configuring working hours.</p>
-        </div>
+        <EmptyState
+          icon="fa-location-dot"
+          title="Branches required"
+          description="Create at least one branch before configuring working hours."
+          actionLabel="Add branch"
+          onAction={() => {
+            window.location.href = '/business/branches';
+          }}
+        />
       ) : scheduleType === 'staff' && !selectedStaffId ? (
-        <div className="glass-card text-center" style={{ padding: '60px 20px' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '16px' }}>👤</div>
-          <h3>Select a Staff Member</h3>
-          <p style={{ color: 'var(--text-secondary)' }}>Choose a staff member from the dropdown above to manage their schedule overrides.</p>
-        </div>
+        <EmptyState
+          icon="fa-user"
+          title="Select a staff member"
+          description="Choose a staff member above to manage their schedule overrides."
+        />
       ) : scheduleLoading ? (
-        <div className={styles.loaderContainer}>
-          <div className="spinner" />
-        </div>
+        <Skeleton variant="row" count={6} />
       ) : (
         <div className={styles.scheduleGrid}>
-          {/* Working Hours Left Column */}
-          <div className={styles.hoursColumn}>
+          <div className={`surface ${styles.hoursColumn}`}>
             <div className={styles.columnHeader}>
               <h3>
-                {scheduleType === 'staff' ? 'Staff Working Shifts' : 'Branch Working Hours'}
+                {scheduleType === 'staff' ? 'Staff working shifts' : 'Branch working hours'}
               </h3>
-              <button className="btn btn-sm" onClick={() => setShowHourForm(true)}>
-                Configure Day
+              <button type="button" className="btn btn-sm btn-secondary" onClick={() => setShowHourForm(true)}>
+                Configure day
               </button>
             </div>
 
@@ -431,8 +465,8 @@ export default function AvailabilityPage() {
                             <div className={styles.breaksList}>
                               {config.breaks.map((br) => (
                                 <span key={br.id} className={styles.breakBadge}>
-                                  ☕ {formatTime(br.startTime)} - {formatTime(br.endTime)}
-                                  <button onClick={() => handleBreakDelete(br.id)} className={styles.removeBreakBtn}>
+                                  {formatTime(br.startTime)} – {formatTime(br.endTime)}
+                                  <button type="button" onClick={() => setPendingBreakDelete(br.id)} className={styles.removeBreakBtn}>
                                     &times;
                                   </button>
                                 </span>
@@ -465,12 +499,13 @@ export default function AvailabilityPage() {
                             </form>
                           )}
 
-                          <button 
-                            className={styles.resetBtn} 
-                            onClick={() => handleHourDelete(config.id)}
+                          <button
+                            type="button"
+                            className={styles.resetBtn}
+                            onClick={() => setPendingHourDelete(config.id)}
                             title="Reset day configuration"
                           >
-                            <i className="fa-solid fa-rotate-left"></i> Reset
+                            <i className="fa-solid fa-rotate-left" /> Reset
                           </button>
                         </>
                       )}
@@ -481,21 +516,18 @@ export default function AvailabilityPage() {
             </div>
           </div>
 
-          {/* Holidays Right Column */}
-          <div className={styles.holidaysColumn}>
+          <div className={`surface ${styles.holidaysColumn}`}>
             <div className={styles.columnHeader}>
               <h3>
-                {scheduleType === 'staff' ? 'Staff Scheduled Absences' : 'Branch Closures'}
+                {scheduleType === 'staff' ? 'Staff scheduled absences' : 'Branch closures'}
               </h3>
-              <button className="btn btn-sm" onClick={() => setShowHolidayForm(true)}>
-                Add Absence
+              <button type="button" className="btn btn-sm btn-secondary" onClick={() => setShowHolidayForm(true)}>
+                Add absence
               </button>
             </div>
 
             {holidays.length === 0 ? (
-              <div className="glass-card text-center" style={{ padding: '30px', background: 'rgba(255,255,255,0.01)' }}>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>No closures/absences scheduled.</p>
-              </div>
+              <p className={styles.emptyHolidays}>No closures or absences scheduled.</p>
             ) : (
               <div className={styles.holidaysList}>
                 {holidays.map((h) => (
@@ -504,8 +536,13 @@ export default function AvailabilityPage() {
                       <span className={styles.holidayDate}>{h.date}</span>
                       {h.description && <span className={styles.holidayDesc}>{h.description}</span>}
                     </div>
-                    <button className={styles.deleteHolidayBtn} onClick={() => handleHolidayDelete(h.id)} title="Cancel holiday">
-                      <i className="fa-solid fa-trash-can"></i>
+                    <button
+                      type="button"
+                      className={styles.deleteHolidayBtn}
+                      onClick={() => setPendingHolidayDelete(h.id)}
+                      title="Cancel holiday"
+                    >
+                      <i className="fa-solid fa-trash-can" />
                     </button>
                   </div>
                 ))}
@@ -515,113 +552,157 @@ export default function AvailabilityPage() {
         </div>
       )}
 
-      {/* Configure Hour Dialog */}
-      {showHourForm && (
-        <div className={styles.modalOverlay}>
-          <div className={`glass-card ${styles.modalContent}`}>
-            <div className={styles.modalHeader}>
-              <h3>Configure Day Hours</h3>
-              <button className={styles.closeBtn} onClick={() => setShowHourForm(false)}>&times;</button>
-            </div>
-            <form onSubmit={handleHourSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
-              <div className="form-group">
-                <label className="form-label" htmlFor="dayOfWeekSelect">Day of Week</label>
-                <select
-                  id="dayOfWeekSelect"
-                  className="input-field"
-                  value={hourForm.dayOfWeek}
-                  onChange={(e) => setHourForm((prev) => ({ ...prev, dayOfWeek: parseInt(e.target.value) }))}
-                >
-                  {DAYS_OF_WEEK.map((d) => (
-                    <option key={d.value} value={d.value}>{d.label}</option>
-                  ))}
-                </select>
-              </div>
+      <Modal
+        open={showHourForm}
+        title="Configure day hours"
+        onClose={() => setShowHourForm(false)}
+        footer={
+          <>
+            <button type="button" className="btn btn-outline" onClick={() => setShowHourForm(false)}>
+              Cancel
+            </button>
+            <button type="submit" form="hour-form" className="btn btn-primary">
+              Save configuration
+            </button>
+          </>
+        }
+      >
+        <form id="hour-form" onSubmit={handleHourSubmit} className={styles.modalForm}>
+          <div className="form-group">
+            <label className="form-label" htmlFor="dayOfWeekSelect">
+              Day of week
+            </label>
+            <select
+              id="dayOfWeekSelect"
+              className="select-field"
+              value={hourForm.dayOfWeek}
+              onChange={(e) => setHourForm((prev) => ({ ...prev, dayOfWeek: parseInt(e.target.value) }))}
+            >
+              {DAYS_OF_WEEK.map((d) => (
+                <option key={d.value} value={d.value}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
+          </div>
 
-              <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0' }}>
-                <input
-                  id="closedCheckbox"
-                  type="checkbox"
-                  checked={hourForm.closed}
-                  onChange={(e) => setHourForm((prev) => ({ ...prev, closed: e.target.checked }))}
-                />
-                <label htmlFor="closedCheckbox" className="form-label" style={{ marginBottom: 0 }}>
-                  Mark as Closed on this Day
+          <div className={styles.checkRow}>
+            <input
+              id="closedCheckbox"
+              type="checkbox"
+              checked={hourForm.closed}
+              onChange={(e) => setHourForm((prev) => ({ ...prev, closed: e.target.checked }))}
+            />
+            <label htmlFor="closedCheckbox" className="form-label">
+              Mark as closed on this day
+            </label>
+          </div>
+
+          {!hourForm.closed && (
+            <div className={styles.twoCol}>
+              <div className="form-group">
+                <label className="form-label" htmlFor="hourStart">
+                  Start time
                 </label>
+                <input
+                  id="hourStart"
+                  type="time"
+                  className="input-field"
+                  value={hourForm.startTime}
+                  onChange={(e) => setHourForm((prev) => ({ ...prev, startTime: e.target.value }))}
+                />
               </div>
-
-              {!hourForm.closed && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="hourStart">Start Time</label>
-                    <input
-                      id="hourStart"
-                      type="time"
-                      className="input-field"
-                      value={hourForm.startTime}
-                      onChange={(e) => setHourForm((prev) => ({ ...prev, startTime: e.target.value }))}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="hourEnd">End Time</label>
-                    <input
-                      id="hourEnd"
-                      type="time"
-                      className="input-field"
-                      value={hourForm.endTime}
-                      onChange={(e) => setHourForm((prev) => ({ ...prev, endTime: e.target.value }))}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '10px' }}>
-                Save Configuration
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Add Holiday Dialog */}
-      {showHolidayForm && (
-        <div className={styles.modalOverlay}>
-          <div className={`glass-card ${styles.modalContent}`}>
-            <div className={styles.modalHeader}>
-              <h3>Schedule Closure/Absence</h3>
-              <button className={styles.closeBtn} onClick={() => setShowHolidayForm(false)}>&times;</button>
+              <div className="form-group">
+                <label className="form-label" htmlFor="hourEnd">
+                  End time
+                </label>
+                <input
+                  id="hourEnd"
+                  type="time"
+                  className="input-field"
+                  value={hourForm.endTime}
+                  onChange={(e) => setHourForm((prev) => ({ ...prev, endTime: e.target.value }))}
+                />
+              </div>
             </div>
-            <form onSubmit={handleHolidaySubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
-              <div className="form-group">
-                <label className="form-label" htmlFor="holidayDate">Date</label>
-                <input
-                  id="holidayDate"
-                  type="date"
-                  className="input-field"
-                  value={holidayForm.date}
-                  onChange={(e) => setHolidayForm((prev) => ({ ...prev, date: e.target.value }))}
-                />
-              </div>
+          )}
+        </form>
+      </Modal>
 
-              <div className="form-group">
-                <label className="form-label" htmlFor="holidayDesc">Description (e.g. Public Holiday or Sick Leave)</label>
-                <input
-                  id="holidayDesc"
-                  type="text"
-                  className="input-field"
-                  value={holidayForm.description}
-                  onChange={(e) => setHolidayForm((prev) => ({ ...prev, description: e.target.value }))}
-                  placeholder="e.g. Out of office"
-                />
-              </div>
-
-              <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '10px' }}>
-                Schedule Closure
-              </button>
-            </form>
+      <Modal
+        open={showHolidayForm}
+        title="Schedule closure / absence"
+        onClose={() => setShowHolidayForm(false)}
+        footer={
+          <>
+            <button type="button" className="btn btn-outline" onClick={() => setShowHolidayForm(false)}>
+              Cancel
+            </button>
+            <button type="submit" form="holiday-form" className="btn btn-primary">
+              Schedule closure
+            </button>
+          </>
+        }
+      >
+        <form id="holiday-form" onSubmit={handleHolidaySubmit} className={styles.modalForm}>
+          <div className="form-group">
+            <label className="form-label" htmlFor="holidayDate">
+              Date
+            </label>
+            <input
+              id="holidayDate"
+              type="date"
+              className="input-field"
+              value={holidayForm.date}
+              onChange={(e) => setHolidayForm((prev) => ({ ...prev, date: e.target.value }))}
+            />
           </div>
-        </div>
-      )}
+          <div className="form-group">
+            <label className="form-label" htmlFor="holidayDesc">
+              Description
+            </label>
+            <input
+              id="holidayDesc"
+              type="text"
+              className="input-field"
+              value={holidayForm.description}
+              onChange={(e) => setHolidayForm((prev) => ({ ...prev, description: e.target.value }))}
+              placeholder="e.g. Public holiday or sick leave"
+            />
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        open={pendingHourDelete != null}
+        title="Reset day"
+        message="Remove this day configuration?"
+        confirmLabel="Reset"
+        danger
+        loading={confirmLoading}
+        onConfirm={handleHourDelete}
+        onCancel={() => setPendingHourDelete(null)}
+      />
+      <ConfirmDialog
+        open={pendingBreakDelete != null}
+        title="Remove break"
+        message="Remove this break period?"
+        confirmLabel="Remove"
+        danger
+        loading={confirmLoading}
+        onConfirm={handleBreakDelete}
+        onCancel={() => setPendingBreakDelete(null)}
+      />
+      <ConfirmDialog
+        open={pendingHolidayDelete != null}
+        title="Cancel closure"
+        message="Cancel this holiday closure?"
+        confirmLabel="Cancel closure"
+        danger
+        loading={confirmLoading}
+        onConfirm={handleHolidayDelete}
+        onCancel={() => setPendingHolidayDelete(null)}
+      />
     </div>
   );
 }

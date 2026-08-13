@@ -1,72 +1,40 @@
-.loaderContainer {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 300px;
-}
-
-.assignmentsContainer {
-  max-width: 1200px;
+.page {
+  max-width: 1100px;
   margin: 0 auto;
-}
-
-.headerRow {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.overridePrice {
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.desc {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.override {
   color: var(--accent-primary);
   font-weight: 700;
 }
 
-/* Modal styling */
-.modalOverlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.checkRow {
   display: flex;
   align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 16px;
+  gap: 8px;
 }
 
-.modalContent {
-  width: 100%;
-  max-width: 450px;
-  padding: 24px;
-}
-
-.modalHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 12px;
-}
-
-.modalHeader h3 {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: #ffffff;
-}
-
-.closeBtn {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  font-size: 1.8rem;
-  cursor: pointer;
-  line-height: 1;
-}
-
-.closeBtn:hover {
-  color: #ffffff;
+.checkRow .form-label {
+  margin-bottom: 0;
 }

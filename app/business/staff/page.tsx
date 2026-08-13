@@ -2,6 +2,13 @@
 
 import { useState, useEffect, FormEvent } from 'react';
 import { apiFetch } from '@/lib/api';
+import PageHeader from '@/components/PageHeader';
+import EmptyState from '@/components/EmptyState';
+import Skeleton from '@/components/Skeleton';
+import Modal from '@/components/Modal';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import DataTable from '@/components/DataTable';
+import FilterBar from '@/components/FilterBar';
 import styles from './staff.module.css';
 
 interface Branch {
@@ -25,17 +32,15 @@ export default function StaffPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [staffList, setStaffList] = useState<Staff[]>([]);
-  
   const [loading, setLoading] = useState(true);
   const [staffLoading, setStaffLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-
-  // Form states
   const [showForm, setShowForm] = useState(false);
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     designation: '',
@@ -128,14 +133,12 @@ export default function StaffPage() {
 
     try {
       if (editingStaff) {
-        // Edit Staff
         await apiFetch(`/api/business/staff/${editingStaff.id}`, {
           method: 'PUT',
           body: JSON.stringify(payload),
         });
         setMessage('Staff member details updated!');
       } else {
-        // Add Staff
         await apiFetch('/api/business/staff', {
           method: 'POST',
           body: JSON.stringify(payload),
@@ -143,7 +146,6 @@ export default function StaffPage() {
         setMessage('Staff member added successfully!');
       }
       setShowForm(false);
-      // Reload active branch staff list
       await loadStaffForBranch(selectedBranchId);
     } catch (err: any) {
       setError(err?.message || 'Failed to save staff member details.');
@@ -152,179 +154,225 @@ export default function StaffPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this staff member? All their booking relationships will be unmapped.')) return;
-
+  const handleDelete = async () => {
+    if (deleteId == null) return;
+    setDeleting(true);
     setError(null);
     setMessage(null);
     try {
-      await apiFetch(`/api/business/staff/${id}`, {
-        method: 'DELETE',
-      });
+      await apiFetch(`/api/business/staff/${deleteId}`, { method: 'DELETE' });
       setMessage('Staff member removed successfully.');
+      setDeleteId(null);
       await loadStaffForBranch(selectedBranchId);
     } catch (err: any) {
       setError(err?.message || 'Failed to remove staff member.');
+    } finally {
+      setDeleting(false);
     }
   };
 
   if (loading) {
     return (
-      <div className={styles.loaderContainer}>
-        <div className="spinner" />
+      <div className={styles.page}>
+        <Skeleton variant="title" />
+        <Skeleton variant="row" count={4} />
       </div>
     );
   }
 
   return (
-    <div className={styles.staffContainer}>
-      <div className={styles.headerRow}>
-        <div className={styles.branchSelectArea}>
-          <label className="form-label" htmlFor="branchFilter" style={{ marginBottom: 0, marginRight: '10px' }}>
-            Select Branch:
-          </label>
-          <select
-            id="branchFilter"
-            className="input-field"
-            style={{ width: '220px', padding: '6px 12px' }}
-            value={selectedBranchId}
-            onChange={(e) => setSelectedBranchId(e.target.value)}
-          >
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
+    <div className={styles.page}>
+      <PageHeader
+        title="Staff"
+        subtitle="Manage specialists by branch and optional portal account links."
+        actions={
+          <button type="button" className="btn btn-primary" onClick={handleAddClick} disabled={branches.length === 0}>
+            <i className="fa-solid fa-plus" /> Add Staff
+          </button>
+        }
+      />
+
+      {message && (
+        <div className="success-alert">
+          <i className="fa-solid fa-circle-check" /> {message}
         </div>
-
-        <button className="btn btn-primary" onClick={handleAddClick} disabled={branches.length === 0}>
-          <i className="fa-solid fa-plus"></i> Add Staff
-        </button>
-      </div>
-
-      {message && <div className="success-alert" style={{ marginBottom: '20px' }}><i className="fa-solid fa-circle-check"></i> {message}</div>}
-      {error && <div className="error-alert" style={{ marginBottom: '20px' }}><i className="fa-solid fa-triangle-exclamation"></i> {error}</div>}
+      )}
+      {error && (
+        <div className="error-alert">
+          <i className="fa-solid fa-triangle-exclamation" /> {error}
+        </div>
+      )}
 
       {branches.length === 0 ? (
-        <div className="glass-card text-center" style={{ padding: '60px 20px' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '16px' }}>📍</div>
-          <h3>Branches Required</h3>
-          <p style={{ color: 'var(--text-secondary)' }}>You must create at least one branch before listing staff members.</p>
-        </div>
-      ) : staffLoading ? (
-        <div className={styles.loaderContainer}>
-          <div className="spinner" />
-        </div>
-      ) : staffList.length === 0 ? (
-        <div className="glass-card text-center" style={{ padding: '60px 20px' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '16px' }}>👥</div>
-          <h3>No Staff Members at this Branch</h3>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>Add specialists to manage their working shifts and buffer hours.</p>
-          <button className="btn btn-primary" onClick={handleAddClick}>Add Staff Member</button>
-        </div>
+        <EmptyState
+          icon="fa-location-dot"
+          title="Branches required"
+          description="Create at least one branch before listing staff members."
+          actionLabel="Add branch"
+          onAction={() => {
+            window.location.href = '/business/branches';
+          }}
+        />
       ) : (
-        <div className={styles.staffGrid}>
-          {staffList.map((staff) => (
-            <div key={staff.id} className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
-                  <div>
-                    <h3 style={{ fontSize: '1.15rem', fontWeight: '700', color: '#ffffff' }}>{staff.name}</h3>
-                    {staff.designation && <span className={styles.designationBadge}>{staff.designation}</span>}
-                  </div>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button className={styles.iconBtn} onClick={() => handleEditClick(staff)} title="Edit staff member">
-                      <i className="fa-solid fa-pen-to-square"></i>
-                    </button>
-                    <button className={`${styles.iconBtn} ${styles.deleteIconBtn}`} onClick={() => handleDelete(staff.id)} title="Delete staff member">
-                      <i className="fa-solid fa-trash"></i>
-                    </button>
-                  </div>
-                </div>
+        <>
+          <FilterBar>
+            <label className="form-label" htmlFor="branchFilter">
+              Branch
+            </label>
+            <select
+              id="branchFilter"
+              className="select-field"
+              value={selectedBranchId}
+              onChange={(e) => setSelectedBranchId(e.target.value)}
+            >
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </FilterBar>
 
-                <div className={styles.infoBlock} style={{ marginTop: '16px' }}>
-                  <div className={styles.infoLine}>
-                    <i className="fa-solid fa-star" style={{ color: '#f59e0b' }}></i>
-                    <span>Rating: {staff.rating ? staff.rating.toFixed(1) : 'No reviews'}</span>
-                  </div>
-                  {staff.userId && (
-                    <div className={styles.infoLine}>
-                      <i className="fa-solid fa-user-lock"></i>
-                      <span>Linked User Account: ID {staff.userId}</span>
+          {staffLoading ? (
+            <Skeleton variant="row" count={4} />
+          ) : staffList.length === 0 ? (
+            <EmptyState
+              icon="fa-users"
+              title="No staff at this branch"
+              description="Add specialists to manage their shifts and bookings."
+              actionLabel="Add staff member"
+              onAction={handleAddClick}
+            />
+          ) : (
+            <DataTable
+              columns={[
+                {
+                  key: 'name',
+                  header: 'Name',
+                  render: (s) => (
+                    <div>
+                      <strong>{s.name}</strong>
+                      {s.designation && <div className={styles.desc}>{s.designation}</div>}
                     </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+                  ),
+                },
+                {
+                  key: 'rating',
+                  header: 'Rating',
+                  render: (s) => (s.rating ? s.rating.toFixed(1) : 'No reviews'),
+                },
+                {
+                  key: 'user',
+                  header: 'Linked user',
+                  render: (s) => (s.userId ? `ID ${s.userId}` : '—'),
+                },
+                {
+                  key: 'actions',
+                  header: 'Actions',
+                  render: (s) => (
+                    <div className={styles.actions}>
+                      <button type="button" className="btn btn-sm btn-outline" onClick={() => handleEditClick(s)}>
+                        Edit
+                      </button>
+                      <button type="button" className="btn btn-sm btn-danger" onClick={() => setDeleteId(s.id)}>
+                        Delete
+                      </button>
+                    </div>
+                  ),
+                },
+              ]}
+              rows={staffList}
+              rowKey={(s) => s.id}
+            />
+          )}
+        </>
       )}
 
-      {/* Add / Edit Form Modal */}
-      {showForm && (
-        <div className={styles.modalOverlay}>
-          <div className={`glass-card ${styles.modalContent}`}>
-            <div className={styles.modalHeader}>
-              <h3>{editingStaff ? 'Edit Staff Member' : 'Add Staff Member'}</h3>
-              <button className={styles.closeBtn} onClick={() => setShowForm(false)}>&times;</button>
-            </div>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
-              <div className="form-group">
-                <label className="form-label" htmlFor="staffName">Name</label>
-                <input
-                  id="staffName"
-                  type="text"
-                  className="input-field"
-                  value={formData.name}
-                  onChange={(e) => handleInputChange('name', e.target.value)}
-                  placeholder="e.g. Sarah Connor"
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="staffDesignation">Designation / Role Title</label>
-                <input
-                  id="staffDesignation"
-                  type="text"
-                  className="input-field"
-                  value={formData.designation}
-                  onChange={(e) => handleInputChange('designation', e.target.value)}
-                  placeholder="e.g. Senior Hairstylist or Physiotherapist"
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="staffBranch">Assigned Branch</label>
-                <select
-                  id="staffBranch"
-                  className="input-field"
-                  value={formData.branchId}
-                  onChange={(e) => handleInputChange('branchId', e.target.value)}
-                >
-                  {branches.map((b) => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="staffUserId">Linked User ID (Optional)</label>
-                <input
-                  id="staffUserId"
-                  type="number"
-                  className="input-field"
-                  value={formData.userId}
-                  onChange={(e) => handleInputChange('userId', e.target.value)}
-                  placeholder="ID of user account for portal access"
-                />
-              </div>
-
-              <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '10px' }} disabled={submitting}>
-                {submitting ? 'Saving...' : editingStaff ? 'Update Details' : 'Add Staff Member'}
-              </button>
-            </form>
+      <Modal
+        open={showForm}
+        title={editingStaff ? 'Edit staff member' : 'Add staff member'}
+        onClose={() => setShowForm(false)}
+        footer={
+          <>
+            <button type="button" className="btn btn-outline" onClick={() => setShowForm(false)} disabled={submitting}>
+              Cancel
+            </button>
+            <button type="submit" form="staff-form" className="btn btn-primary" disabled={submitting}>
+              {submitting ? 'Saving...' : editingStaff ? 'Update details' : 'Add staff'}
+            </button>
+          </>
+        }
+      >
+        <form id="staff-form" onSubmit={handleSubmit} className={styles.form}>
+          <div className="form-group">
+            <label className="form-label" htmlFor="staffName">
+              Name
+            </label>
+            <input
+              id="staffName"
+              type="text"
+              className="input-field"
+              value={formData.name}
+              onChange={(e) => handleInputChange('name', e.target.value)}
+              placeholder="e.g. Sarah Connor"
+            />
           </div>
-        </div>
-      )}
+          <div className="form-group">
+            <label className="form-label" htmlFor="staffDesignation">
+              Designation
+            </label>
+            <input
+              id="staffDesignation"
+              type="text"
+              className="input-field"
+              value={formData.designation}
+              onChange={(e) => handleInputChange('designation', e.target.value)}
+              placeholder="e.g. Senior Hairstylist"
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="staffBranch">
+              Assigned branch
+            </label>
+            <select
+              id="staffBranch"
+              className="select-field"
+              value={formData.branchId}
+              onChange={(e) => handleInputChange('branchId', e.target.value)}
+            >
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="staffUserId">
+              Linked user ID (optional)
+            </label>
+            <input
+              id="staffUserId"
+              type="number"
+              className="input-field"
+              value={formData.userId}
+              onChange={(e) => handleInputChange('userId', e.target.value)}
+              placeholder="Portal account user ID"
+            />
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        open={deleteId != null}
+        title="Delete staff member"
+        message="Delete this staff member? Booking relationships will be unmapped."
+        confirmLabel="Delete"
+        danger
+        loading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteId(null)}
+      />
     </div>
   );
 }

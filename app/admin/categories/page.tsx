@@ -2,6 +2,11 @@
 
 import { useState, useEffect, FormEvent } from 'react';
 import { apiFetch } from '@/lib/api';
+import PageHeader from '@/components/PageHeader';
+import EmptyState from '@/components/EmptyState';
+import Skeleton from '@/components/Skeleton';
+import Modal from '@/components/Modal';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import styles from './categories.module.css';
 
 interface Category {
@@ -22,11 +27,11 @@ export default function AdminCategoriesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-
-  // Form / Modal states
   const [showModal, setShowModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -44,8 +49,6 @@ export default function AdminCategoriesPage() {
     try {
       const data = await apiFetch<Category[]>('/api/public/categories');
       setCategories(data);
-      
-      // Flatten categories tree for parent dropdown lists
       const flat: Category[] = [];
       const traverse = (node: Category) => {
         flat.push(node);
@@ -137,197 +140,212 @@ export default function AdminCategoriesPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to deactivate this category? Subcategories will be hidden.')) return;
-
+  const handleDelete = async () => {
+    if (deleteId == null) return;
+    setDeleting(true);
     setError(null);
     setMessage(null);
     try {
-      await apiFetch(`/api/admin/categories/${id}`, {
-        method: 'DELETE',
-      });
+      await apiFetch(`/api/admin/categories/${deleteId}`, { method: 'DELETE' });
       setMessage('Category deactivated successfully.');
+      setDeleteId(null);
       await loadCategories();
     } catch (err: any) {
       setError(err?.message || 'Deactivation failed.');
+    } finally {
+      setDeleting(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className={styles.loaderContainer}>
-        <div className="spinner" />
-      </div>
-    );
-  }
-
-  // Render tree node recursively
-  const renderCategoryNode = (category: Category, depth = 0) => {
-    return (
-      <div key={category.id} className={styles.treeNode} style={{ marginLeft: `${depth * 24}px` }}>
-        <div className={styles.nodeCard}>
-          <div className={styles.nodeInfo}>
-            {category.icon ? (
-              <span className={styles.nodeIcon}><i className={`fa-solid ${category.icon}`}></i></span>
-            ) : (
-              <span className={styles.nodeIcon}>🏷️</span>
-            )}
-            <div>
-              <span className={styles.nodeName}>{category.name}</span>
-              <span className={styles.nodeSlug}>/c/{category.slug}</span>
-            </div>
-          </div>
-
-          <div className={styles.nodeActions}>
-            <button className={styles.iconBtn} onClick={() => handleEditClick(category)} title="Edit category">
-              <i className="fa-solid fa-pen-to-square"></i>
-            </button>
-            <button className={`${styles.iconBtn} ${styles.deleteIconBtn}`} onClick={() => handleDelete(category.id)} title="Deactivate category">
-              <i className="fa-solid fa-trash-can"></i>
-            </button>
+  const renderCategoryNode = (category: Category, depth = 0) => (
+    <div key={category.id} className={styles.treeNode} style={{ marginLeft: depth * 20 }}>
+      <div className={`surface ${styles.nodeCard}`}>
+        <div className={styles.nodeInfo}>
+          <span className={styles.nodeIcon}>
+            <i className={`fa-solid ${category.icon || 'fa-tag'}`} />
+          </span>
+          <div>
+            <span className={styles.nodeName}>{category.name}</span>
+            <span className={styles.nodeSlug}>/c/{category.slug}</span>
           </div>
         </div>
-
-        {category.subcategories && category.subcategories.length > 0 && (
-          <div className={styles.childContainer}>
-            {category.subcategories.map((child) => renderCategoryNode(child, depth + 1))}
-          </div>
-        )}
+        <div className={styles.nodeActions}>
+          <button type="button" className="btn btn-sm btn-outline" onClick={() => handleEditClick(category)}>
+            Edit
+          </button>
+          <button type="button" className="btn btn-sm btn-danger" onClick={() => setDeleteId(category.id)}>
+            Deactivate
+          </button>
+        </div>
       </div>
-    );
-  };
+      {category.subcategories && category.subcategories.length > 0 && (
+        <div className={styles.childContainer}>
+          {category.subcategories.map((child) => renderCategoryNode(child, depth + 1))}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className={styles.categoriesContainer}>
-      <div className={styles.headerRow}>
-        <p style={{ color: 'var(--text-secondary)' }}>Manage the system taxonomy for business classification and slot search.</p>
-        <button className="btn btn-primary" onClick={handleAddClick}>
-          <i className="fa-solid fa-plus"></i> Add Category
-        </button>
-      </div>
+      <PageHeader
+        title="Categories"
+        subtitle="Manage taxonomy for business classification and discovery."
+        actions={
+          <button type="button" className="btn btn-primary" onClick={handleAddClick}>
+            <i className="fa-solid fa-plus" /> Add Category
+          </button>
+        }
+      />
 
-      {message && <div className="success-alert" style={{ marginBottom: '20px' }}><i className="fa-solid fa-circle-check"></i> {message}</div>}
-      {error && <div className="error-alert" style={{ marginBottom: '20px' }}><i className="fa-solid fa-triangle-exclamation"></i> {error}</div>}
-
-      <div className={styles.treeLayout}>
-        {categories.length === 0 ? (
-          <div className="glass-card text-center" style={{ padding: '60px 20px', width: '100%' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🏷️</div>
-            <h3>No Categories Registered</h3>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>Setup root categories for appointment listings.</p>
-            <button className="btn btn-primary" onClick={handleAddClick}>Add Category</button>
-          </div>
-        ) : (
-          <div className={styles.treeWrapper}>
-            {categories.map((cat) => renderCategoryNode(cat))}
-          </div>
-        )}
-      </div>
-
-      {/* Form Dialog */}
-      {showModal && (
-        <div className={styles.modalOverlay}>
-          <div className={`glass-card ${styles.modalContent}`}>
-            <div className={styles.modalHeader}>
-              <h3>{editingCategory ? 'Edit Category' : 'Create Category'}</h3>
-              <button className={styles.closeBtn} onClick={() => setShowModal(false)}>&times;</button>
-            </div>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
-              <div className="form-group">
-                <label className="form-label" htmlFor="catName">Category Name</label>
-                <input
-                  id="catName"
-                  type="text"
-                  className="input-field"
-                  value={formData.name}
-                  onChange={(e) => handleInputChange('name', e.target.value)}
-                  placeholder="e.g. Dental Care or Spa & Massage"
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="catSlug">SEO Slug (Optional)</label>
-                <input
-                  id="catSlug"
-                  type="text"
-                  className="input-field"
-                  value={formData.slug}
-                  onChange={(e) => handleInputChange('slug', e.target.value)}
-                  placeholder="e.g. dental-care"
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="catParent">Parent Category (Optional)</label>
-                <select
-                  id="catParent"
-                  className="input-field"
-                  value={formData.parentId}
-                  onChange={(e) => handleInputChange('parentId', e.target.value)}
-                >
-                  <option value="">-- None (Root Category) --</option>
-                  {flatCategories
-                    .filter((c) => !editingCategory || c.id !== editingCategory.id)
-                    .map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                </select>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="catIcon">Icon Class (FontAwesome)</label>
-                  <input
-                    id="catIcon"
-                    type="text"
-                    className="input-field"
-                    value={formData.icon}
-                    onChange={(e) => handleInputChange('icon', e.target.value)}
-                    placeholder="e.g. fa-tooth or fa-spa"
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="catTags">Search Keywords</label>
-                  <input
-                    id="catTags"
-                    type="text"
-                    className="input-field"
-                    value={formData.searchTags}
-                    onChange={(e) => handleInputChange('searchTags', e.target.value)}
-                    placeholder="e.g. teeth, whitener, ortho"
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="catImage">Cover Image URL (Optional)</label>
-                <input
-                  id="catImage"
-                  type="text"
-                  className="input-field"
-                  value={formData.imageUrl}
-                  onChange={(e) => handleInputChange('imageUrl', e.target.value)}
-                  placeholder="https://example.com/cover.jpg"
-                />
-              </div>
-
-              <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input
-                  id="catActive"
-                  type="checkbox"
-                  checked={formData.active}
-                  onChange={(e) => handleInputChange('active', e.target.checked)}
-                />
-                <label htmlFor="catActive" className="form-label" style={{ marginBottom: 0 }}>Category is Active</label>
-              </div>
-
-              <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '10px' }} disabled={submitting}>
-                {submitting ? 'Saving...' : editingCategory ? 'Update Category' : 'Create Category'}
-              </button>
-            </form>
-          </div>
+      {message && (
+        <div className="success-alert">
+          <i className="fa-solid fa-circle-check" /> {message}
         </div>
       )}
+      {error && (
+        <div className="error-alert">
+          <i className="fa-solid fa-triangle-exclamation" /> {error}
+        </div>
+      )}
+
+      {loading ? (
+        <Skeleton variant="row" count={5} />
+      ) : categories.length === 0 ? (
+        <EmptyState
+          icon="fa-tags"
+          title="No categories registered"
+          description="Set up root categories for appointment listings."
+          actionLabel="Add category"
+          onAction={handleAddClick}
+        />
+      ) : (
+        <div className={styles.treeWrapper}>{categories.map((cat) => renderCategoryNode(cat))}</div>
+      )}
+
+      <Modal
+        open={showModal}
+        title={editingCategory ? 'Edit category' : 'Create category'}
+        onClose={() => setShowModal(false)}
+        footer={
+          <>
+            <button type="button" className="btn btn-outline" onClick={() => setShowModal(false)} disabled={submitting}>
+              Cancel
+            </button>
+            <button type="submit" form="cat-form" className="btn btn-primary" disabled={submitting}>
+              {submitting ? 'Saving...' : editingCategory ? 'Update category' : 'Create category'}
+            </button>
+          </>
+        }
+      >
+        <form id="cat-form" onSubmit={handleSubmit} className={styles.form}>
+          <div className="form-group">
+            <label className="form-label" htmlFor="catName">
+              Category name
+            </label>
+            <input
+              id="catName"
+              type="text"
+              className="input-field"
+              value={formData.name}
+              onChange={(e) => handleInputChange('name', e.target.value)}
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="catSlug">
+              SEO slug
+            </label>
+            <input
+              id="catSlug"
+              type="text"
+              className="input-field"
+              value={formData.slug}
+              onChange={(e) => handleInputChange('slug', e.target.value)}
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="catParent">
+              Parent category
+            </label>
+            <select
+              id="catParent"
+              className="select-field"
+              value={formData.parentId}
+              onChange={(e) => handleInputChange('parentId', e.target.value)}
+            >
+              <option value="">-- None (root) --</option>
+              {flatCategories
+                .filter((c) => !editingCategory || c.id !== editingCategory.id)
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+            </select>
+          </div>
+          <div className={styles.twoCol}>
+            <div className="form-group">
+              <label className="form-label" htmlFor="catIcon">
+                Icon class
+              </label>
+              <input
+                id="catIcon"
+                type="text"
+                className="input-field"
+                value={formData.icon}
+                onChange={(e) => handleInputChange('icon', e.target.value)}
+                placeholder="fa-tooth"
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="catTags">
+                Search keywords
+              </label>
+              <input
+                id="catTags"
+                type="text"
+                className="input-field"
+                value={formData.searchTags}
+                onChange={(e) => handleInputChange('searchTags', e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="catImage">
+              Cover image URL
+            </label>
+            <input
+              id="catImage"
+              type="text"
+              className="input-field"
+              value={formData.imageUrl}
+              onChange={(e) => handleInputChange('imageUrl', e.target.value)}
+            />
+          </div>
+          <div className={styles.checkRow}>
+            <input
+              id="catActive"
+              type="checkbox"
+              checked={formData.active}
+              onChange={(e) => handleInputChange('active', e.target.checked)}
+            />
+            <label htmlFor="catActive" className="form-label">
+              Category is active
+            </label>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        open={deleteId != null}
+        title="Deactivate category"
+        message="Deactivate this category? Subcategories will be hidden."
+        confirmLabel="Deactivate"
+        danger
+        loading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteId(null)}
+      />
     </div>
   );
 }

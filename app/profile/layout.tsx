@@ -1,68 +1,64 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import HeaderNav from '@/components/HeaderNav';
-import { apiFetch } from '@/lib/api';
+import NotificationPanel from '@/components/NotificationPanel';
+import styles from './profile-layout.module.css';
 
-export default function ProfileLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const [unread, setUnread] = useState(0);
+const NAV = [
+  { href: '/profile/explore', label: 'Explore' },
+  { href: '/profile/bookings', label: 'Appointments' },
+  { href: '/profile/packages', label: 'Packages' },
+  { href: '/profile/favorites', label: 'Favorites' },
+  { href: '/profile', label: 'Account', exact: true },
+];
 
-  useEffect(() => {
-    apiFetch<{ unreadCount: number }>('/api/notifications')
-      .then((data) => setUnread(data?.unreadCount || 0))
-      .catch(() => setUnread(0));
-  }, []);
+export default function ProfileLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
+  const isActive = (href: string, exact?: boolean) => {
+    if (exact) return pathname === href;
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--bg-primary)' }}>
-      <header className="app-header" style={{ position: 'sticky', top: 0, zIndex: 1000, backgroundColor: '#ffffff', borderBottom: '1px solid var(--border-color)', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-        <div className="header-container" style={{ maxWidth: '1280px', margin: '0 auto', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
-            <Link href="/profile/explore" className="logo-area" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Image src="/logo-hourslot.png" alt="HourSlot" width={120} height={36} style={{ objectFit: 'contain' }} />
+    <div className={styles.shell}>
+      <header className={`app-header ${styles.header}`}>
+        <div className={styles.headerInner}>
+          <div className={styles.left}>
+            <Link href="/profile/explore" className={styles.brand}>
+              <Image src="/logo-hourslot.png" alt="HourSlot" width={120} height={36} priority className={styles.logo} />
             </Link>
+            <nav className={styles.nav} aria-label="Customer">
+              {NAV.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`${styles.navLink} ${isActive(item.href, item.exact) ? styles.navActive : ''}`}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
           </div>
-
-          <nav className="nav-links" style={{ display: 'flex', gap: '24px' }}>
-            <Link className="nav-link" href="/profile/explore">Explore</Link>
-            <Link className="nav-link" href="/profile/bookings">Appointments</Link>
-            <Link className="nav-link" href="/profile/favorites">Favorites</Link>
-            <Link className="nav-link" href="/profile">Account</Link>
-          </nav>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-            <Link
-              href="/profile/bookings"
-              aria-label={unread > 0 ? `${unread} unread notifications` : 'Notifications'}
-              style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', fontSize: '1.25rem', cursor: 'pointer', position: 'relative' }}
-            >
-              <i className="fa-regular fa-bell"></i>
-              {unread > 0 && (
-                <span style={{ position: 'absolute', top: '-2px', right: '-2px', width: '8px', height: '8px', background: 'var(--accent-red)', borderRadius: '50%' }} />
-              )}
-            </Link>
+          <div className={styles.right}>
+            <NotificationPanel />
             <HeaderNav />
           </div>
         </div>
       </header>
 
-      <main className="app-main" style={{ flex: '1 0 auto', width: '100%', maxWidth: '1280px', margin: '0 auto', padding: '40px 24px', boxSizing: 'border-box' }}>
-        {children}
-      </main>
+      <main className={styles.main}>{children}</main>
 
-      <footer className="app-footer" style={{ borderTop: '1px solid var(--border-color)', backgroundColor: '#ffffff', padding: '24px 0', width: '100%', flexShrink: 0 }}>
-        <div className="footer-container" style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--text-muted)', fontSize: '0.85rem', flexWrap: 'wrap', gap: '12px' }}>
-          <p>© 2026 HourSlot. Smart booking solutions.</p>
-          <div className="footer-links" style={{ display: 'flex', gap: '20px' }}>
-            <a href="#">Privacy Policy</a>
-            <a href="#">Terms of Service</a>
-            <a href="#">Support</a>
+      <footer className="app-footer">
+        <div className="footer-container">
+          <p>© {new Date().getFullYear()} HourSlot. Smart scheduling.</p>
+          <div className="footer-links">
+            <Link href="/">Home</Link>
+            <a href="mailto:support@hourslot.app">Support</a>
           </div>
         </div>
       </footer>

@@ -4,6 +4,9 @@ import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { apiFetch } from '@/lib/api';
+import PageHeader from '@/components/PageHeader';
+import FormField from '@/components/FormField';
+import Skeleton from '@/components/Skeleton';
 import styles from './profile.module.css';
 
 interface ProfileData {
@@ -95,8 +98,11 @@ export default function ProfilePage() {
   if (loading || !profile) {
     return (
       <div className={styles.profileContainer}>
-        <div className="glass-card text-center" style={{ padding: '40px' }}>
-          <div className="spinner" />
+        <PageHeader title="My Account" subtitle="Manage your personal details and login credentials." />
+        <div className={styles.skeletonWrap}>
+          <Skeleton variant="title" />
+          <Skeleton variant="card" height={160} />
+          <Skeleton variant="card" height={280} />
         </div>
       </div>
     );
@@ -106,62 +112,84 @@ export default function ProfilePage() {
 
   return (
     <div className={styles.profileContainer}>
-      <div className={styles.profileHeaderRow}>
-        <h2>My Account Settings</h2>
-        <p style={{ color: 'var(--text-secondary)' }}>
-          Manage your personal details and login credentials.
-        </p>
-      </div>
+      <PageHeader
+        title="My Account"
+        subtitle="Manage your personal details and login credentials."
+      />
 
-      {message && <div className="success-alert" style={{ marginBottom: 16 }}>{message}</div>}
-      {error && <div className="error-alert" style={{ marginBottom: 16 }}>{error}</div>}
+      {message && (
+        <div className="success-alert" style={{ marginBottom: 16 }}>
+          <i className="fa-solid fa-circle-check" /> {message}
+        </div>
+      )}
+      {error && (
+        <div className="error-alert" style={{ marginBottom: 16 }}>
+          <i className="fa-solid fa-triangle-exclamation" /> {error}
+        </div>
+      )}
 
       <div className={styles.profileGrid}>
-        <div className={styles.leftColumn}>
-          <div className={styles.profileCard}>
-            <div className={styles.avatarCircle}>{initials}</div>
-            <h4>{firstName} {lastName}</h4>
-            <span className={styles.roleBadge}>{profile.role.replaceAll('_', ' ')}</span>
-            <button className={styles.logoutBtn} onClick={handleLogout}>
-              Sign Out Account
-            </button>
-          </div>
+        <div className={`surface ${styles.profileCard}`}>
+          <div className={styles.avatarCircle}>{initials}</div>
+          <h4>
+            {firstName} {lastName}
+          </h4>
+          <span className={styles.roleBadge}>{profile.role.replaceAll('_', ' ')}</span>
+          <button type="button" className={styles.logoutBtn} onClick={handleLogout}>
+            Sign out
+          </button>
         </div>
 
-        <div className={styles.rightColumn}>
-          <form className={styles.detailsCard} onSubmit={handleSave}>
-            <h3>Personal Information</h3>
-            <div className={styles.detailsGrid}>
-              <div className="form-group">
-                <label className="form-label" htmlFor="firstName">First Name</label>
-                <input id="firstName" className="input-field" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label" htmlFor="lastName">Last Name</label>
-                <input id="lastName" className="input-field" value={lastName} onChange={(e) => setLastName(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label" htmlFor="email">Email Address</label>
-                <input id="email" className="input-field" value={profile.email} disabled />
-              </div>
-              <div className="form-group">
-                <label className="form-label" htmlFor="phone">Phone</label>
-                <input id="phone" className="input-field" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label" htmlFor="currentPass">Current password</label>
-                <input id="currentPass" type="password" className="input-field" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label" htmlFor="newPass">New password</label>
-                <input id="newPass" type="password" className="input-field" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
-              </div>
-            </div>
-            <button type="submit" className="btn btn-primary" style={{ marginTop: 16 }} disabled={saving}>
-              {saving ? 'Saving…' : 'Save changes'}
+        <form className={`surface ${styles.detailsCard}`} onSubmit={handleSave}>
+          <h3>Personal information</h3>
+          <div className={styles.detailsGrid}>
+            <FormField
+              label="First name"
+              htmlFor="firstName"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+            />
+            <FormField
+              label="Last name"
+              htmlFor="lastName"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+            />
+            <FormField label="Email address" htmlFor="email" value={profile.email} disabled />
+            <FormField
+              label="Phone"
+              htmlFor="phone"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+            />
+            <FormField
+              label="Current password"
+              htmlFor="currentPass"
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              hint="Required only when changing password"
+            />
+            <FormField
+              label="New password"
+              htmlFor="newPass"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+          </div>
+          <div className={styles.formActions}>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? (
+                <>
+                  <span className="spinner" /> Saving…
+                </>
+              ) : (
+                'Save changes'
+              )}
             </button>
-          </form>
-        </div>
+          </div>
+        </form>
       </div>
     </div>
   );

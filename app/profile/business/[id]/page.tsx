@@ -2,15 +2,28 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useParams } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
+import type { ServicePackage } from '@/lib/types';
+import Tabs from '@/components/Tabs';
+import Modal from '@/components/Modal';
+import EmptyState from '@/components/EmptyState';
+import Skeleton from '@/components/Skeleton';
 import styles from './business-profile.module.css';
+
+const LocationMap = dynamic(() => import('@/components/LocationMap'), {
+  ssr: false,
+  loading: () => <Skeleton variant="card" height={180} />,
+});
 
 interface Branch {
   id: number;
   name: string;
   address: string;
   phoneNumber?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 interface Service {
@@ -53,17 +66,21 @@ interface BusinessProfile {
     id: number;
     name: string;
     description?: string;
+    logoUrl?: string;
+    galleryUrls?: string;
+    verified?: boolean;
   };
   branches: Branch[];
   services: Service[];
   staff: Staff[];
   reviews: Review[];
+  packages?: ServicePackage[];
   averageRating: number;
 }
 
 export default function BusinessProfilePage() {
   const { id } = useParams();
-  
+
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
   const [favorites, setFavorites] = useState<number[]>([]);
   const [workingHours, setWorkingHours] = useState<WorkingHour[]>([]);
@@ -72,9 +89,48 @@ export default function BusinessProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Tab selections: overview, services, staff, reviews, gallery
-  const [activeTab, setActiveTab] = useState<'overview' | 'services' | 'staff' | 'reviews'>('services');
+  const [activeTab, setActiveTab] = useState('services');
   const [selectedServiceFilter, setSelectedServiceFilter] = useState<'All' | 'Consultation' | 'Treatment'>('All');
+
+  const [selectedPackage, setSelectedPackage] = useState<ServicePackage | null>(null);
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [purchaseLoading, setPurchaseLoading] = useState(false);
+
+  const handleOpenPurchaseModal = (pkg: ServicePackage) => {
+    setSelectedPackage(pkg);
+    setShowPurchaseModal(true);
+  };
+
+  const handlePurchaseSubmit = async (method: 'ONLINE' | 'VENUE') => {
+    if (!selectedPackage) return;
+    setPurchaseLoading(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      if (method === 'ONLINE') {
+        const data = await apiFetch<{ url: string }>(
+          `/api/payments/checkout?packageId=${selectedPackage.id}`,
+          { method: 'POST' }
+        );
+        if (data?.url) {
+          window.location.href = data.url;
+        } else {
+          throw new Error('Failed to generate payment url');
+        }
+      } else {
+        await apiFetch(`/api/packages/${selectedPackage.id}/purchase?paymentMethod=VENUE`, {
+          method: 'POST',
+        });
+        setSuccess(`Package "${selectedPackage.name}" purchased. Available in your wallet.`);
+        setShowPurchaseModal(false);
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Package purchase failed.');
+      setShowPurchaseModal(false);
+    } finally {
+      setPurchaseLoading(false);
+    }
+  };
 
   const loadData = async () => {
     if (!id) return;
@@ -86,9 +142,8 @@ export default function BusinessProfilePage() {
         apiFetch<{ business: { id: number } }[]>('/api/favorites').catch(() => []),
       ]);
       setProfile(profileData);
-      setFavorites(favData.map((f: any) => f.business.id));
+      setFavorites(favData.map((f) => f.business.id));
 
-      // Public working hours for the first branch
       if (profileData.branches.length > 0) {
         const hours = await apiFetch<WorkingHour[]>(
           `/api/public/branches/${profileData.branches[0].id}/working-hours`,
@@ -105,6 +160,7 @@ export default function BusinessProfilePage() {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const handleToggleFavorite = async () => {
@@ -123,41 +179,35 @@ export default function BusinessProfilePage() {
         setFavorites((prev) => [...prev, businessId]);
         setSuccess('Added to favorites!');
       }
-    } catch (err: any) {
+    } catch {
       setError('Could not update favorite status.');
     }
   };
 
   const renderStars = (rating: number) => {
     const stars = [];
-    const floor = Math.floor(rating || 5);
+    const floor = Math.floor(rating || 0);
     for (let i = 1; i <= 5; i++) {
-      if (i <= floor) {
-        stars.push(<i key={i} className="fa-solid fa-star" style={{ color: '#f59e0b' }}></i>);
-      } else {
-        stars.push(<i key={i} className="fa-regular fa-star" style={{ color: '#cbd5e1' }}></i>);
-      }
+      stars.push(
+        <i
+          key={i}
+          className={`fa-${i <= floor ? 'solid' : 'regular'} fa-star`}
+          style={{ color: i <= floor ? '#f59e0b' : '#cbd5e1' }}
+        />
+      );
     }
     return stars;
   };
 
   const getDayName = (dayNum: number) => {
-    switch (dayNum) {
-      case 1: return 'Monday';
-      case 2: return 'Tuesday';
-      case 3: return 'Wednesday';
-      case 4: return 'Thursday';
-      case 5: return 'Friday';
-      case 6: return 'Saturday';
-      case 7: return 'Sunday';
-      default: return '';
-    }
+    const names = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    return names[dayNum] || '';
   };
 
   const formatLocalTime = (timeStr?: string) => {
     if (!timeStr) return '';
     const parts = timeStr.split(':');
-    const h = parseInt(parts[0]);
+    const h = parseInt(parts[0], 10);
     const ampm = h >= 12 ? 'PM' : 'AM';
     const displayH = h % 12 === 0 ? 12 : h % 12;
     return `${displayH}:${parts[1]} ${ampm}`;
@@ -165,8 +215,12 @@ export default function BusinessProfilePage() {
 
   if (loading) {
     return (
-      <div className={styles.loaderContainer}>
-        <div className="spinner" />
+      <div className={styles.profileContainer}>
+        <div className={styles.skeletonStack}>
+          <Skeleton variant="card" height={220} />
+          <Skeleton variant="card" height={100} />
+          <Skeleton variant="row" count={4} />
+        </div>
       </div>
     );
   }
@@ -174,21 +228,35 @@ export default function BusinessProfilePage() {
   if (error || !profile) {
     return (
       <div className={styles.profileContainer}>
-        <div className="error-alert"><i className="fa-solid fa-triangle-exclamation"></i> {error || 'Business profile not found.'}</div>
-        <Link href="/profile/explore" className="btn btn-outline" style={{ marginTop: '20px' }}>Back to Explore</Link>
+        <EmptyState
+          icon="fa-store-slash"
+          title="Business not found"
+          description={error || 'This business profile could not be loaded.'}
+          actionLabel="Back to explore"
+          onAction={() => {
+            window.location.href = '/profile/explore';
+          }}
+        />
       </div>
     );
   }
 
   const { business, branches, services, staff, reviews, averageRating } = profile;
   const isFav = favorites.includes(business.id);
-  const gallery = (business as any).galleryUrls
-    ? String((business as any).galleryUrls).split(',').map((u: string) => u.trim()).filter(Boolean)
+  const gallery = business.galleryUrls
+    ? String(business.galleryUrls)
+        .split(',')
+        .map((u) => u.trim())
+        .filter(Boolean)
     : [];
-  const bannerSrc = gallery[0] || (business as any).logoUrl || null;
+  const bannerSrc = gallery[0] || business.logoUrl || null;
   const mapQuery = encodeURIComponent(branches[0]?.address || business.name);
+  const primaryBranch = branches[0];
+  const hasCoords =
+    primaryBranch &&
+    Number.isFinite(primaryBranch.latitude) &&
+    Number.isFinite(primaryBranch.longitude);
 
-  // Filter services by consultation / treatment
   const filteredServices = services.filter((s) => {
     if (selectedServiceFilter === 'All') return true;
     if (selectedServiceFilter === 'Consultation') {
@@ -197,251 +265,348 @@ export default function BusinessProfilePage() {
     return !s.name.toLowerCase().includes('consult') && !s.name.toLowerCase().includes('check');
   });
 
-  // Calculate today's ISO day (1 = Monday, 7 = Sunday)
   const currentDayOfWeek = new Date().getDay() === 0 ? 7 : new Date().getDay();
+  const packages = profile.packages || [];
+
+  const tabItems = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'services', label: 'Services' },
+    ...(packages.length > 0 ? [{ id: 'packages', label: 'Packages' }] : []),
+    { id: 'staff', label: 'Staff' },
+    { id: 'reviews', label: `Reviews (${reviews.length})` },
+  ];
 
   return (
     <div className={styles.profileContainer}>
-      
       <div className={styles.bannerContainer}>
         {bannerSrc ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img src={bannerSrc} alt={`${business.name} banner`} className={styles.bannerImage} />
         ) : (
-          <div
-            className={styles.bannerImage}
-            style={{
-              background: 'linear-gradient(135deg, rgba(26,138,138,0.35), rgba(91,184,140,0.55))',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#fff',
-              fontWeight: 800,
-              fontSize: '2rem',
-            }}
-          >
-            {business.name}
-          </div>
+          <div className={styles.bannerFallback}>{business.name}</div>
         )}
       </div>
 
-      {/* Overlapping Business Profile Main Card */}
-      <div className={styles.businessHeaderCard}>
+      <div className={`surface ${styles.businessHeaderCard}`}>
         <div className={styles.logoBadgeCircle}>
-          <i className="fa-solid fa-tooth" style={{ fontSize: '2.2rem', color: 'var(--accent-primary)' }}></i>
+          <i className="fa-solid fa-store" />
         </div>
 
         <div className={styles.headerInfo}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className={styles.titleRow}>
             <h2>{business.name}</h2>
-            <i className="fa-solid fa-circle-check" style={{ color: '#3b82f6', fontSize: '1.25rem' }} title="Verified Provider"></i>
+            {business.verified && (
+              <i className={`fa-solid fa-circle-check ${styles.verified}`} title="Verified provider" />
+            )}
           </div>
-          <p className={styles.tagline}>{business.description || 'Premium Healthcare & Professional Diagnostics'}</p>
-          
+          {business.description && <p className={styles.tagline}>{business.description}</p>}
+
           <div className={styles.ratingAndLocation}>
             <span className={styles.starsWrapper}>{renderStars(averageRating)}</span>
-            <strong style={{ color: '#0f172a' }}>
+            <strong style={{ color: 'var(--text-main)' }}>
               {averageRating > 0 ? averageRating.toFixed(1) : '—'}
             </strong>
-            <span style={{ color: '#94a3b8' }}>({reviews.length} Reviews)</span>
-            <span style={{ color: '#e2e8f0' }}>•</span>
-            <span style={{ color: '#64748b', fontWeight: 600 }}>
-              <i className="fa-solid fa-location-dot"></i> {branches[0]?.name || 'Main location'}
+            <span>({reviews.length} reviews)</span>
+            <span style={{ color: 'var(--border-color)' }}>·</span>
+            <span>
+              <i className="fa-solid fa-location-dot" /> {branches[0]?.name || 'Main location'}
             </span>
           </div>
         </div>
 
         <div className={styles.headerActions}>
-          <Link href={`/profile/book/${business.id}`} className={styles.bookNowBtn}>
-            Book Now
+          <Link href={`/profile/book/${business.id}`} className="btn btn-primary">
+            Book now
           </Link>
-          <button 
+          <button
+            type="button"
             className={`${styles.iconActionBtn} ${isFav ? styles.isFavorite : ''}`}
             onClick={handleToggleFavorite}
             title={isFav ? 'Remove from favorites' : 'Add to favorites'}
+            aria-label={isFav ? 'Remove from favorites' : 'Add to favorites'}
           >
-            <i className={`fa-${isFav ? 'solid' : 'regular'} fa-heart`}></i>
-          </button>
-          <button className={styles.iconActionBtn} title="Share Profile">
-            <i className="fa-solid fa-share-nodes"></i>
+            <i className={`fa-${isFav ? 'solid' : 'regular'} fa-heart`} />
           </button>
         </div>
       </div>
 
-      {success && <div className="success-alert" style={{ marginBottom: '20px' }}><i className="fa-solid fa-circle-check"></i> {success}</div>}
+      {success && (
+        <div className="success-alert" style={{ margin: '16px 0 0' }}>
+          <i className="fa-solid fa-circle-check" /> {success}
+        </div>
+      )}
+      {error && (
+        <div className="error-alert" style={{ margin: '16px 0 0' }}>
+          <i className="fa-solid fa-triangle-exclamation" /> {error}
+        </div>
+      )}
 
-      {/* Tabs Menu bar */}
-      <div className={styles.tabsMenu}>
-        <button className={activeTab === 'overview' ? styles.tabActive : ''} onClick={() => setActiveTab('overview')}>Overview</button>
-        <button className={activeTab === 'services' ? styles.tabActive : ''} onClick={() => setActiveTab('services')}>Services</button>
-        <button className={activeTab === 'staff' ? styles.tabActive : ''} onClick={() => setActiveTab('staff')}>Staff</button>
-        <button className={activeTab === 'reviews' ? styles.tabActive : ''} onClick={() => setActiveTab('reviews')}>Reviews</button>
+      <div style={{ marginTop: 24 }}>
+        <Tabs tabs={tabItems} active={activeTab} onChange={setActiveTab} />
       </div>
 
-      {/* Two Column details split grid layout */}
       <div className={styles.detailsLayoutGrid}>
-        
-        {/* Left Column: Tab contents */}
         <div className={styles.leftColumn}>
           {activeTab === 'overview' && (
-            <div className="glass-card" style={{ padding: '24px' }}>
-              <h3 style={{ fontSize: '1.25rem', marginBottom: '12px' }}>About {business.name}</h3>
-              <p style={{ color: '#64748b', fontSize: '0.95rem', lineHeight: 1.6 }}>
-                Welcome to {business.name}. We provide specialized treatments powered by cutting-edge technology and certified specialists. Our mission is to provide premium diagnostics, comfortable client care, and painless treatment workflows for local residents.
+            <div className={`surface ${styles.panel}`}>
+              <h3>About {business.name}</h3>
+              <p className={styles.panelIntro}>
+                {business.description?.trim() ||
+                  'This provider has not added a description yet. Browse services and packages to book.'}
               </p>
             </div>
           )}
 
           {activeTab === 'services' && (
-            <div>
+            <div className={`surface ${styles.panel}`}>
               <div className={styles.servicesHeader}>
-                <h3>Available Services</h3>
-                
-                {/* Catalog Filter Tags */}
+                <h3>Available services</h3>
                 <div className={styles.filterTags}>
-                  <button className={selectedServiceFilter === 'All' ? styles.filterActive : ''} onClick={() => setSelectedServiceFilter('All')}>All</button>
-                  <button className={selectedServiceFilter === 'Consultation' ? styles.filterActive : ''} onClick={() => setSelectedServiceFilter('Consultation')}>Consultation</button>
-                  <button className={selectedServiceFilter === 'Treatment' ? styles.filterActive : ''} onClick={() => setSelectedServiceFilter('Treatment')}>Aesthetics</button>
+                  {(['All', 'Consultation', 'Treatment'] as const).map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      className={selectedServiceFilter === f ? styles.filterActive : ''}
+                      onClick={() => setSelectedServiceFilter(f)}
+                    >
+                      {f === 'Treatment' ? 'Other' : f}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              <div className={styles.servicesList}>
-                {filteredServices.map((s) => (
-                  <div key={s.id} className={styles.serviceItemCard}>
-                    <div className={styles.serviceLeftBlock}>
-                      <div className={styles.serviceIconCircle}>
-                        <i className="fa-solid fa-tooth"></i>
+              {filteredServices.length === 0 ? (
+                <EmptyState
+                  icon="fa-scissors"
+                  title="No services listed"
+                  description="This business has not published services in this filter yet."
+                />
+              ) : (
+                <div className={styles.servicesList}>
+                  {filteredServices.map((s) => (
+                    <div key={s.id} className={styles.serviceItemCard}>
+                      <div className={styles.serviceLeftBlock}>
+                        <div className={styles.serviceIconCircle}>
+                          <i className="fa-solid fa-calendar-check" />
+                        </div>
+                        <div>
+                          <h5>{s.name}</h5>
+                          {s.description && <p>{s.description}</p>}
+                          <span className={styles.serviceDuration}>
+                            <i className="fa-regular fa-clock" /> {s.durationMinutes} min
+                          </span>
+                        </div>
                       </div>
-                      <div>
-                        <h5>{s.name}</h5>
-                        {s.description && <p>{s.description}</p>}
-                        <span className={styles.serviceDuration}>
-                          <i className="fa-regular fa-clock"></i> {s.durationMinutes} min
-                        </span>
+                      <div className={styles.serviceRightBlock}>
+                        <span className={styles.servicePrice}>${s.price.toFixed(2)}</span>
+                        <Link
+                          href={`/profile/book/${business.id}?serviceId=${s.id}`}
+                          className="btn btn-outline btn-sm"
+                        >
+                          Book
+                        </Link>
                       </div>
                     </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
-                    <div className={styles.serviceRightBlock}>
-                      <span className={styles.servicePrice}>${s.price.toFixed(2)}</span>
-                      <Link href={`/profile/book/${business.id}?serviceId=${s.id}`} className={styles.serviceBookBtn}>
-                        Book
-                      </Link>
+          {activeTab === 'packages' && (
+            <div className={`surface ${styles.panel}`}>
+              <h3>Service packages</h3>
+              <p className={styles.panelIntro} style={{ marginBottom: 16 }}>
+                Buy sessions in bulk and redeem them when you book.
+              </p>
+              {packages.length === 0 ? (
+                <EmptyState
+                  icon="fa-gift"
+                  title="No packages"
+                  description="This business has not published packages yet."
+                />
+              ) : (
+                <div className={styles.servicesList}>
+                  {packages.map((pkg) => (
+                    <div key={pkg.id} className={styles.serviceItemCard}>
+                      <div className={styles.serviceLeftBlock}>
+                        <div
+                          className={styles.serviceIconCircle}
+                          style={{ background: 'rgba(91, 184, 140, 0.12)', color: 'var(--accent-secondary)' }}
+                        >
+                          <i className="fa-solid fa-gift" />
+                        </div>
+                        <div>
+                          <h5>{pkg.name}</h5>
+                          {pkg.description && <p>{pkg.description}</p>}
+                          <span className={styles.serviceDuration}>
+                            <i className="fa-solid fa-circle-check" /> {pkg.sessionsCount} sessions
+                            {pkg.expiryDays > 0 ? ` · ${pkg.expiryDays} days validity` : ''}
+                          </span>
+                          {pkg.services && pkg.services.length > 0 && (
+                            <div className={styles.serviceMeta}>
+                              Valid for: {pkg.services.map((s) => s.name).join(', ')}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className={styles.serviceRightBlock}>
+                        <span className={styles.servicePrice}>${pkg.price.toFixed(2)}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenPurchaseModal(pkg)}
+                          className="btn btn-primary btn-sm"
+                        >
+                          Buy package
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
           {activeTab === 'staff' && (
-            <div>
-              <h3>Our Roster of Specialists</h3>
-              <div className={styles.staffGrid}>
-                {staff.map((s) => (
-                  <div key={s.id} className={styles.staffCard}>
-                    <div className={styles.staffAvatarCircle}>
-                      {s.name.charAt(0)}
+            <div className={`surface ${styles.panel}`}>
+              <h3>Staff</h3>
+              {staff.length === 0 ? (
+                <EmptyState icon="fa-user-group" title="No staff listed" description="Staff profiles will appear here." />
+              ) : (
+                <div className={styles.staffGrid}>
+                  {staff.map((s) => (
+                    <div key={s.id} className={styles.staffCard}>
+                      <div className={styles.staffAvatarCircle}>{s.name.charAt(0)}</div>
+                      <h5>{s.name}</h5>
+                      <span className={styles.staffSpecialty}>{s.specialty || 'Specialist'}</span>
                     </div>
-                    <h5>{s.name}</h5>
-                    <span className={styles.staffSpecialty}>{s.specialty || 'General Practitioner'}</span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
           {activeTab === 'reviews' && (
-            <div>
-              <h3>Client Reviews</h3>
-              <div className={styles.reviewsList}>
-                {reviews.map((r) => (
-                  <div key={r.id} className={styles.reviewCard}>
-                    <div className={styles.reviewHeader}>
-                      <div className={styles.reviewerMeta}>
-                        <div className={styles.reviewerAvatarCircle}>
-                          {r.customer.user.firstName.charAt(0)}{r.customer.user.lastName.charAt(0)}
+            <div className={`surface ${styles.panel}`}>
+              <h3>Client reviews</h3>
+              {reviews.length === 0 ? (
+                <EmptyState
+                  icon="fa-star"
+                  title="No reviews yet"
+                  description="Be the first to leave a review after your appointment."
+                />
+              ) : (
+                <div className={styles.reviewsList}>
+                  {reviews.map((r) => (
+                    <div key={r.id} className={styles.reviewCard}>
+                      <div className={styles.reviewHeader}>
+                        <div className={styles.reviewerMeta}>
+                          <div className={styles.reviewerAvatarCircle}>
+                            {r.customer.user.firstName.charAt(0)}
+                            {r.customer.user.lastName.charAt(0)}
+                          </div>
+                          <div>
+                            <h5>
+                              {r.customer.user.firstName} {r.customer.user.lastName}
+                            </h5>
+                            <span className={styles.reviewDate}>
+                              {new Date(r.createdAt).toLocaleDateString(undefined, {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                              })}
+                            </span>
+                          </div>
                         </div>
-                        <div>
-                          <h5>{r.customer.user.firstName} {r.customer.user.lastName}</h5>
-                          <span className={styles.reviewDate}>
-                            {new Date(r.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                          </span>
-                        </div>
+                        <div className={styles.reviewStars}>{renderStars(r.rating)}</div>
                       </div>
-                      <div className={styles.reviewStars}>
-                        {renderStars(r.rating)}
-                      </div>
+                      {r.comment && <p className={styles.reviewCommentText}>{r.comment}</p>}
                     </div>
-                    {r.comment && <p className={styles.reviewCommentText}>{r.comment}</p>}
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        {/* Right Column: Address Map Contacts & Opening Hours */}
         <div className={styles.rightColumn}>
-          {/* Contacts Map Card */}
-          <div className={styles.sidebarCard}>
+          <div className={`surface ${styles.sidebarCard}`}>
             <div className={styles.mapPlaceholderWrapper}>
-              <iframe
-                title={`Map for ${business.name}`}
-                src={`https://www.google.com/maps?q=${mapQuery}&z=14&output=embed`}
-                style={{ border: 0, width: '100%', height: '100%', minHeight: 180 }}
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-              />
+              {hasCoords ? (
+                <LocationMap
+                  markers={[
+                    {
+                      id: primaryBranch!.id,
+                      lat: primaryBranch!.latitude as number,
+                      lng: primaryBranch!.longitude as number,
+                      label: primaryBranch!.name,
+                    },
+                  ]}
+                  height={180}
+                  zoom={15}
+                />
+              ) : (
+                <div className={styles.mapFallback}>
+                  <i className="fa-solid fa-map-location-dot" />
+                  <span>Location coordinates not set</span>
+                </div>
+              )}
             </div>
-
             <div className={styles.sidebarCardBody}>
               <h5>{branches[0]?.name || 'Main location'}</h5>
-              <p className={styles.sidebarText} style={{ marginTop: '8px' }}>
-                <i className="fa-solid fa-location-dot" style={{ color: 'var(--accent-primary)' }}></i>
+              <p className={styles.sidebarText}>
+                <i className="fa-solid fa-location-dot" />
                 {branches[0]?.address || 'Address unavailable'}
               </p>
+              {hasCoords && (
+                <p className={styles.sidebarText}>
+                  <i className="fa-solid fa-compass" />
+                  {Number(primaryBranch!.latitude).toFixed(5)}, {Number(primaryBranch!.longitude).toFixed(5)}
+                </p>
+              )}
               {branches[0]?.phoneNumber && (
                 <p className={styles.sidebarText}>
-                  <i className="fa-solid fa-phone" style={{ color: 'var(--accent-primary)' }}></i>
+                  <i className="fa-solid fa-phone" />
                   {branches[0].phoneNumber}
                 </p>
               )}
-              
               <a
-                className={styles.sidebarDirectionsBtn}
-                href={`https://www.openstreetmap.org/search?query=${mapQuery}`}
+                className="btn btn-outline btn-sm"
+                href={
+                  hasCoords
+                    ? `https://www.openstreetmap.org/?mlat=${primaryBranch!.latitude}&mlon=${primaryBranch!.longitude}#map=16/${primaryBranch!.latitude}/${primaryBranch!.longitude}`
+                    : `https://www.openstreetmap.org/search?query=${mapQuery}`
+                }
                 target="_blank"
                 rel="noreferrer"
+                style={{ width: '100%', justifyContent: 'center', marginTop: 4 }}
               >
-                <i className="fa-solid fa-location-arrow"></i> Get Directions
+                <i className="fa-solid fa-location-arrow" /> Get directions
               </a>
             </div>
           </div>
 
-          {/* Opening Hours Card */}
-          <div className={styles.sidebarCard}>
+          <div className={`surface ${styles.sidebarCard}`}>
             <div className={styles.sidebarCardHeader}>
-              <i className="fa-regular fa-clock" style={{ fontSize: '1.1rem', color: 'var(--accent-primary)' }}></i>
-              <h5 style={{ margin: 0, fontWeight: 700 }}>Opening Hours</h5>
+              <i className="fa-regular fa-clock" style={{ color: 'var(--accent-primary)' }} />
+              <h5>Opening hours</h5>
             </div>
-            
             <div className={styles.workingHoursList}>
               {[1, 2, 3, 4, 5, 6, 7].map((dayNum) => {
                 const config = workingHours.find((w) => w.dayOfWeek === dayNum);
                 const isToday = dayNum === currentDayOfWeek;
-                
                 return (
                   <div key={dayNum} className={`${styles.hourRow} ${isToday ? styles.hourToday : ''}`}>
                     <span className={styles.hourDayLabel}>
                       {getDayName(dayNum)}
                       {isToday && <span className={styles.todayBadge}>TODAY</span>}
                     </span>
-                    
                     <span className={styles.hourValue}>
                       {config ? (
                         config.closed ? (
-                          <span style={{ color: '#ef4444', fontWeight: 600 }}>Closed</span>
+                          <span className={styles.closed}>Closed</span>
                         ) : (
-                          `${formatLocalTime(config.startTime)} - ${formatLocalTime(config.endTime)}`
+                          `${formatLocalTime(config.startTime)} – ${formatLocalTime(config.endTime)}`
                         )
                       ) : (
                         'Hours not set'
@@ -453,9 +618,51 @@ export default function BusinessProfilePage() {
             </div>
           </div>
         </div>
-
       </div>
 
+      <Modal
+        open={showPurchaseModal && !!selectedPackage}
+        title={selectedPackage ? `Purchase ${selectedPackage.name}` : 'Purchase package'}
+        onClose={() => setShowPurchaseModal(false)}
+        footer={
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={() => setShowPurchaseModal(false)}
+            disabled={purchaseLoading}
+          >
+            Cancel
+          </button>
+        }
+      >
+        {selectedPackage && (
+          <div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', margin: 0, lineHeight: 1.5 }}>
+              Choose payment for <strong>{selectedPackage.name}</strong> (
+              {selectedPackage.sessionsCount} sessions) —{' '}
+              <strong>${selectedPackage.price.toFixed(2)}</strong>.
+            </p>
+            <div className={styles.purchaseChoices}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => handlePurchaseSubmit('ONLINE')}
+                disabled={purchaseLoading}
+              >
+                <i className="fa-solid fa-credit-card" /> Pay online
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => handlePurchaseSubmit('VENUE')}
+                disabled={purchaseLoading}
+              >
+                <i className="fa-solid fa-store" /> Pay at venue
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { ReactNode } from 'react';
+import styles from './ui.module.css';
 
 interface Column<T> {
   key: string;
@@ -23,31 +24,29 @@ export default function DataTable<T>({
 }: DataTableProps<T>) {
   if (rows.length === 0) {
     return (
-      <div className="glass-card text-center" style={{ padding: 32, color: 'var(--text-secondary)' }}>
-        {emptyMessage}
+      <div className={styles.emptyState} style={{ padding: 40 }}>
+        <p className={styles.emptyDesc} style={{ margin: 0 }}>
+          {emptyMessage}
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="glass-card" style={{ overflowX: 'auto', padding: 0 }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+    <div className={styles.tableWrap}>
+      <table className={styles.table}>
         <thead>
-          <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left' }}>
+          <tr>
             {columns.map((c) => (
-              <th key={c.key} style={{ padding: '12px 16px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                {c.header}
-              </th>
+              <th key={c.key}>{c.header}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={rowKey(row)} style={{ borderBottom: '1px solid var(--border-color)' }}>
+            <tr key={rowKey(row)}>
               {columns.map((c) => (
-                <td key={c.key} style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
-                  {c.render(row)}
-                </td>
+                <td key={c.key}>{c.render(row)}</td>
               ))}
             </tr>
           ))}

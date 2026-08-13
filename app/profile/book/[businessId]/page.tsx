@@ -1,13 +1,24 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import type { PublicBusinessProfile, Service, Staff } from '@/lib/types';
+import type { BookingRequest, CustomerPackage, PublicBusinessProfile, Service, Staff } from '@/lib/types';
+import PageHeader from '@/components/PageHeader';
+import Stepper from '@/components/Stepper';
+import Skeleton from '@/components/Skeleton';
+import EmptyState from '@/components/EmptyState';
 import styles from './book.module.css';
 
-export default function BookWizardPage() {
+const STEPS = [
+  { id: 'service', label: 'Service' },
+  { id: 'time', label: 'Staff & time' },
+  { id: 'notes', label: 'Notes' },
+  { id: 'confirm', label: 'Confirm' },
+];
+
+function BookWizardContent() {
   const { businessId } = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -16,8 +27,10 @@ export default function BookWizardPage() {
   const [profile, setProfile] = useState<PublicBusinessProfile | null>(null);
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   const [selectedBranchId, setSelectedBranchId] = useState('');
   const [selectedServiceId, setSelectedServiceId] = useState('');
@@ -27,6 +40,9 @@ export default function BookWizardPage() {
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState('');
   const [clientNotes, setClientNotes] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'VENUE' | 'ONLINE' | 'PACKAGE'>('VENUE');
+  const [eligiblePackages, setEligiblePackages] = useState<CustomerPackage[]>([]);
+  const [selectedPackageId, setSelectedPackageId] = useState<number | null>(null);
 
   const [weekStartDate, setWeekStartDate] = useState<Date>(new Date());
   const [weekDays, setWeekDays] = useState<{ dayNum: number; dateStr: string; label: string; dateObj: Date }[]>([]);
@@ -64,14 +80,12 @@ export default function BookWizardPage() {
 
   useEffect(() => {
     loadProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [businessId]);
 
   useEffect(() => {
     const days = [];
     const start = new Date(weekStartDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
     for (let i = 0; i < 7; i++) {
       const current = new Date(start);
       current.setDate(start.getDate() + i);
@@ -86,7 +100,7 @@ export default function BookWizardPage() {
     if (!selectedDate && days.length > 0) {
       setSelectedDate(days[0].dateStr);
     }
-  }, [weekStartDate]);
+  }, [weekStartDate, selectedDate]);
 
   useEffect(() => {
     const fetchSlots = async () => {
@@ -110,6 +124,24 @@ export default function BookWizardPage() {
     };
     fetchSlots();
   }, [selectedBranchId, selectedServiceId, selectedStaffId, selectedDate]);
+
+  useEffect(() => {
+    const loadEligible = async () => {
+      if (!selectedServiceId || step < 4) {
+        setEligiblePackages([]);
+        return;
+      }
+      try {
+        const data = await apiFetch<CustomerPackage[]>(
+          `/api/customer/packages/eligible?serviceId=${selectedServiceId}`
+        );
+        setEligiblePackages(data || []);
+      } catch {
+        setEligiblePackages([]);
+      }
+    };
+    loadEligible();
+  }, [selectedServiceId, step]);
 
   const handleNextWeek = () => {
     setWeekStartDate((prev) => {
@@ -149,35 +181,86 @@ export default function BookWizardPage() {
 
   const handleConfirmBooking = async () => {
     if (!selectedBranchId || !selectedServiceId || !selectedDate || !selectedSlot) return;
-    setLoading(true);
+    if (paymentMethod === 'PACKAGE' && !selectedPackageId) {
+      setError('Select a package to redeem, or choose another payment method.');
+      return;
+    }
+
+    setSubmitting(true);
     setError(null);
 
     const bookingTime = `${selectedDate}T${selectedSlot}:00`;
+    const payload: BookingRequest = {
+      branchId: parseInt(selectedBranchId, 10),
+      serviceId: parseInt(selectedServiceId, 10),
+      staffId: selectedStaffId ? parseInt(selectedStaffId, 10) : null,
+      bookingTime,
+      clientNotes: clientNotes || null,
+      paymentMethod: paymentMethod === 'PACKAGE' ? 'VENUE' : paymentMethod,
+      customerPackageId: paymentMethod === 'PACKAGE' ? selectedPackageId : null,
+    };
 
     try {
-      await apiFetch('/api/bookings', {
+      const created = await apiFetch<{ id: number }>('/api/bookings', {
         method: 'POST',
         body: JSON.stringify({
-          branchId: parseInt(selectedBranchId, 10),
-          serviceId: parseInt(selectedServiceId, 10),
-          staffId: selectedStaffId ? parseInt(selectedStaffId, 10) : null,
-          bookingTime,
-          clientNotes: clientNotes || null,
+          branchId: payload.branchId,
+          serviceId: payload.serviceId,
+          staffId: payload.staffId,
+          bookingTime: payload.bookingTime,
+          clientNotes: payload.clientNotes,
+          customerPackageId: payload.customerPackageId,
         }),
       });
+
+      if (paymentMethod === 'ONLINE' && created?.id) {
+        const checkout = await apiFetch<{ url: string }>(
+          `/api/payments/checkout?bookingId=${created.id}`,
+          { method: 'POST' }
+        );
+        if (checkout?.url) {
+          window.location.href = checkout.url;
+          return;
+        }
+        setSuccessMessage('Booking created. Online checkout could not start — you can pay from My bookings.');
+      } else if (paymentMethod === 'PACKAGE') {
+        setSuccessMessage('Appointment booked using your package session.');
+      } else {
+        setSuccessMessage('Appointment scheduled. Pay at the venue.');
+      }
+
       setSuccess(true);
       setTimeout(() => router.push('/profile/bookings'), 1800);
     } catch (err: any) {
       setError(err?.message || 'Booking failed.');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
-  if (loading && step === 1 && !profile) {
+  if (loading && !profile) {
     return (
-      <div className={styles.loaderContainer}>
-        <div className="spinner" />
+      <div className={styles.wizardContainer}>
+        <Skeleton variant="title" />
+        <Skeleton variant="card" height={80} />
+        <div className={styles.wizardGrid} style={{ marginTop: 24 }}>
+          <Skeleton variant="card" height={320} />
+          <Skeleton variant="card" height={240} />
+        </div>
+      </div>
+    );
+  }
+
+  if (!profile && error) {
+    return (
+      <div className={styles.wizardContainer}>
+        <EmptyState
+          icon="fa-calendar-xmark"
+          title="Unable to load booking"
+          description={error}
+          actionLabel="Back to explore"
+          onAction={() => router.push('/profile/explore')}
+        />
       </div>
     );
   }
@@ -185,14 +268,12 @@ export default function BookWizardPage() {
   if (success) {
     return (
       <div className={styles.successWrapper}>
-        <div className="glass-card text-center" style={{ padding: '60px 40px', maxWidth: '500px' }}>
-          <div style={{ fontSize: '3rem', color: '#10b981', marginBottom: '20px' }} aria-hidden>
+        <div className={`surface ${styles.successCard}`}>
+          <div className={styles.successIcon}>
             <i className="fa-solid fa-circle-check" />
           </div>
           <h3>Appointment scheduled</h3>
-          <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>
-            Pay at the venue. Redirecting to your appointments…
-          </p>
+          <p>{successMessage} Redirecting to your bookings…</p>
         </div>
       </div>
     );
@@ -226,59 +307,45 @@ export default function BookWizardPage() {
   };
 
   const contactName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
+  const displayTotal =
+    paymentMethod === 'PACKAGE' ? 0 : serviceObj ? serviceObj.price : 0;
 
   return (
     <div className={styles.wizardContainer}>
       <div className={styles.wizardHeader}>
-        <h2>Book Appointment</h2>
-        <div className={styles.stepsStepper}>
-          {[
-            ['1', 'Service'],
-            ['2', 'Staff & Time'],
-            ['3', 'Notes'],
-            ['4', 'Confirm'],
-          ].map(([n, label], idx) => (
-            <div key={label} style={{ display: 'contents' }}>
-              {idx > 0 && (
-                <div className={`${styles.stepLine} ${step >= idx + 1 ? styles.stepLineActive : ''}`} />
-              )}
-              <div className={styles.stepBlock}>
-                <div
-                  className={`${styles.stepCircle} ${
-                    step > idx + 1 ? styles.stepChecked : step === idx + 1 ? styles.stepCurrent : ''
-                  }`}
-                >
-                  {step > idx + 1 ? <i className="fa-solid fa-check" /> : n}
-                </div>
-                <span>{label}</span>
-              </div>
-            </div>
-          ))}
-        </div>
+        <PageHeader
+          title="Book appointment"
+          subtitle={profile?.business.name ? `at ${profile.business.name}` : undefined}
+        />
+        <Stepper steps={STEPS} current={step - 1} />
       </div>
 
       {error && (
-        <div className="error-alert" style={{ marginBottom: '24px' }}>
-          <i className="fa-solid fa-triangle-exclamation"></i> {error}
+        <div className="error-alert" style={{ marginBottom: 20 }}>
+          <i className="fa-solid fa-triangle-exclamation" /> {error}
         </div>
       )}
 
       <div className={styles.wizardGrid}>
         <div className={styles.leftColumn}>
           {step === 1 && (
-            <div className={styles.glassCardPanel}>
-              <h3>Select Service</h3>
+            <div className={`surface ${styles.panel}`}>
+              <h3>Select service</h3>
               {profile?.branches && profile.branches.length > 1 && (
-                <div className="form-group" style={{ marginBottom: 16 }}>
-                  <label className="form-label" htmlFor="branchSelect">Branch</label>
+                <div className="form-group" style={{ marginBottom: 14 }}>
+                  <label className="form-label" htmlFor="branchSelect">
+                    Branch
+                  </label>
                   <select
                     id="branchSelect"
-                    className="input-field"
+                    className="select-field"
                     value={selectedBranchId}
                     onChange={(e) => setSelectedBranchId(e.target.value)}
                   >
                     {profile.branches.map((b) => (
-                      <option key={b.id} value={b.id}>{b.name}</option>
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -295,10 +362,10 @@ export default function BookWizardPage() {
                     <div className={styles.rowRadio}>
                       <div className={selectedServiceId === s.id.toString() ? styles.radioFill : ''} />
                     </div>
-                    <div style={{ flex: 1, textAlign: 'left' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <h5>{s.name}</h5>
                       <span className={styles.duration}>
-                        <i className="fa-regular fa-clock"></i> {s.durationMinutes} min
+                        <i className="fa-regular fa-clock" /> {s.durationMinutes} min
                       </span>
                     </div>
                     <span className={styles.price}>${s.price.toFixed(2)}</span>
@@ -309,21 +376,19 @@ export default function BookWizardPage() {
           )}
 
           {step === 2 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div className={styles.glassCardPanel}>
-                <h3>Select Provider</h3>
+            <>
+              <div className={`surface ${styles.panel}`}>
+                <h3>Select provider</h3>
                 <div className={styles.providerGrid}>
                   <button
                     type="button"
                     className={`${styles.providerCard} ${selectedStaffId === '' ? styles.providerSelected : ''}`}
                     onClick={() => setSelectedStaffId('')}
                   >
-                    <div className={styles.avatarWrapper}>
-                      <div className={styles.avatarAnyStaff}>
-                        <i className="fa-solid fa-user-group"></i>
-                      </div>
+                    <div className={styles.avatarAnyStaff}>
+                      <i className="fa-solid fa-user-group" />
                     </div>
-                    <span>Any Staff</span>
+                    <span>Any staff</span>
                   </button>
                   {branchStaff.map((s) => (
                     <button
@@ -332,16 +397,14 @@ export default function BookWizardPage() {
                       className={`${styles.providerCard} ${selectedStaffId === s.id.toString() ? styles.providerSelected : ''}`}
                       onClick={() => setSelectedStaffId(s.id.toString())}
                     >
-                      <div className={styles.avatarWrapper}>
-                        <div className={styles.avatarAnyStaff}>{s.name.slice(0, 1)}</div>
-                      </div>
+                      <div className={styles.avatarAnyStaff}>{s.name.slice(0, 1)}</div>
                       <span>{s.name}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
-              <div className={styles.glassCardPanel}>
+              <div className={`surface ${styles.panel}`}>
                 <div className={styles.calendarStripHeader}>
                   <h3>
                     {weekDays.length > 0 &&
@@ -349,10 +412,10 @@ export default function BookWizardPage() {
                   </h3>
                   <div className={styles.calendarArrows}>
                     <button type="button" onClick={handlePrevWeek} aria-label="Previous week">
-                      <i className="fa-solid fa-chevron-left"></i>
+                      <i className="fa-solid fa-chevron-left" />
                     </button>
                     <button type="button" onClick={handleNextWeek} aria-label="Next week">
-                      <i className="fa-solid fa-chevron-right"></i>
+                      <i className="fa-solid fa-chevron-right" />
                     </button>
                   </div>
                 </div>
@@ -371,18 +434,16 @@ export default function BookWizardPage() {
                 </div>
               </div>
 
-              <div className={styles.glassCardPanel}>
-                <h3>Available Times for {selectedDate && formatFriendlyDate(selectedDate)}</h3>
+              <div className={`surface ${styles.panel}`}>
+                <h3>Available times · {selectedDate && formatFriendlyDate(selectedDate)}</h3>
                 {slotsLoading ? (
-                  <div className={styles.loaderContainer} style={{ height: '80px' }}>
-                    <div className="spinner" />
-                  </div>
+                  <Skeleton variant="row" count={3} />
                 ) : availableSlots.length === 0 ? (
                   <p className={styles.noSlotsText}>No open slots for this date. Try another day or provider.</p>
                 ) : (
-                  <div className={styles.slotsBlock}>
+                  <div>
                     {morningSlots.length > 0 && (
-                      <div style={{ marginBottom: '16px' }}>
+                      <div style={{ marginBottom: 16 }}>
                         <span className={styles.timeOfDayLabel}>Morning</span>
                         <div className={styles.slotsSubGrid}>
                           {morningSlots.map((slot) => (
@@ -418,51 +479,114 @@ export default function BookWizardPage() {
                   </div>
                 )}
               </div>
-            </div>
+            </>
           )}
 
           {step === 3 && (
-            <div className={styles.glassCardPanel}>
+            <div className={`surface ${styles.panel}`}>
               <h3>Booking notes</h3>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: 16 }}>
-                Contact details are taken from your HourSlot profile ({contactName || user?.email}).
+              <p style={{ color: 'var(--text-secondary)', marginBottom: 14, fontSize: '0.9rem' }}>
+                Contact details come from your HourSlot profile ({contactName || user?.email}).
               </p>
               <div className="form-group">
-                <label className="form-label" htmlFor="custBookNotes">Notes for the specialist (optional)</label>
+                <label className="form-label" htmlFor="custBookNotes">
+                  Notes for the specialist (optional)
+                </label>
                 <textarea
                   id="custBookNotes"
                   className="input-field"
-                  style={{ minHeight: '100px', resize: 'vertical' }}
+                  style={{ minHeight: 100, resize: 'vertical' }}
                   value={clientNotes}
                   onChange={(e) => setClientNotes(e.target.value)}
-                  placeholder="Allergies, preferences, or special requests..."
+                  placeholder="Allergies, preferences, or special requests…"
                 />
               </div>
             </div>
           )}
 
           {step === 4 && (
-            <div className={styles.glassCardPanel}>
-              <h3>Confirm booking</h3>
-              <p style={{ color: '#64748b', fontSize: '0.92rem', marginBottom: '20px' }}>
-                Review your details, then confirm. Payment is collected at the venue — no card charge now.
+            <div className={`surface ${styles.panel}`}>
+              <h3>Confirm & pay</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 16 }}>
+                Review your details, then choose how you&apos;d like to pay.
               </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                <i className="fa-solid fa-store" style={{ color: '#10b981', fontSize: '1.4rem' }}></i>
-                <div>
-                  <h6 style={{ margin: 0, fontWeight: 700, color: '#0f172a' }}>Pay at venue</h6>
-                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>
-                    Free cancellation up to 24 hours before your appointment.
-                  </p>
-                </div>
+              <div className={styles.payOptions}>
+                <button
+                  type="button"
+                  className={`${styles.payOption} ${paymentMethod === 'VENUE' ? styles.payOptionSelected : ''}`}
+                  onClick={() => {
+                    setPaymentMethod('VENUE');
+                    setSelectedPackageId(null);
+                  }}
+                >
+                  <div className={styles.payOptionIcon}>
+                    <i className="fa-solid fa-store" />
+                  </div>
+                  <div>
+                    <h6>Pay at venue</h6>
+                    <p>No card charge now. Pay when you arrive.</p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.payOption} ${paymentMethod === 'ONLINE' ? styles.payOptionSelected : ''}`}
+                  onClick={() => {
+                    setPaymentMethod('ONLINE');
+                    setSelectedPackageId(null);
+                  }}
+                >
+                  <div className={styles.payOptionIcon}>
+                    <i className="fa-solid fa-credit-card" />
+                  </div>
+                  <div>
+                    <h6>Pay online</h6>
+                    <p>Secure checkout after you confirm this booking.</p>
+                  </div>
+                </button>
+                {eligiblePackages.length > 0 && (
+                  <button
+                    type="button"
+                    className={`${styles.payOption} ${paymentMethod === 'PACKAGE' ? styles.payOptionSelected : ''}`}
+                    onClick={() => setPaymentMethod('PACKAGE')}
+                  >
+                    <div className={styles.payOptionIcon}>
+                      <i className="fa-solid fa-gift" />
+                    </div>
+                    <div>
+                      <h6>Use package session</h6>
+                      <p>Redeem a session from a purchased package.</p>
+                    </div>
+                  </button>
+                )}
               </div>
+
+              {paymentMethod === 'PACKAGE' && (
+                <div className={styles.packageList}>
+                  {eligiblePackages.map((cp) => (
+                    <button
+                      key={cp.id}
+                      type="button"
+                      className={`${styles.packageChip} ${selectedPackageId === cp.id ? styles.packageChipSelected : ''}`}
+                      onClick={() => setSelectedPackageId(cp.id)}
+                    >
+                      <strong>{cp.servicePackage.name}</strong>
+                      <span>
+                        {cp.sessionsRemaining} left
+                        {cp.expiresAt
+                          ? ` · expires ${new Date(cp.expiresAt).toLocaleDateString()}`
+                          : ''}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
 
         <div className={styles.rightColumn}>
-          <div className={styles.summaryCard}>
-            <h3>Booking Summary</h3>
+          <div className={`surface ${styles.summaryCard}`}>
+            <h3>Booking summary</h3>
             {serviceObj ? (
               <div className={styles.summaryContent}>
                 <div className={styles.summaryServiceRow}>
@@ -476,18 +600,18 @@ export default function BookWizardPage() {
                 {selectedDate && selectedSlot ? (
                   <div className={styles.summarySlotWidget}>
                     <div className={styles.summarySlotItem}>
-                      <i className="fa-regular fa-calendar"></i>
+                      <i className="fa-regular fa-calendar" />
                       <span>{formatFriendlyDate(selectedDate)}</span>
                     </div>
                     <div className={styles.summarySlotItem}>
-                      <i className="fa-regular fa-clock"></i>
+                      <i className="fa-regular fa-clock" />
                       <span>
                         {formatFriendlyTime(selectedSlot)} ({serviceObj.durationMinutes} min)
                       </span>
                     </div>
                     <div className={styles.summarySlotItem}>
-                      <i className="fa-regular fa-user"></i>
-                      <span>Specialist: {staffObj?.name || 'Any Staff'}</span>
+                      <i className="fa-regular fa-user" />
+                      <span>Specialist: {staffObj?.name || 'Any staff'}</span>
                     </div>
                   </div>
                 ) : (
@@ -496,37 +620,43 @@ export default function BookWizardPage() {
 
                 <div className={styles.summaryTotalRow}>
                   <span>Estimated total</span>
-                  <strong>${serviceObj.price.toFixed(2)}</strong>
+                  <strong>
+                    {paymentMethod === 'PACKAGE' ? 'Package' : `$${displayTotal.toFixed(2)}`}
+                  </strong>
                 </div>
                 <p className={styles.policyText}>
-                  <i className="fa-solid fa-circle-info"></i> Final price may include peak-time adjustments.
+                  <i className="fa-solid fa-circle-info" /> Final price may include peak-time adjustments.
                 </p>
 
-                <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+                <div className={styles.summaryActions}>
                   {step > 1 && (
-                    <button type="button" className={styles.prevBtn} onClick={handlePrevStep} style={{ flex: 1 }}>
+                    <button type="button" className="btn btn-outline" onClick={handlePrevStep} style={{ flex: 1 }}>
                       Back
                     </button>
                   )}
                   {step < 4 ? (
                     <button
                       type="button"
-                      className={styles.nextBtn}
+                      className="btn btn-primary"
                       onClick={handleNextStep}
                       style={{ flex: 2 }}
                       disabled={step === 2 && (!selectedDate || !selectedSlot)}
                     >
-                      {step === 1 ? 'Next: Staff & Time' : step === 2 ? 'Next: Notes' : 'Next: Confirm'}
+                      {step === 1 ? 'Next: Staff & time' : step === 2 ? 'Next: Notes' : 'Next: Confirm'}
                     </button>
                   ) : (
                     <button
                       type="button"
-                      className={styles.nextBtn}
+                      className="btn btn-primary"
                       onClick={handleConfirmBooking}
-                      disabled={loading}
+                      disabled={submitting}
                       style={{ flex: 2 }}
                     >
-                      {loading ? 'Booking...' : 'Confirm booking'}
+                      {submitting
+                        ? 'Booking…'
+                        : paymentMethod === 'ONLINE'
+                          ? 'Confirm & pay'
+                          : 'Confirm booking'}
                     </button>
                   )}
                 </div>
@@ -540,5 +670,20 @@ export default function BookWizardPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function BookWizardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className={styles.wizardContainer}>
+          <Skeleton variant="title" />
+          <Skeleton variant="card" height={280} />
+        </div>
+      }
+    >
+      <BookWizardContent />
+    </Suspense>
   );
 }

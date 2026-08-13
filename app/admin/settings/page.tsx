@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '@/lib/api';
+import PageHeader from '@/components/PageHeader';
+import Skeleton from '@/components/Skeleton';
 import styles from './settings.module.css';
 
 interface SystemConfig {
@@ -50,14 +52,12 @@ export default function AdminSettingsPage() {
       const payload: SystemConfig = {
         defaultCommissionRate,
         supportedCurrencies,
-        registrationOpen
+        registrationOpen,
       };
-      
       const updated = await apiFetch<SystemConfig>('/api/admin/settings', {
         method: 'PUT',
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
-
       setSettings(updated);
       setSuccess('Global platform configuration settings saved successfully.');
     } catch (err: any) {
@@ -69,68 +69,68 @@ export default function AdminSettingsPage() {
 
   if (loading && !settings) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
-        <div className="spinner" style={{ width: '28px', height: '28px', borderTopColor: 'var(--accent-primary)', borderWidth: '3px' }} />
+      <div className={styles.settingsWrapper}>
+        <Skeleton variant="title" />
+        <Skeleton variant="card" height={320} />
       </div>
     );
   }
 
   return (
     <div className={styles.settingsWrapper}>
-      {/* Messages */}
+      <PageHeader title="Settings" subtitle="Configure default commission, currencies, and registration access." />
+
       {error && (
         <div className="error-alert">
-          <i className="fa-solid fa-triangle-exclamation"></i>
+          <i className="fa-solid fa-triangle-exclamation" />
           <span>{error}</span>
         </div>
       )}
-
       {success && (
         <div className="success-alert">
-          <i className="fa-solid fa-circle-check"></i>
+          <i className="fa-solid fa-circle-check" />
           <span>{success}</span>
         </div>
       )}
 
-      <form onSubmit={handleSaveSettings} className={styles.settingsCard}>
-        <h2 className={styles.sectionTitle}>Platform Configuration</h2>
-        
-        {/* Default Commission Rate */}
-        <div className={styles.formGroup}>
-          <label className={styles.formLabel}>Default Commission Cut (%)</label>
-          <span className={styles.formDesc}>Platform commission fee rate applied to new business registrations by default. Can be overridden per business.</span>
+      <form onSubmit={handleSaveSettings} className={`surface ${styles.settingsCard}`}>
+        <div className="form-group">
+          <label className="form-label" htmlFor="commission">
+            Default commission cut (%)
+          </label>
+          <p className={styles.hint}>Applied to new business registrations by default.</p>
           <input
+            id="commission"
             type="number"
             min="0"
             max="100"
             step="0.1"
             className="input-field"
-            style={{ width: '150px', fontWeight: 600 }}
             value={defaultCommissionRate}
             onChange={(e) => setDefaultCommissionRate(parseFloat(e.target.value) || 0)}
             required
           />
         </div>
 
-        {/* Supported Currencies */}
-        <div className={styles.formGroup}>
-          <label className={styles.formLabel}>Supported Currencies List</label>
-          <span className={styles.formDesc}>Comma-separated currencies allowed for branch pricing models (e.g. USD,PKR,AED,EUR).</span>
+        <div className="form-group">
+          <label className="form-label" htmlFor="currencies">
+            Supported currencies
+          </label>
+          <p className={styles.hint}>Comma-separated list (e.g. USD,PKR,AED,EUR).</p>
           <input
+            id="currencies"
             type="text"
             className="input-field"
-            style={{ fontWeight: 600 }}
             value={supportedCurrencies}
             onChange={(e) => setSupportedCurrencies(e.target.value)}
             required
           />
         </div>
 
-        {/* Registration Availability Toggle */}
         <div className={styles.toggleRow}>
-          <div className={styles.toggleLabel}>
-            <span className={styles.toggleTitle}>Public Registrations Open</span>
-            <span className={styles.toggleDesc}>Allow new customers and business owners to sign up. Toggle off to lock system onboarding.</span>
+          <div>
+            <div className={styles.toggleTitle}>Public registrations open</div>
+            <p className={styles.hint}>Allow new customers and business owners to sign up.</p>
           </div>
           <label className={styles.switch}>
             <input
@@ -138,20 +138,12 @@ export default function AdminSettingsPage() {
               checked={registrationOpen}
               onChange={() => setRegistrationOpen(!registrationOpen)}
             />
-            <span className={styles.slider}></span>
+            <span className={styles.slider} />
           </label>
         </div>
 
-        <button type="submit" className="btn btn-primary" style={{ padding: '12px 28px', width: 'fit-content', marginTop: '10px' }} disabled={saving}>
-          {saving ? (
-            <>
-              <span className="spinner" style={{ borderTopColor: 'var(--accent-primary)', marginRight: '6px' }}></span> Saving settings...
-            </>
-          ) : (
-            <>
-              <i className="fa-solid fa-floppy-disk"></i> Save Configurations
-            </>
-          )}
+        <button type="submit" className="btn btn-primary" disabled={saving}>
+          {saving ? 'Saving...' : 'Save configurations'}
         </button>
       </form>
     </div>

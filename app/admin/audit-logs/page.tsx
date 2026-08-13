@@ -2,6 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '@/lib/api';
+import PageHeader from '@/components/PageHeader';
+import EmptyState from '@/components/EmptyState';
+import Skeleton from '@/components/Skeleton';
+import DataTable from '@/components/DataTable';
 import styles from './audit.module.css';
 
 interface AuditUser {
@@ -44,118 +48,84 @@ export default function AdminAuditLogsPage() {
 
   const formatDate = (dateStr: string) => {
     try {
-      const d = new Date(dateStr);
-      return d.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric', 
-        year: 'numeric', 
-        hour: '2-digit', 
+      return new Date(dateStr).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
         minute: '2-digit',
-        second: '2-digit'
+        second: '2-digit',
       });
     } catch {
       return dateStr;
     }
   };
 
-  const getActionClass = (action: string) => {
-    const actionUpper = action.toUpperCase();
-    if (actionUpper.includes('VERIFY') || actionUpper.includes('APPROVE') || actionUpper.includes('SEED')) {
-      return { color: '#059669', icon: 'fa-check-double' };
-    }
-    if (actionUpper.includes('REJECT') || actionUpper.includes('DELETE') || actionUpper.includes('SUSPEND')) {
-      return { color: '#dc2626', icon: 'fa-triangle-exclamation' };
-    }
-    if (actionUpper.includes('UPDATE') || actionUpper.includes('SETTING') || actionUpper.includes('COMMISSION')) {
-      return { color: 'var(--accent-primary)', icon: 'fa-gears' };
-    }
-    return { color: 'var(--text-main)', icon: 'fa-circle-info' };
-  };
-
   return (
     <div className={styles.auditWrapper}>
-      {/* Alert details */}
+      <PageHeader
+        title="Audit logs"
+        subtitle="Track security events, settings changes, and onboarding approvals."
+        actions={
+          <button type="button" className="btn btn-secondary btn-sm" onClick={loadLogs}>
+            <i className="fa-solid fa-rotate" /> Refresh
+          </button>
+        }
+      />
+
       {error && (
         <div className="error-alert">
-          <i className="fa-solid fa-triangle-exclamation"></i>
+          <i className="fa-solid fa-triangle-exclamation" />
           <span>{error}</span>
         </div>
       )}
 
-      {/* Header bar actions */}
-      <div className={styles.headerRow}>
-        <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
-          Tracking security events, platform settings changes, and business onboarding approvals.
-        </span>
-        
-        <button className="btn btn-secondary" onClick={loadLogs} style={{ padding: '8px 16px', fontSize: '0.82rem' }}>
-          <i className="fa-solid fa-rotate"></i> Refresh Logs
-        </button>
-      </div>
-
-      {/* Audit Log Table */}
-      <div className={styles.tableCard}>
-        {loading && logs.length === 0 ? (
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
-            <div className="spinner" style={{ width: '28px', height: '28px', borderTopColor: 'var(--accent-primary)', borderWidth: '3px' }} />
-          </div>
-        ) : (
-          <table className={styles.auditTable}>
-            <thead>
-              <tr>
-                <th>Timestamp</th>
-                <th>Administrator</th>
-                <th>Action Details</th>
-                <th>Affected Entity</th>
-                <th>IP Address</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.length === 0 ? (
-                <tr>
-                  <td colSpan={5} style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
-                    No security events or audit trails logged in the database yet.
-                  </td>
-                </tr>
-              ) : (
-                logs.map((log) => {
-                  const styleInfo = getActionClass(log.action);
-                  
-                  return (
-                    <tr key={log.id}>
-                      <td className={styles.timestamp}>{formatDate(log.timestamp)}</td>
-                      <td>
-                        {log.user ? (
-                          <>
-                            <div className={styles.adminInfo}>{log.user.firstName} {log.user.lastName}</div>
-                            <div className={styles.adminEmail}>{log.user.email}</div>
-                          </>
-                        ) : (
-                          <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>System / Seeder</span>
-                        )}
-                      </td>
-                      <td className={styles.actionDesc}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <i className={`fa-solid ${styleInfo.icon}`} style={{ color: styleInfo.color }}></i>
-                          <span>{log.action}</span>
-                        </div>
-                      </td>
-                      <td>
-                        {log.entity && log.entityId ? (
-                          <span className={styles.entityInfo}>{log.entity} #{log.entityId}</span>
-                        ) : (
-                          <span style={{ color: 'var(--text-muted)' }}>—</span>
-                        )}
-                      </td>
-                      <td className={styles.ipAddress}>{log.ipAddress || '—'}</td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        )}
-      </div>
+      {loading && logs.length === 0 ? (
+        <Skeleton variant="row" count={8} />
+      ) : logs.length === 0 ? (
+        <EmptyState
+          icon="fa-clipboard-list"
+          title="No audit events"
+          description="No security events or audit trails have been logged yet."
+        />
+      ) : (
+        <DataTable
+          columns={[
+            { key: 'time', header: 'Timestamp', render: (log) => formatDate(log.timestamp) },
+            {
+              key: 'admin',
+              header: 'Administrator',
+              render: (log) =>
+                log.user ? (
+                  <div>
+                    <strong>
+                      {log.user.firstName} {log.user.lastName}
+                    </strong>
+                    <div className={styles.email}>{log.user.email}</div>
+                  </div>
+                ) : (
+                  <span className={styles.system}>System / Seeder</span>
+                ),
+            },
+            { key: 'action', header: 'Action', render: (log) => log.action },
+            {
+              key: 'entity',
+              header: 'Entity',
+              render: (log) =>
+                log.entity && log.entityId ? (
+                  <span className={styles.entity}>
+                    {log.entity} #{log.entityId}
+                  </span>
+                ) : (
+                  '—'
+                ),
+            },
+            { key: 'ip', header: 'IP', render: (log) => log.ipAddress || '—' },
+          ]}
+          rows={logs}
+          rowKey={(log) => log.id}
+        />
+      )}
     </div>
   );
 }

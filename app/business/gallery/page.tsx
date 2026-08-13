@@ -2,6 +2,10 @@
 
 import { useState, useEffect, FormEvent } from 'react';
 import { apiFetch } from '@/lib/api';
+import PageHeader from '@/components/PageHeader';
+import EmptyState from '@/components/EmptyState';
+import Skeleton from '@/components/Skeleton';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import styles from './gallery.module.css';
 
 interface BusinessProfile {
@@ -13,14 +17,13 @@ interface BusinessProfile {
 export default function GalleryPage() {
   const [business, setBusiness] = useState<BusinessProfile | null>(null);
   const [photos, setPhotos] = useState<string[]>([]);
-  
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-
-  // Form state
   const [newPhotoUrl, setNewPhotoUrl] = useState('');
+  const [deleteUrl, setDeleteUrl] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadBusiness = async () => {
     setLoading(true);
@@ -29,7 +32,12 @@ export default function GalleryPage() {
       const data = await apiFetch<BusinessProfile>('/api/business/profile');
       setBusiness(data);
       if (data.galleryUrls) {
-        setPhotos(data.galleryUrls.split(',').map((u) => u.trim()).filter(Boolean));
+        setPhotos(
+          data.galleryUrls
+            .split(',')
+            .map((u) => u.trim())
+            .filter(Boolean)
+        );
       } else {
         setPhotos([]);
       }
@@ -74,7 +82,7 @@ export default function GalleryPage() {
     if (!newPhotoUrl.trim()) return;
 
     if (!newPhotoUrl.startsWith('http://') && !newPhotoUrl.startsWith('https://') && !newPhotoUrl.startsWith('/')) {
-      setError('Please enter a valid URL beginning with http://, https:// or local path.');
+      setError('Please enter a valid URL beginning with http://, https:// or a local path.');
       return;
     }
 
@@ -103,14 +111,13 @@ export default function GalleryPage() {
     }
   };
 
-  const handleDeletePhoto = async (photoToDelete: string) => {
-    if (!confirm('Are you sure you want to remove this photo from your gallery?')) return;
-
-    setSubmitting(true);
+  const handleDeletePhoto = async () => {
+    if (!deleteUrl) return;
+    setDeleting(true);
     setError(null);
     setMessage(null);
 
-    const updatedPhotos = photos.filter((p) => p !== photoToDelete);
+    const updatedPhotos = photos.filter((p) => p !== deleteUrl);
     const galleryUrlsString = updatedPhotos.join(',');
 
     try {
@@ -122,37 +129,52 @@ export default function GalleryPage() {
         }),
       });
       setPhotos(updatedPhotos);
+      setDeleteUrl(null);
       setMessage('Photo removed from gallery.');
     } catch (err: any) {
       setError(err?.message || 'Failed to remove photo.');
     } finally {
-      setSubmitting(false);
+      setDeleting(false);
     }
   };
 
   if (loading) {
     return (
-      <div className={styles.loaderContainer}>
-        <div className="spinner" />
+      <div className={styles.page}>
+        <Skeleton variant="title" />
+        <div className={styles.layout}>
+          <Skeleton variant="card" height={280} />
+          <Skeleton variant="card" height={280} />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className={styles.galleryContainer}>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
-        Showcase your business, premises, and staff portfolio with a photo gallery.
-      </p>
+    <div className={styles.page}>
+      <PageHeader
+        title="Gallery"
+        subtitle="Showcase your premises, work, and team with a photo gallery."
+      />
 
-      {message && <div className="success-alert" style={{ marginBottom: '20px' }}><i className="fa-solid fa-circle-check"></i> {message}</div>}
-      {error && <div className="error-alert" style={{ marginBottom: '20px' }}><i className="fa-solid fa-triangle-exclamation"></i> {error}</div>}
+      {message && (
+        <div className="success-alert">
+          <i className="fa-solid fa-circle-check" /> {message}
+        </div>
+      )}
+      {error && (
+        <div className="error-alert">
+          <i className="fa-solid fa-triangle-exclamation" /> {error}
+        </div>
+      )}
 
-      <div className={styles.galleryLayout}>
-        {/* Upload Form Box */}
-        <div className="glass-card" style={{ padding: '24px', height: 'fit-content' }}>
-          <h3 style={{ marginBottom: '16px', fontSize: '1.1rem' }}>Add Gallery Photo</h3>
-          <div className="form-group" style={{ marginBottom: 16 }}>
-            <label className="form-label" htmlFor="photoFileInput">Upload image</label>
+      <div className={styles.layout}>
+        <div className="surface">
+          <h3 className={styles.panelTitle}>Add gallery photo</h3>
+          <div className="form-group">
+            <label className="form-label" htmlFor="photoFileInput">
+              Upload image
+            </label>
             <input
               id="photoFileInput"
               type="file"
@@ -162,9 +184,11 @@ export default function GalleryPage() {
               disabled={submitting}
             />
           </div>
-          <form onSubmit={handleAddPhoto} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <form onSubmit={handleAddPhoto} className={styles.form}>
             <div className="form-group">
-              <label className="form-label" htmlFor="photoUrlInput">Or paste image URL</label>
+              <label className="form-label" htmlFor="photoUrlInput">
+                Or paste image URL
+              </label>
               <input
                 id="photoUrlInput"
                 type="text"
@@ -174,48 +198,55 @@ export default function GalleryPage() {
                 placeholder="https://example.com/salon-interior.jpg"
               />
             </div>
-            <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={submitting || !newPhotoUrl}>
-              {submitting ? 'Adding...' : 'Add Photo URL'}
+            <button type="submit" className="btn btn-primary" disabled={submitting || !newPhotoUrl}>
+              {submitting ? 'Adding...' : 'Add photo URL'}
             </button>
           </form>
-
-          <div style={{ marginTop: '24px', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-            <h4 style={{ color: '#ffffff', marginBottom: '8px' }}>Pro Tip:</h4>
-            Use high quality landscape images to make your booking checkout page look premium and appealing to customers.
-          </div>
+          <p className={styles.tip}>
+            Use high-quality landscape images to make your booking page look polished.
+          </p>
         </div>
 
-        {/* Previews Grid */}
         <div className={styles.gridSection}>
           {photos.length === 0 ? (
-            <div className="glass-card text-center" style={{ padding: '60px 20px', width: '100%' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '16px' }}>📸</div>
-              <h3>Gallery is Empty</h3>
-              <p style={{ color: 'var(--text-secondary)' }}>Add photo URLs to show off your services and location.</p>
-            </div>
+            <EmptyState
+              icon="fa-images"
+              title="Gallery is empty"
+              description="Upload photos or paste URLs to show off your services and location."
+            />
           ) : (
             <div className={styles.photosGrid}>
               {photos.map((url, idx) => (
-                <div key={idx} className={styles.photoCard}>
+                <div key={`${url}-${idx}`} className={`surface ${styles.photoCard}`}>
                   <div className={styles.imageWrapper}>
                     <img src={url} alt={`Gallery ${idx + 1}`} className={styles.galleryImg} />
-                    <button 
-                      className={styles.deleteBtn} 
-                      onClick={() => handleDeletePhoto(url)}
+                    <button
+                      type="button"
+                      className={styles.deleteBtn}
+                      onClick={() => setDeleteUrl(url)}
                       title="Remove image"
                     >
-                      <i className="fa-solid fa-trash-can"></i>
+                      <i className="fa-solid fa-trash-can" />
                     </button>
                   </div>
-                  <div className={styles.cardFooter}>
-                    <span>Image {idx + 1}</span>
-                  </div>
+                  <div className={styles.cardFooter}>Image {idx + 1}</div>
                 </div>
               ))}
             </div>
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!deleteUrl}
+        title="Remove photo"
+        message="Remove this photo from your gallery?"
+        confirmLabel="Remove"
+        danger
+        loading={deleting}
+        onConfirm={handleDeletePhoto}
+        onCancel={() => setDeleteUrl(null)}
+      />
     </div>
   );
 }

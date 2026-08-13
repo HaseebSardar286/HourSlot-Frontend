@@ -2,6 +2,13 @@
 
 import { useState, useEffect, FormEvent } from 'react';
 import { apiFetch } from '@/lib/api';
+import PageHeader from '@/components/PageHeader';
+import EmptyState from '@/components/EmptyState';
+import Skeleton from '@/components/Skeleton';
+import Modal from '@/components/Modal';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import DataTable from '@/components/DataTable';
+import StatusBadge from '@/components/StatusBadge';
 import styles from './services.module.css';
 
 interface Service {
@@ -22,11 +29,11 @@ export default function ServicesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-
-  // Form states
   const [showForm, setShowForm] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -57,7 +64,7 @@ export default function ServicesPage() {
     loadServices();
   }, []);
 
-  const handleInputChange = (field: string, value: string | number) => {
+  const handleInputChange = (field: string, value: string | number | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -110,14 +117,12 @@ export default function ServicesPage() {
 
     try {
       if (editingService) {
-        // Edit Service
         await apiFetch(`/api/business/services/${editingService.id}`, {
           method: 'PUT',
           body: JSON.stringify(formData),
         });
         setMessage('Service updated successfully!');
       } else {
-        // Add Service
         await apiFetch('/api/business/services', {
           method: 'POST',
           body: JSON.stringify(formData),
@@ -133,148 +138,179 @@ export default function ServicesPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this service from your catalog?')) return;
-
+  const handleDelete = async () => {
+    if (deleteId == null) return;
+    setDeleting(true);
     setError(null);
     setMessage(null);
     try {
-      await apiFetch(`/api/business/services/${id}`, {
-        method: 'DELETE',
-      });
+      await apiFetch(`/api/business/services/${deleteId}`, { method: 'DELETE' });
       setMessage('Service removed successfully.');
+      setDeleteId(null);
       await loadServices();
     } catch (err: any) {
       setError(err?.message || 'Failed to remove service.');
+    } finally {
+      setDeleting(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className={styles.loaderContainer}>
-        <div className="spinner" />
-      </div>
-    );
-  }
-
   return (
-    <div className={styles.servicesContainer}>
-      <div className={styles.headerRow}>
-        <p style={{ color: 'var(--text-secondary)' }}>Manage the service portfolio and catalog prices of your business.</p>
-        <button className="btn btn-primary" onClick={handleAddClick}>
-          <i className="fa-solid fa-plus"></i> Add Service
-        </button>
-      </div>
+    <div className={styles.page}>
+      <PageHeader
+        title="Services"
+        subtitle="Manage your catalog prices, durations, and bookable offerings."
+        actions={
+          <button type="button" className="btn btn-primary" onClick={handleAddClick}>
+            <i className="fa-solid fa-plus" /> Add Service
+          </button>
+        }
+      />
 
-      {message && <div className="success-alert" style={{ marginBottom: '20px' }}><i className="fa-solid fa-circle-check"></i> {message}</div>}
-      {error && <div className="error-alert" style={{ marginBottom: '20px' }}><i className="fa-solid fa-triangle-exclamation"></i> {error}</div>}
-
-      {services.length === 0 ? (
-        <div className="glass-card text-center" style={{ padding: '60px 20px' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🏷️</div>
-          <h3>Empty Service Catalog</h3>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>Add services to list them on booking marketplace screens.</p>
-          <button className="btn btn-primary" onClick={handleAddClick}>Add Your First Service</button>
+      {message && (
+        <div className="success-alert">
+          <i className="fa-solid fa-circle-check" /> {message}
         </div>
+      )}
+      {error && (
+        <div className="error-alert">
+          <i className="fa-solid fa-triangle-exclamation" /> {error}
+        </div>
+      )}
+
+      {loading ? (
+        <Skeleton variant="row" count={4} />
+      ) : services.length === 0 ? (
+        <EmptyState
+          icon="fa-tags"
+          title="Empty service catalog"
+          description="Add services to list them on booking marketplace screens."
+          actionLabel="Add your first service"
+          onAction={handleAddClick}
+        />
       ) : (
-        <div className={styles.servicesGrid}>
-          {services.map((service) => (
-            <div key={service.id} className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: '700', color: '#ffffff' }}>{service.name}</h3>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button className={styles.iconBtn} onClick={() => handleEditClick(service)} title="Edit service">
-                      <i className="fa-solid fa-pen-to-square"></i>
-                    </button>
-                    <button className={`${styles.iconBtn} ${styles.deleteIconBtn}`} onClick={() => handleDelete(service.id)} title="Delete service">
-                      <i className="fa-solid fa-trash"></i>
-                    </button>
-                  </div>
+        <DataTable
+          columns={[
+            {
+              key: 'name',
+              header: 'Service',
+              render: (s) => (
+                <div>
+                  <strong>{s.name}</strong>
+                  {s.description && <div className={styles.desc}>{s.description}</div>}
                 </div>
-                {service.description && (
-                  <p className={styles.serviceDesc}>{service.description}</p>
-                )}
-              </div>
-              <div className={styles.badgesRow}>
-                <span className={styles.priceBadge}>
-                  <i className="fa-solid fa-dollar-sign"></i> {service.price.toFixed(2)}
-                </span>
-                <span className={styles.durationBadge}>
-                  <i className="fa-solid fa-clock"></i> {service.durationMinutes} min
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
+              ),
+            },
+            { key: 'price', header: 'Price', render: (s) => `$${s.price.toFixed(2)}` },
+            { key: 'duration', header: 'Duration', render: (s) => `${s.durationMinutes} min` },
+            {
+              key: 'status',
+              header: 'Status',
+              render: (s) => <StatusBadge status={s.active ? 'ACTIVE' : 'SUSPENDED'} />,
+            },
+            {
+              key: 'actions',
+              header: 'Actions',
+              render: (s) => (
+                <div className={styles.actions}>
+                  <button type="button" className="btn btn-sm btn-outline" onClick={() => handleEditClick(s)}>
+                    Edit
+                  </button>
+                  <button type="button" className="btn btn-sm btn-danger" onClick={() => setDeleteId(s.id)}>
+                    Delete
+                  </button>
+                </div>
+              ),
+            },
+          ]}
+          rows={services}
+          rowKey={(s) => s.id}
+        />
       )}
 
-      {/* Add / Edit Form Modal */}
-      {showForm && (
-        <div className={styles.modalOverlay}>
-          <div className={`glass-card ${styles.modalContent}`}>
-            <div className={styles.modalHeader}>
-              <h3>{editingService ? 'Edit Service Details' : 'Create New Service'}</h3>
-              <button className={styles.closeBtn} onClick={() => setShowForm(false)}>&times;</button>
-            </div>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
-              <div className="form-group">
-                <label className="form-label" htmlFor="serviceName">Service Name</label>
-                <input
-                  id="serviceName"
-                  type="text"
-                  className="input-field"
-                  value={formData.name}
-                  onChange={(e) => handleInputChange('name', e.target.value)}
-                  placeholder="e.g. Teeth Whitening or Haircut"
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="serviceDesc">Description</label>
-                <textarea
-                  id="serviceDesc"
-                  className="input-field"
-                  style={{ minHeight: '80px', resize: 'vertical' }}
-                  value={formData.description}
-                  onChange={(e) => handleInputChange('description', e.target.value)}
-                  placeholder="Describe what the service includes..."
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="servicePrice">Price ($)</label>
-                  <input
-                    id="servicePrice"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    className="input-field"
-                    value={formData.price}
-                    onChange={(e) => handleInputChange('price', parseFloat(e.target.value))}
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="serviceDuration">Duration (min)</label>
-                  <input
-                    id="serviceDuration"
-                    type="number"
-                    min="1"
-                    className="input-field"
-                    value={formData.durationMinutes}
-                    onChange={(e) => handleInputChange('durationMinutes', parseInt(e.target.value))}
-                  />
-                </div>
-              </div>
-
-              <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '10px' }} disabled={submitting}>
-                {submitting ? 'Saving...' : editingService ? 'Update Service' : 'Add Service'}
-              </button>
-            </form>
+      <Modal
+        open={showForm}
+        title={editingService ? 'Edit service' : 'Create service'}
+        onClose={() => setShowForm(false)}
+        footer={
+          <>
+            <button type="button" className="btn btn-outline" onClick={() => setShowForm(false)} disabled={submitting}>
+              Cancel
+            </button>
+            <button type="submit" form="service-form" className="btn btn-primary" disabled={submitting}>
+              {submitting ? 'Saving...' : editingService ? 'Update service' : 'Add service'}
+            </button>
+          </>
+        }
+      >
+        <form id="service-form" onSubmit={handleSubmit} className={styles.form}>
+          <div className="form-group">
+            <label className="form-label" htmlFor="serviceName">
+              Service name
+            </label>
+            <input
+              id="serviceName"
+              type="text"
+              className="input-field"
+              value={formData.name}
+              onChange={(e) => handleInputChange('name', e.target.value)}
+              placeholder="e.g. Teeth Whitening"
+            />
           </div>
-        </div>
-      )}
+          <div className="form-group">
+            <label className="form-label" htmlFor="serviceDesc">
+              Description
+            </label>
+            <textarea
+              id="serviceDesc"
+              className={`input-field ${styles.textarea}`}
+              value={formData.description}
+              onChange={(e) => handleInputChange('description', e.target.value)}
+              placeholder="Describe what the service includes..."
+            />
+          </div>
+          <div className={styles.twoCol}>
+            <div className="form-group">
+              <label className="form-label" htmlFor="servicePrice">
+                Price ($)
+              </label>
+              <input
+                id="servicePrice"
+                type="number"
+                min="0"
+                step="0.01"
+                className="input-field"
+                value={formData.price}
+                onChange={(e) => handleInputChange('price', parseFloat(e.target.value))}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="serviceDuration">
+                Duration (min)
+              </label>
+              <input
+                id="serviceDuration"
+                type="number"
+                min="1"
+                className="input-field"
+                value={formData.durationMinutes}
+                onChange={(e) => handleInputChange('durationMinutes', parseInt(e.target.value))}
+              />
+            </div>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        open={deleteId != null}
+        title="Delete service"
+        message="Are you sure you want to delete this service from your catalog?"
+        confirmLabel="Delete"
+        danger
+        loading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteId(null)}
+      />
     </div>
   );
 }

@@ -122,13 +122,47 @@ export interface Review {
   createdAt: string;
 }
 
+export interface ServicePackage {
+  id: number;
+  name: string;
+  description?: string;
+  price: number;
+  sessionsCount: number;
+  expiryDays: number;
+  services?: Service[];
+  business?: { id: number; name: string };
+}
+
+export interface CustomerPackage {
+  id: number;
+  servicePackage: ServicePackage;
+  sessionsRemaining: number;
+  expiresAt: string | null;
+  status: string;
+  createdAt: string;
+}
+
 export interface PublicBusinessProfile {
   business: Business;
   branches: Branch[];
   services: Service[];
   staff: Staff[];
   reviews: Review[];
+  packages?: ServicePackage[];
   averageRating: number;
+}
+
+/** Payload for POST /api/bookings */
+export interface BookingRequest {
+  branchId: number;
+  serviceId: number;
+  staffId?: number | null;
+  bookingTime: string;
+  customerId?: number;
+  clientNotes?: string | null;
+  customerPackageId?: number | null;
+  /** Frontend confirm-step choice; online pay uses checkout after create */
+  paymentMethod?: 'VENUE' | 'ONLINE';
 }
 
 export interface ApiError {

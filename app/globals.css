@@ -7,39 +7,44 @@
 
 :root {
   /* Color Palette (Light Theme — Teal/Green palette matching logo-hourslot.png) */
-  --bg-primary: #f0f7f7;
+  --bg-primary: #eef6f6;
   --bg-secondary: #ffffff;
-  --bg-card: rgba(255, 255, 255, 0.85);
-  --bg-card-hover: rgba(255, 255, 255, 1);
+  --bg-elevated: #f7fbfb;
+  --bg-card: rgba(255, 255, 255, 0.92);
+  --bg-card-hover: #ffffff;
+  --bg-atmosphere: radial-gradient(ellipse 80% 60% at 10% -10%, rgba(26, 138, 138, 0.12), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 90% 0%, rgba(91, 184, 140, 0.1), transparent 50%),
+    linear-gradient(180deg, #eef6f6 0%, #f5faf9 100%);
 
-  --accent-primary: #1a8a8a;         /* Teal — primary from logo */
-  --accent-secondary: #5bb88c;       /* Green — secondary from logo */
+  --accent-primary: #1a8a8a;
+  --accent-secondary: #5bb88c;
   --accent-gradient: linear-gradient(135deg, #1a8a8a, #5bb88c);
   --accent-primary-rgb: 26, 138, 138;
   --accent-green: #10b981;
   --accent-yellow: #f59e0b;
   --accent-red: #ef4444;
 
-  --text-main: #1a2e35;              /* Dark teal-slate */
-  --text-secondary: #3d5a65;         /* Medium teal-slate */
-  --text-muted: #7a9aa5;             /* Light teal-slate */
+  --text-main: #14282e;
+  --text-secondary: #3d5a65;
+  --text-muted: #7a9aa5;
 
   --border-color: rgba(26, 138, 138, 0.12);
-  --border-focus: rgba(26, 138, 138, 0.35);
+  --border-focus: rgba(26, 138, 138, 0.28);
 
-  --glow-shadow: 0 0 24px rgba(26, 138, 138, 0.12);
+  --glow-shadow: 0 0 24px rgba(26, 138, 138, 0.1);
   --glass-shadow: 0 8px 32px rgba(26, 138, 138, 0.06);
-  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 6px 24px rgba(26, 138, 138, 0.06);
+  --card-shadow: 0 1px 2px rgba(20, 40, 46, 0.04), 0 8px 28px rgba(26, 138, 138, 0.06);
 
-  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-fast: all 0.15s ease;
 
   --radius-sm: 10px;
   --radius-md: 14px;
-  --radius-lg: 20px;
+  --radius-lg: 18px;
   --radius-xl: 28px;
   --radius-full: 9999px;
 
+  --space-page: 28px;
   --font-headers: 'Outfit', sans-serif;
   --font-body: 'Plus Jakarta Sans', sans-serif;
 }
@@ -59,14 +64,20 @@
 html, body {
   width: 100%;
   min-height: 100vh;
+  background: var(--bg-atmosphere);
   background-color: var(--bg-primary);
   color: var(--text-main);
   font-family: var(--font-body);
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.5;
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -229,6 +240,14 @@ a {
    GLASS CARD (Light Theme)
    ========================================================================== */
 
+.surface {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
+  padding: 24px;
+}
+
 .glass-card {
   background: var(--bg-card);
   backdrop-filter: blur(16px);
@@ -236,15 +255,27 @@ a {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   box-shadow: var(--card-shadow);
-  padding: 28px;
+  padding: 24px;
   transition: var(--transition-smooth);
 }
 
-.glass-card:hover {
+.glass-card.interactive:hover,
+a.glass-card:hover {
   background: var(--bg-card-hover);
-  border-color: rgba(26, 138, 138, 0.2);
-  transform: translateY(-3px);
-  box-shadow: 0 12px 40px rgba(26, 138, 138, 0.1);
+  border-color: rgba(26, 138, 138, 0.22);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 36px rgba(26, 138, 138, 0.1);
+}
+
+.btn-sm {
+  padding: 7px 14px;
+  font-size: 0.82rem;
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.25);
 }
 
 /* ==========================================================================
@@ -510,6 +541,11 @@ a {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+@keyframes pulseBg {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 @keyframes fadeIn {

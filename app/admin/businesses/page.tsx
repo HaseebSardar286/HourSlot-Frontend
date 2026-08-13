@@ -3,6 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
+import PageHeader from '@/components/PageHeader';
+import EmptyState from '@/components/EmptyState';
+import Skeleton from '@/components/Skeleton';
+import FilterBar from '@/components/FilterBar';
+import Tabs from '@/components/Tabs';
+import StatusBadge from '@/components/StatusBadge';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import styles from './businesses.module.css';
 
 interface Business {
@@ -26,11 +33,13 @@ interface Business {
 
 export default function AdminBusinessesPage() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
-  const [statusFilter, setStatusFilter] = useState(''); // Empty string = ALL
+  const [statusFilter, setStatusFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [verifyTarget, setVerifyTarget] = useState<Business | null>(null);
+  const [verifying, setVerifying] = useState(false);
 
   const loadBusinesses = async () => {
     setLoading(true);
@@ -55,47 +64,32 @@ export default function AdminBusinessesPage() {
     loadBusinesses();
   };
 
-  const handleQuickVerify = async (e: React.MouseEvent, bizId: number, bizName: string) => {
-    e.preventDefault(); // Prevents clicking the card Link
-    if (!window.confirm(`Are you sure you want to verify and approve the business application for "${bizName}"?`)) {
-      return;
-    }
+  const handleQuickVerify = async () => {
+    if (!verifyTarget) return;
+    setVerifying(true);
     setError(null);
     setMessage(null);
     try {
-      await apiFetch(`/api/admin/businesses/${bizId}/verify`, { method: 'PUT' });
-      setMessage(`Business "${bizName}" verified and approved successfully.`);
-      
-      // Update locally or filter out if we are on PENDING tab
+      await apiFetch(`/api/admin/businesses/${verifyTarget.id}/verify`, { method: 'PUT' });
+      setMessage(`Business "${verifyTarget.name}" verified and approved successfully.`);
       if (statusFilter === 'PENDING') {
-        setBusinesses(prev => prev.filter(b => b.id !== bizId));
+        setBusinesses((prev) => prev.filter((b) => b.id !== verifyTarget.id));
       } else {
-        setBusinesses(prev => prev.map(b => b.id === bizId ? { ...b, verified: true, status: 'APPROVED' } : b));
+        setBusinesses((prev) =>
+          prev.map((b) => (b.id === verifyTarget.id ? { ...b, verified: true, status: 'APPROVED' } : b))
+        );
       }
+      setVerifyTarget(null);
     } catch (err: any) {
       setError(err.message || 'Failed to verify business.');
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'APPROVED':
-        return <span className="badge badge-success"><i className="fa-solid fa-circle-check"></i> Approved</span>;
-      case 'PENDING':
-        return <span className="badge badge-warning"><i className="fa-solid fa-spinner animate-spin"></i> Pending Review</span>;
-      case 'REJECTED':
-        return <span className="badge badge-danger"><i className="fa-solid fa-circle-xmark"></i> Rejected</span>;
-      case 'SUSPENDED':
-        return <span className="badge badge-outline" style={{ color: 'var(--text-muted)', borderColor: '#cbd5e1' }}><i className="fa-solid fa-ban"></i> Suspended</span>;
-      default:
-        return <span className="badge badge-outline">{status}</span>;
+    } finally {
+      setVerifying(false);
     }
   };
 
   const formatDate = (dateStr: string) => {
     try {
-      const d = new Date(dateStr);
-      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     } catch {
       return dateStr;
     }
@@ -103,133 +97,103 @@ export default function AdminBusinessesPage() {
 
   return (
     <div className={styles.businessesWrapper}>
-      {/* Messages */}
+      <PageHeader title="Businesses" subtitle="Review applications, verify partners, and open detail records." />
+
       {error && (
         <div className="error-alert">
-          <i className="fa-solid fa-triangle-exclamation"></i>
+          <i className="fa-solid fa-triangle-exclamation" />
           <span>{error}</span>
         </div>
       )}
-
       {message && (
         <div className="success-alert">
-          <i className="fa-solid fa-circle-check"></i>
+          <i className="fa-solid fa-circle-check" />
           <span>{message}</span>
         </div>
       )}
 
-      {/* Tabs & Search Filter Header */}
-      <div className={styles.filterBar}>
-        <div className={styles.tabGroup}>
-          <button className={`${styles.tabBtn} ${statusFilter === '' ? styles.tabActive : ''}`} onClick={() => setStatusFilter('')}>
-            All
-          </button>
-          <button className={`${styles.tabBtn} ${statusFilter === 'PENDING' ? styles.tabActive : ''}`} onClick={() => setStatusFilter('PENDING')}>
-            Pending Review
-          </button>
-          <button className={`${styles.tabBtn} ${statusFilter === 'APPROVED' ? styles.tabActive : ''}`} onClick={() => setStatusFilter('APPROVED')}>
-            Approved
-          </button>
-          <button className={`${styles.tabBtn} ${statusFilter === 'REJECTED' ? styles.tabActive : ''}`} onClick={() => setStatusFilter('REJECTED')}>
-            Rejected
-          </button>
-          <button className={`${styles.tabBtn} ${statusFilter === 'SUSPENDED' ? styles.tabActive : ''}`} onClick={() => setStatusFilter('SUSPENDED')}>
-            Suspended
-          </button>
-        </div>
+      <Tabs
+        tabs={[
+          { id: '', label: 'All' },
+          { id: 'PENDING', label: 'Pending' },
+          { id: 'APPROVED', label: 'Approved' },
+          { id: 'REJECTED', label: 'Rejected' },
+          { id: 'SUSPENDED', label: 'Suspended' },
+        ]}
+        active={statusFilter}
+        onChange={setStatusFilter}
+      />
 
-        <form onSubmit={handleSearchSubmit} className={styles.searchGroup}>
-          <span className={styles.searchIcon}><i className="fa-solid fa-magnifying-glass"></i></span>
+      <form onSubmit={handleSearchSubmit}>
+        <FilterBar>
           <input
             type="text"
-            className={styles.searchInput}
+            className="input-field"
             placeholder="Search business, category, owner..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <button type="submit" style={{ display: 'none' }}></button>
-        </form>
-      </div>
+          <button type="submit" className="btn btn-primary btn-sm">
+            Search
+          </button>
+        </FilterBar>
+      </form>
 
-      {/* Business Applications Cards Grid */}
       {loading && businesses.length === 0 ? (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
-          <div className="spinner" style={{ width: '28px', height: '28px', borderTopColor: 'var(--accent-primary)', borderWidth: '3px' }} />
-        </div>
+        <Skeleton variant="card" count={3} />
+      ) : businesses.length === 0 ? (
+        <EmptyState icon="fa-store" title="No businesses found" description="No business applications match this filter." />
       ) : (
         <div className={styles.businessGrid}>
-          {businesses.length === 0 ? (
-            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', background: 'var(--bg-secondary)', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-lg)' }}>
-              <span style={{ display: 'block', fontSize: '2rem', color: 'var(--text-muted)', marginBottom: '10px' }}><i className="fa-solid fa-folder-open"></i></span>
-              <span style={{ color: 'var(--text-muted)' }}>No business applications found.</span>
-            </div>
-          ) : (
-            businesses.map((b) => {
-              const nameInitials = b.name.charAt(0);
-              
-              return (
-                <div key={b.id} className={styles.businessCard}>
-                  <div>
-                    <div className={styles.cardTop}>
-                      {b.logoUrl ? (
-                        <img src={b.logoUrl} alt={b.name} className={styles.bizLogo} />
-                      ) : (
-                        <div className={styles.bizInitials}>{nameInitials}</div>
-                      )}
-                      
-                      <div className={styles.bizMeta}>
-                        <h3 className={styles.bizName}>{b.name}</h3>
-                        <span className={styles.bizCategory}>{b.category || 'Service Provider'}</span>
-                      </div>
-                    </div>
-
-                    <div className={styles.cardBody}>
-                      <p className={styles.bizDesc}>{b.description || 'No description provided.'}</p>
-                      <div className={styles.detailRow}>
-                        <div className={styles.detailItem}>
-                          <i className="fa-solid fa-user-tie"></i>
-                          <span>Owner: {b.owner?.firstName} {b.owner?.lastName}</span>
-                        </div>
-                        <div className={styles.detailItem}>
-                          <i className="fa-solid fa-envelope"></i>
-                          <span style={{ fontSize: '0.78rem' }}>{b.owner?.email}</span>
-                        </div>
-                        <div className={styles.detailItem}>
-                          <i className="fa-solid fa-calendar-day"></i>
-                          <span>Registered: {formatDate(b.createdAt)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className={styles.cardFooter}>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      {getStatusBadge(b.status)}
-                      <span className={styles.commissionRate} style={{ marginTop: '4px' }}>Cut: {b.commissionRate}%</span>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      {b.status === 'PENDING' && (
-                        <button
-                          className="btn btn-secondary"
-                          style={{ padding: '8px 12px', fontSize: '0.8rem' }}
-                          onClick={(e) => handleQuickVerify(e, b.id, b.name)}
-                          title="Approve immediately"
-                        >
-                          <i className="fa-solid fa-check"></i>
-                        </button>
-                      )}
-                      <Link href={`/admin/businesses/${b.id}`} className="btn btn-outline" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>
-                        Details
-                      </Link>
-                    </div>
-                  </div>
+          {businesses.map((b) => (
+            <div key={b.id} className={`surface ${styles.businessCard}`}>
+              <div className={styles.cardTop}>
+                {b.logoUrl ? (
+                  <img src={b.logoUrl} alt={b.name} className={styles.bizLogo} />
+                ) : (
+                  <div className={styles.bizInitials}>{b.name.charAt(0)}</div>
+                )}
+                <div className={styles.bizMeta}>
+                  <h3 className={styles.bizName}>{b.name}</h3>
+                  <span className={styles.bizCategory}>{b.category || 'Service provider'}</span>
                 </div>
-              );
-            })
-          )}
+                <StatusBadge status={b.status} />
+              </div>
+
+              <p className={styles.bizDesc}>{b.description || 'No description provided.'}</p>
+              <div className={styles.detailRow}>
+                <span>
+                  Owner: {b.owner?.firstName} {b.owner?.lastName}
+                </span>
+                <span>{b.owner?.email}</span>
+                <span>Registered: {formatDate(b.createdAt)}</span>
+                <span>Commission: {b.commissionRate}%</span>
+              </div>
+
+              <div className={styles.cardFooter}>
+                {b.status === 'PENDING' && (
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setVerifyTarget(b)}>
+                    Approve
+                  </button>
+                )}
+                <Link href={`/admin/businesses/${b.id}`} className="btn btn-outline btn-sm">
+                  Details
+                </Link>
+              </div>
+            </div>
+          ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!verifyTarget}
+        title="Approve business"
+        message={`Verify and approve "${verifyTarget?.name}"?`}
+        confirmLabel="Approve"
+        loading={verifying}
+        onConfirm={handleQuickVerify}
+        onCancel={() => setVerifyTarget(null)}
+      />
     </div>
   );
 }

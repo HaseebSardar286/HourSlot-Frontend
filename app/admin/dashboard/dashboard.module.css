@@ -1,9 +1,54 @@
-/* Dashboard Styling */
-
 .dashboardWrapper {
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 20px;
+}
+
+.skeletonMetrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.muted {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.viewAll {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+}
+
+.earnList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.earnRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(240, 247, 247, 0.5);
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+}
+
+.earnRow strong {
+  color: var(--accent-primary);
+}
+
+.simpleTableWrap {
+  overflow-x: auto;
+}
+
+.emptyCell {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 24px !important;
 }
 
 /* KPI Cards */

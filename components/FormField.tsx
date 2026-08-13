@@ -1,6 +1,7 @@
 'use client';
 
 import { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from 'react';
+import styles from './ui.module.css';
 
 interface BaseProps {
   label: string;
@@ -18,7 +19,9 @@ export default function FormField(props: InputProps | TextareaProps) {
 
   return (
     <div className="form-group">
-      <label className="form-label" htmlFor={htmlFor}>{label}</label>
+      <label className="form-label" htmlFor={htmlFor}>
+        {label}
+      </label>
       {children ? (
         children
       ) : as === 'textarea' ? (
@@ -35,7 +38,7 @@ export default function FormField(props: InputProps | TextareaProps) {
         />
       )}
       {error && <span className="validation-error">{error}</span>}
-      {!error && hint && <span className="validation-error" style={{ color: 'var(--text-muted)' }}>{hint}</span>}
+      {!error && hint && <span className={styles.formHint}>{hint}</span>}
     </div>
   );
 }
