@@ -117,6 +117,27 @@
   box-shadow: var(--card-shadow);
 }
 
+.mapLegend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 12px 10px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  background: var(--bg-elevated, #f7fbfb);
+  border-top: 1px solid var(--border-color);
+}
+
+.youDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.22);
+  flex-shrink: 0;
+}
+
 .sectionHead {
   display: flex;
   justify-content: space-between;
@@ -326,4 +347,114 @@
   .searchBar .btn {
     width: 100%;
   }
+}
+
+.categoriesLandingSection {
+  text-align: center;
+  padding: 48px 24px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
+  margin-top: 10px;
+  background-image:
+    radial-gradient(ellipse 60% 50% at 50% 0%, rgba(26, 138, 138, 0.05), transparent 50%);
+}
+
+.landingTitle {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
+}
+
+.landingSubtitle {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  margin-bottom: 40px;
+  max-width: 520px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.5;
+}
+
+.categoryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+@media (max-width: 900px) {
+  .categoryGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .categoryGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.categoryCard {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 28px 20px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+  font-family: inherit;
+  width: 100%;
+}
+
+.categoryCard:hover {
+  transform: translateY(-4px);
+  border-color: rgba(26, 138, 138, 0.35);
+  box-shadow: 0 10px 24px rgba(26, 138, 138, 0.08);
+}
+
+.categoryCardIcon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: rgba(26, 138, 138, 0.06);
+  color: var(--accent-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  margin-bottom: 18px;
+  transition: var(--transition-fast);
+}
+
+.categoryCard:hover .categoryCardIcon {
+  background: var(--accent-primary);
+  color: #fff;
+  transform: scale(1.05);
+}
+
+.categoryCard h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0 0 8px 0;
+}
+
+.categoryCard p {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.skeletonCircle {
+  border-radius: 50% !important;
 }

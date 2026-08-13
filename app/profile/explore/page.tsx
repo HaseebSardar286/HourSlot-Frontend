@@ -33,7 +33,9 @@ export default function ExplorePage() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   const enrichRatings = async (list: ExploreBranch[]) => {
-    const uniqueBiz = Array.from(new Set(list.map((b) => b.business.id)));
+    const uniqueBiz = Array.from(
+      new Set(list.map((b) => b.business?.id).filter((id): id is number => typeof id === 'number'))
+    );
     const ratingMap = new Map<number, number>();
     await Promise.all(
       uniqueBiz.slice(0, 12).map(async (id) => {
@@ -49,18 +51,17 @@ export default function ExplorePage() {
     );
     return list.map((b) => ({
       ...b,
-      averageRating: ratingMap.get(b.business.id) ?? 0,
+      averageRating: (b.business?.id != null ? ratingMap.get(b.business.id) : undefined) ?? 0,
     }));
   };
 
-  const loadNearby = useCallback(async (lat: number, lon: number) => {
+  const loadNearby = useCallback(async (lat: number, lon: number, queryVal = '') => {
     setLoading(true);
     setError(null);
     try {
+      const nearbyUrl = `/api/discover/nearby?lat=${lat}&lon=${lon}&radius=50000${queryVal ? `&q=${encodeURIComponent(queryVal)}` : ''}`;
       const [branchData, catData, favData] = await Promise.all([
-        apiFetch<ExploreBranch[]>(`/api/discover/nearby?lat=${lat}&lon=${lon}&radius=50000`, {
-          skipAuth: true,
-        }),
+        apiFetch<ExploreBranch[]>(nearbyUrl, { skipAuth: true }),
         apiFetch<Category[]>('/api/discover/categories', { skipAuth: true }),
         apiFetch<{ business: { id: number } }[]>('/api/favorites').catch(() => []),
       ]);
@@ -71,8 +72,7 @@ export default function ExplorePage() {
       setBranches(await enrichRatings(withDist));
       setCategories(catData);
       setFavorites(favData.map((f) => f.business.id));
-      setIsSearchActive(false);
-      setActiveCategory(null);
+      setIsSearchActive(queryVal !== '');
       setLocationLabel('Near you');
     } catch (err: any) {
       setError(err?.message || 'Failed to load nearby businesses.');
@@ -82,7 +82,7 @@ export default function ExplorePage() {
     }
   }, []);
 
-  const loadSearch = async (queryVal = '', isSearching = false) => {
+  const loadSearch = useCallback(async (queryVal = '', isSearching = false) => {
     setLoading(true);
     setError(null);
     try {
@@ -102,44 +102,70 @@ export default function ExplorePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const loadCategoriesOnly = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const catData = await apiFetch<Category[]>('/api/discover/categories', { skipAuth: true });
+      setCategories(catData);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to load categories.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (!navigator.geolocation) {
-      loadSearch('');
+    loadCategoriesOnly();
+  }, [loadCategoriesOnly]);
+
+  const triggerSearchOrNearby = useCallback((query: string) => {
+    if (coords) {
+      loadNearby(coords.lat, coords.lon, query);
       return;
     }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const next = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-        setCoords(next);
-        loadNearby(next.lat, next.lon);
-      },
-      () => {
-        loadSearch('');
-      },
-      { timeout: 8000 }
-    );
-  }, [loadNearby]);
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const next = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+          setCoords(next);
+          loadNearby(next.lat, next.lon, query);
+        },
+        (err) => {
+          console.warn('Geolocation failed or denied:', err);
+          loadSearch(query, true);
+        },
+        { timeout: 8000 }
+      );
+    } else {
+      loadSearch(query, true);
+    }
+  }, [coords, loadNearby, loadSearch]);
 
   const handleSearchSubmit = (e: FormEvent) => {
     e.preventDefault();
     setActiveCategory(null);
-    loadSearch(searchQuery, true);
+    triggerSearchOrNearby(searchQuery);
   };
 
   const handleCategoryClick = (catName: string) => {
     setSearchQuery(catName);
     setActiveCategory(catName);
-    loadSearch(catName, true);
+    triggerSearchOrNearby(catName);
   };
 
   const handleClearSearch = () => {
     setSearchQuery('');
     setIsSearchActive(false);
     setActiveCategory(null);
-    if (coords) loadNearby(coords.lat, coords.lon);
-    else loadSearch('');
+    if (coords) {
+      loadNearby(coords.lat, coords.lon, '');
+    } else {
+      loadSearch('', false);
+    }
   };
 
   const handleToggleFavorite = async (e: React.MouseEvent, businessId: number) => {
@@ -198,12 +224,13 @@ export default function ExplorePage() {
           id: b.id,
           lat: b.latitude as number,
           lng: b.longitude as number,
-          label: `<strong>${b.business.name}</strong><br/>${b.address || b.name}`,
+          label: `<strong>${b.business?.name || b.name}</strong><br/>${b.address || b.name}`,
         })),
     [branches]
   );
 
   const renderCard = (b: ExploreBranch) => {
+    if (!b.business) return null;
     const isFav = favorites.includes(b.business.id);
     const cover = coverFor(b);
     return (
@@ -242,6 +269,55 @@ export default function ExplorePage() {
       </Link>
     );
   };
+
+  const isInitialState = !activeCategory && !isSearchActive;
+
+  if (isInitialState) {
+    return (
+      <div className={styles.exploreContainer}>
+        {error && (
+          <div className="error-alert" style={{ marginBottom: 20, marginTop: 10 }}>
+            <i className="fa-solid fa-triangle-exclamation" /> {error}
+          </div>
+        )}
+        <div className={styles.categoriesLandingSection}>
+          <h2 className={styles.landingTitle}>Select a service category to begin</h2>
+          <p className={styles.landingSubtitle}>Choose a service category below, and we will find the best approved businesses near you.</p>
+          
+          {loading && categories.length === 0 ? (
+            <div className={styles.categoryGrid}>
+              {[1, 2, 3, 4].map((n) => (
+                <div key={n} className={styles.categoryCard} style={{ pointerEvents: 'none' }}>
+                  <Skeleton width={60} height={60} className={styles.skeletonCircle} />
+                  <div style={{ height: 18 }} />
+                  <Skeleton variant="title" width="60%" />
+                  <div style={{ height: 8 }} />
+                  <Skeleton variant="text" width="80%" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className={styles.categoryGrid}>
+              {categories.map((cat) => (
+                <button
+                  type="button"
+                  key={cat.id}
+                  className={styles.categoryCard}
+                  onClick={() => handleCategoryClick(cat.name)}
+                >
+                  <div className={styles.categoryCardIcon}>
+                    <i className={getCategoryIcon(cat.name)} />
+                  </div>
+                  <h3>{cat.name}</h3>
+                  <p>Find nearby {cat.name.toLowerCase()} businesses</p>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.exploreContainer}>
@@ -308,9 +384,17 @@ export default function ExplorePage() {
           )}
         </div>
 
-        {!loading && mapMarkers.length > 0 && (
+        {!loading && (mapMarkers.length > 0 || coords) && (
           <div className={styles.exploreMap}>
-            <LocationMap markers={mapMarkers} height={300} />
+            <LocationMap
+              markers={mapMarkers}
+              userLocation={coords ? { lat: coords.lat, lng: coords.lon } : null}
+              height={300}
+            />
+            <p className={styles.mapLegend}>
+              <span className={styles.youDot} aria-hidden /> You are here
+              {mapMarkers.length > 0 ? ' · Pins are nearby businesses' : ''}
+            </p>
           </div>
         )}
 

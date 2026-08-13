@@ -28,6 +28,8 @@ export interface MapMarker {
 
 interface LocationMapProps {
   markers: MapMarker[];
+  /** Live GPS pin, drawn distinctly from business markers. */
+  userLocation?: { lat: number; lng: number } | null;
   height?: number | string;
   zoom?: number;
   className?: string;
@@ -35,9 +37,19 @@ interface LocationMapProps {
   fitMarkers?: boolean;
 }
 
+function userLocationIcon(className: string, dotClassName: string) {
+  return L.divIcon({
+    className,
+    html: `<span class="${dotClassName}"></span>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+  });
+}
+
 /** Read-only Leaflet map showing one or more pins. */
 export default function LocationMap({
   markers,
+  userLocation = null,
   height = 280,
   zoom = 13,
   className = '',
@@ -54,7 +66,9 @@ export default function LocationMap({
     const center =
       markers.length > 0
         ? L.latLng(markers[0].lat, markers[0].lng)
-        : L.latLng(37.7749, -122.4194);
+        : userLocation && Number.isFinite(userLocation.lat) && Number.isFinite(userLocation.lng)
+          ? L.latLng(userLocation.lat, userLocation.lng)
+          : L.latLng(37.7749, -122.4194);
 
     const map = L.map(containerRef.current, {
       scrollWheelZoom: false,
@@ -99,6 +113,18 @@ export default function LocationMap({
       marker.addTo(layer);
     });
 
+    if (userLocation && Number.isFinite(userLocation.lat) && Number.isFinite(userLocation.lng)) {
+      const you = L.latLng(userLocation.lat, userLocation.lng);
+      latLngs.push(you);
+      L.marker(you, {
+        icon: userLocationIcon(styles.userMarker, styles.userMarkerDot),
+        zIndexOffset: 400,
+        keyboard: false,
+      })
+        .bindPopup('You are here')
+        .addTo(layer);
+    }
+
     if (latLngs.length === 1) {
       map.setView(latLngs[0], zoom);
     } else if (latLngs.length > 1 && fitMarkers) {
@@ -106,7 +132,7 @@ export default function LocationMap({
     }
 
     setTimeout(() => map.invalidateSize(), 50);
-  }, [markers, zoom, fitMarkers]);
+  }, [markers, userLocation, zoom, fitMarkers]);
 
   return (
     <div
