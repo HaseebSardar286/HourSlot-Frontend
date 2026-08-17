@@ -132,11 +132,8 @@ export default function FavoritesPage() {
               {f.business.description && <p className={styles.desc}>{f.business.description}</p>}
 
               <div className={styles.cardFooter}>
-                <Link href={`/profile/business/${f.business.id}`} className="btn btn-outline btn-sm">
-                  View
-                </Link>
-                <Link href={`/profile/book/${f.business.id}`} className="btn btn-primary btn-sm">
-                  Book
+                <Link href={`/profile/business/${f.business.id}`} className="btn btn-primary btn-sm">
+                  View &amp; book
                 </Link>
               </div>
             </div>

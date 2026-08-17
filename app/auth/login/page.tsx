@@ -4,6 +4,7 @@ import { useState, FormEvent, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { safeReturnUrl } from '@/lib/auth-redirect';
 import styles from './login.module.css';
 
 function LoginForm() {
@@ -53,7 +54,7 @@ function LoginForm() {
     try {
       const session = await login({ email, password });
       document.cookie = `hourslot_user_session=${encodeURIComponent(JSON.stringify(session))}; path=/; max-age=86400`;
-      const returnUrl = searchParams.get('returnUrl') || getDashboardRoute(session.role);
+      const returnUrl = safeReturnUrl(searchParams.get('returnUrl'), getDashboardRoute(session.role));
       router.push(returnUrl);
     } catch (err: unknown) {
       const e = err as { error?: { message?: string }; message?: string };
@@ -141,7 +142,16 @@ function LoginForm() {
 
       <div className={styles.authFooter}>
         <p>
-          Don&apos;t have an account? <Link href="/auth/register">Create one</Link>
+          Don&apos;t have an account?{' '}
+          <Link
+            href={
+              searchParams.get('returnUrl')
+                ? `/auth/register?role=customer&returnUrl=${encodeURIComponent(searchParams.get('returnUrl') || '')}`
+                : '/auth/register'
+            }
+          >
+            Create one
+          </Link>
         </p>
         <p style={{ marginTop: 8 }}>
           <Link href="/">← Back to HourSlot</Link>

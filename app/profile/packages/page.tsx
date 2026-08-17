@@ -94,7 +94,7 @@ export default function CustomerPackagesPage() {
               </div>
               {cp.servicePackage.business?.id && cp.status === 'ACTIVE' && cp.sessionsRemaining > 0 && (
                 <Link
-                  href={`/profile/book/${cp.servicePackage.business.id}`}
+                  href={`/profile/business/${cp.servicePackage.business.id}`}
                   className="btn btn-outline btn-sm"
                   style={{ marginTop: 14, alignSelf: 'flex-start' }}
                 >

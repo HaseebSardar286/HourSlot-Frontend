@@ -16,7 +16,7 @@ export default function HeaderNav() {
     // Clear the middleware cookie too
     document.cookie = 'hourslot_user_session=; path=/; max-age=0';
     logout();
-    router.push('/auth/login');
+    router.push('/');
   };
 
   if (isAuthenticated && user) {

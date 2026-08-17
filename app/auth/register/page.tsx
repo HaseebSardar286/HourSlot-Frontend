@@ -45,6 +45,10 @@ function RegisterForm() {
   const { register } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const returnUrl = searchParams.get('returnUrl');
+  const loginHref = returnUrl
+    ? `/auth/login?returnUrl=${encodeURIComponent(returnUrl)}`
+    : '/auth/login';
 
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -204,7 +208,7 @@ function RegisterForm() {
       await register(payload);
       setLoading(false);
       setSuccess(true);
-      setTimeout(() => router.push('/auth/login'), 3000);
+      setTimeout(() => router.push(loginHref), 3000);
     } catch (err: unknown) {
       const e = err as { error?: { message?: string } };
       setLoading(false);
@@ -238,7 +242,7 @@ function RegisterForm() {
               ? 'Your business registration is pending verification. You’ll be notified once approved.'
               : 'Your account has been created. Redirecting to login…'}
           </p>
-          <Link href="/auth/login" className="btn btn-primary btn-block">
+          <Link href={loginHref} className="btn btn-primary btn-block">
             Go to login
           </Link>
         </div>
@@ -533,7 +537,7 @@ function RegisterForm() {
 
       <div className={styles.authFooter}>
         <p>
-          Already have an account? <Link href="/auth/login">Sign in</Link>
+          Already have an account? <Link href={loginHref}>Sign in</Link>
         </p>
       </div>
     </div>

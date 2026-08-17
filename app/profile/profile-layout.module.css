@@ -78,6 +78,296 @@
   animation: hsFadeUp 0.35s ease both;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Logged-in customer dashboard                                               */
+/* -------------------------------------------------------------------------- */
+
+.dash {
+  display: grid;
+  grid-template-columns: 248px 1fr;
+  height: 100vh;
+  overflow: hidden;
+  background: #eef6f7;
+}
+
+.sidebar {
+  background: #e4f1f2;
+  border-right: 1px solid rgba(26, 138, 138, 0.1);
+  display: flex;
+  flex-direction: column;
+  padding: 18px 14px 16px;
+  min-height: 0;
+}
+
+.sideBrand {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px 20px;
+}
+
+.sideLogo {
+  height: 36px;
+  width: auto;
+}
+
+.sideNav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.sideLink {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 0.92rem;
+  transition: var(--transition-fast);
+}
+
+.sideLink i {
+  width: 18px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.sideLink:hover {
+  background: rgba(26, 138, 138, 0.07);
+  color: var(--accent-primary);
+}
+
+.sideLink:hover i {
+  color: var(--accent-primary);
+}
+
+.sideLinkActive {
+  background: #0f6e75;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.sideLinkActive:hover {
+  background: #0f6e75;
+  color: #fff;
+}
+
+.sideLinkActive i,
+.sideLinkActive:hover i {
+  color: #fff;
+}
+
+.proCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  background: #cfe8ea;
+  color: #145e5e;
+  box-shadow: none;
+  transition: transform 0.2s ease;
+}
+
+.proCard strong {
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.proCard span {
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: #3d6e6e;
+}
+
+.proCard:hover {
+  transform: translateY(-1px);
+  box-shadow: none;
+}
+
+.dashMain {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 10px 22px;
+  min-height: 64px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.topbarRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hamburger {
+  display: none;
+  margin-right: auto;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--text-main);
+  cursor: pointer;
+}
+
+.userWrap {
+  position: relative;
+}
+
+.userBtn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  padding: 4px 10px 4px 4px;
+  border-radius: 999px;
+  transition: var(--transition-fast);
+}
+
+.userBtn:hover {
+  background: rgba(26, 138, 138, 0.06);
+  border-color: var(--border-color);
+}
+
+.avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--accent-gradient);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 0.78rem;
+}
+
+.userMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.userMeta strong {
+  font-size: 0.88rem;
+  color: var(--text-main);
+}
+
+.userMeta em {
+  font-style: normal;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.userMenu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+  min-width: 180px;
+  padding: 6px;
+  z-index: 20;
+}
+
+.userMenu a,
+.userMenu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: none;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+  color: var(--text-main);
+}
+
+.userMenu a:hover,
+.userMenu button:hover {
+  background: rgba(26, 138, 138, 0.08);
+  color: var(--accent-primary);
+}
+
+.dashBody {
+  flex: 1;
+  overflow: auto;
+  padding: 24px 28px 40px;
+  background: #eef6f7;
+}
+
+.dashBodyFill {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.backdrop {
+  display: none;
+}
+
+@media (max-width: 960px) {
+  .dash {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 260px;
+    z-index: 80;
+    transform: translateX(-110%);
+    transition: transform 0.25s ease;
+    box-shadow: 12px 0 40px rgba(20, 40, 46, 0.12);
+  }
+
+  .sidebarOpen {
+    transform: translateX(0);
+  }
+
+  .hamburger,
+  .backdrop {
+    display: block;
+  }
+
+  .backdrop {
+    position: fixed;
+    inset: 0;
+    border: 0;
+    background: rgba(20, 40, 46, 0.28);
+    z-index: 70;
+  }
+
+  .userMeta {
+    display: none;
+  }
+}
+
 @media (max-width: 768px) {
   .nav {
     width: 100%;

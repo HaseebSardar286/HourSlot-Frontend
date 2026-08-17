@@ -35,6 +35,11 @@ interface LocationMapProps {
   className?: string;
   /** When true, fit bounds to all markers */
   fitMarkers?: boolean;
+  selectedId?: string | number | null;
+  onMarkerClick?: (id: string | number) => void;
+  showControls?: boolean;
+  onLocate?: () => void;
+  scrollWheelZoom?: boolean;
 }
 
 function userLocationIcon(className: string, dotClassName: string) {
@@ -46,6 +51,15 @@ function userLocationIcon(className: string, dotClassName: string) {
   });
 }
 
+function businessIcon(selected: boolean) {
+  return L.divIcon({
+    className: styles.bizMarker,
+    html: `<span class="${selected ? styles.bizMarkerOn : styles.bizMarkerDot}"></span>`,
+    iconSize: selected ? [22, 22] : [16, 16],
+    iconAnchor: selected ? [11, 11] : [8, 8],
+  });
+}
+
 /** Read-only Leaflet map showing one or more pins. */
 export default function LocationMap({
   markers,
@@ -54,10 +68,17 @@ export default function LocationMap({
   zoom = 13,
   className = '',
   fitMarkers = true,
+  selectedId = null,
+  onMarkerClick,
+  showControls = false,
+  onLocate,
+  scrollWheelZoom = false,
 }: LocationMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
+  const clickRef = useRef(onMarkerClick);
+  clickRef.current = onMarkerClick;
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -71,8 +92,9 @@ export default function LocationMap({
           : L.latLng(37.7749, -122.4194);
 
     const map = L.map(containerRef.current, {
-      scrollWheelZoom: false,
+      scrollWheelZoom,
       attributionControl: true,
+      zoomControl: !showControls,
     }).setView(center, zoom);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -108,8 +130,15 @@ export default function LocationMap({
       if (!Number.isFinite(m.lat) || !Number.isFinite(m.lng)) return;
       const ll = L.latLng(m.lat, m.lng);
       latLngs.push(ll);
-      const marker = L.marker(ll);
-      if (m.label) marker.bindPopup(m.label);
+      const selected = m.id != null && m.id === selectedId;
+      const marker = L.marker(ll, {
+        icon: businessIcon(selected),
+        zIndexOffset: selected ? 500 : 0,
+      });
+      if (m.id != null) {
+        marker.on('click', () => clickRef.current?.(m.id as string | number));
+      }
+      if (m.label && !onMarkerClick) marker.bindPopup(m.label);
       marker.addTo(layer);
     });
 
@@ -131,15 +160,43 @@ export default function LocationMap({
       map.fitBounds(L.latLngBounds(latLngs).pad(0.2));
     }
 
-    setTimeout(() => map.invalidateSize(), 50);
-  }, [markers, userLocation, zoom, fitMarkers]);
+    setTimeout(() => map.invalidateSize(), 80);
+  }, [markers, userLocation, zoom, fitMarkers, selectedId, onMarkerClick]);
+
+  const heightStyle = typeof height === 'number' ? `${height}px` : height;
 
   return (
-    <div
-      ref={containerRef}
-      className={`${styles.map} ${className}`}
-      style={{ height: typeof height === 'number' ? `${height}px` : height }}
-    />
+    <div className={`${styles.mapWrap} ${className}`} style={{ height: heightStyle }}>
+      <div ref={containerRef} className={styles.map} />
+      {showControls && (
+        <div className={styles.controls}>
+          <button
+            type="button"
+            className={styles.ctrlBtn}
+            aria-label="Use my location"
+            onClick={() => onLocate?.()}
+          >
+            <i className="fa-solid fa-location-crosshairs" />
+          </button>
+          <button
+            type="button"
+            className={styles.ctrlBtn}
+            aria-label="Zoom in"
+            onClick={() => mapRef.current?.zoomIn()}
+          >
+            +
+          </button>
+          <button
+            type="button"
+            className={styles.ctrlBtn}
+            aria-label="Zoom out"
+            onClick={() => mapRef.current?.zoomOut()}
+          >
+            −
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 

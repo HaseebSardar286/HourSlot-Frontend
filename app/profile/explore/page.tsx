@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback, FormEvent, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, type FormEvent } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
+import { useAuth } from '@/lib/auth-context';
+import { loginHref } from '@/lib/auth-redirect';
 import type { Branch, Category } from '@/lib/types';
 import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
@@ -19,7 +22,11 @@ interface ExploreBranch extends Branch {
   distanceKm?: number;
 }
 
+const DISTANCES = [5, 10, 25, 50];
+
 export default function ExplorePage() {
+  const router = useRouter();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [branches, setBranches] = useState<ExploreBranch[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [favorites, setFavorites] = useState<number[]>([]);
@@ -31,6 +38,11 @@ export default function ExplorePage() {
   const [locationLabel, setLocationLabel] = useState('Near you');
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [radiusKm, setRadiusKm] = useState(50);
+  const [sortBy, setSortBy] = useState<'recommended' | 'rating'>('recommended');
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const bootstrapped = useRef(false);
 
   const enrichRatings = async (list: ExploreBranch[]) => {
     const uniqueBiz = Array.from(
@@ -55,11 +67,11 @@ export default function ExplorePage() {
     }));
   };
 
-  const loadNearby = useCallback(async (lat: number, lon: number, queryVal = '') => {
+  const loadNearby = useCallback(async (lat: number, lon: number, queryVal = '', radius = radiusKm) => {
     setLoading(true);
     setError(null);
     try {
-      const nearbyUrl = `/api/discover/nearby?lat=${lat}&lon=${lon}&radius=50000${queryVal ? `&q=${encodeURIComponent(queryVal)}` : ''}`;
+      const nearbyUrl = `/api/discover/nearby?lat=${lat}&lon=${lon}&radius=${radius * 1000}${queryVal ? `&q=${encodeURIComponent(queryVal)}` : ''}`;
       const [branchData, catData, favData] = await Promise.all([
         apiFetch<ExploreBranch[]>(nearbyUrl, { skipAuth: true }),
         apiFetch<Category[]>('/api/discover/categories', { skipAuth: true }),
@@ -69,18 +81,21 @@ export default function ExplorePage() {
         ...b,
         distanceKm: typeof b.distanceMeters === 'number' ? b.distanceMeters / 1000 : undefined,
       }));
-      setBranches(await enrichRatings(withDist));
+      const rated = await enrichRatings(withDist);
+      setBranches(rated);
       setCategories(catData);
       setFavorites(favData.map((f) => f.business.id));
       setIsSearchActive(queryVal !== '');
       setLocationLabel('Near you');
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load nearby businesses.');
+      if (rated[0]) setSelectedId(rated[0].id);
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      setError(e?.message || 'Failed to load nearby businesses.');
       setBranches([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [radiusKm]);
 
   const loadSearch = useCallback(async (queryVal = '', isSearching = false) => {
     setLoading(true);
@@ -92,12 +107,15 @@ export default function ExplorePage() {
         apiFetch<Category[]>('/api/discover/categories', { skipAuth: true }),
         apiFetch<{ business: { id: number } }[]>('/api/favorites').catch(() => []),
       ]);
-      setBranches(await enrichRatings(branchData));
+      const rated = await enrichRatings(branchData);
+      setBranches(rated);
       setCategories(catData);
       setFavorites(favData.map((f) => f.business.id));
       setIsSearchActive(isSearching || queryVal !== '');
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load explore data.');
+      if (rated[0]) setSelectedId(rated[0].id);
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      setError(e?.message || 'Failed to load explore data.');
       setBranches([]);
     } finally {
       setLoading(false);
@@ -110,20 +128,17 @@ export default function ExplorePage() {
     try {
       const catData = await apiFetch<Category[]>('/api/discover/categories', { skipAuth: true });
       setCategories(catData);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load categories.');
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      setError(e?.message || 'Failed to load categories.');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    loadCategoriesOnly();
-  }, [loadCategoriesOnly]);
-
-  const triggerSearchOrNearby = useCallback((query: string) => {
+  const triggerSearchOrNearby = useCallback((query: string, radius = radiusKm) => {
     if (coords) {
-      loadNearby(coords.lat, coords.lon, query);
+      loadNearby(coords.lat, coords.lon, query, radius);
       return;
     }
 
@@ -132,7 +147,7 @@ export default function ExplorePage() {
         (pos) => {
           const next = { lat: pos.coords.latitude, lon: pos.coords.longitude };
           setCoords(next);
-          loadNearby(next.lat, next.lon, query);
+          loadNearby(next.lat, next.lon, query, radius);
         },
         (err) => {
           console.warn('Geolocation failed or denied:', err);
@@ -143,7 +158,41 @@ export default function ExplorePage() {
     } else {
       loadSearch(query, true);
     }
-  }, [coords, loadNearby, loadSearch]);
+  }, [coords, loadNearby, loadSearch, radiusKm]);
+
+  useEffect(() => {
+    if (authLoading || bootstrapped.current) return;
+    bootstrapped.current = true;
+
+    let q = '';
+    try {
+      q = new URLSearchParams(window.location.search).get('q') || '';
+      if (!q) {
+        const raw = sessionStorage.getItem('hourslot_explore_q');
+        if (raw) {
+          sessionStorage.removeItem('hourslot_explore_q');
+          const parsed = JSON.parse(raw);
+          q = typeof parsed === 'string' ? parsed : parsed?.q || '';
+        }
+      }
+    } catch {
+      q = '';
+    }
+
+    if (q) {
+      setSearchQuery(q);
+      setActiveCategory(q);
+      triggerSearchOrNearby(q);
+      return;
+    }
+
+    if (isAuthenticated) {
+      triggerSearchOrNearby('');
+      return;
+    }
+
+    loadCategoriesOnly();
+  }, [authLoading, isAuthenticated, loadCategoriesOnly, triggerSearchOrNearby]);
 
   const handleSearchSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -171,6 +220,10 @@ export default function ExplorePage() {
   const handleToggleFavorite = async (e: React.MouseEvent, businessId: number) => {
     e.stopPropagation();
     e.preventDefault();
+    if (!isAuthenticated) {
+      router.push(loginHref(`${window.location.pathname}${window.location.search}`));
+      return;
+    }
     const isFav = favorites.includes(businessId);
     setError(null);
     setSuccess(null);
@@ -187,6 +240,23 @@ export default function ExplorePage() {
     } catch {
       setError('Could not update favorite status.');
     }
+  };
+
+  const startVoice = () => {
+    const w = window as unknown as {
+      SpeechRecognition?: new () => { lang: string; start: () => void; onresult: ((ev: { results: { 0: { 0: { transcript: string } } } }) => void) | null };
+      webkitSpeechRecognition?: new () => { lang: string; start: () => void; onresult: ((ev: { results: { 0: { 0: { transcript: string } } } }) => void) | null };
+    };
+    const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
+    if (!Ctor) return;
+    const rec = new Ctor();
+    rec.lang = 'en-US';
+    rec.onresult = (ev) => {
+      const text = ev.results[0][0].transcript;
+      setSearchQuery(text);
+      triggerSearchOrNearby(text);
+    };
+    rec.start();
   };
 
   const getCategoryIcon = (name: string) => {
@@ -215,9 +285,17 @@ export default function ExplorePage() {
     return null;
   };
 
+  const sortedBranches = useMemo(() => {
+    const list = [...branches];
+    if (sortBy === 'rating') {
+      list.sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0));
+    }
+    return list;
+  }, [branches, sortBy]);
+
   const mapMarkers = useMemo(
     () =>
-      branches
+      sortedBranches
         .filter((b) => Number.isFinite(b.latitude) && Number.isFinite(b.longitude))
         .slice(0, 40)
         .map((b) => ({
@@ -226,10 +304,20 @@ export default function ExplorePage() {
           lng: b.longitude as number,
           label: `<strong>${b.business?.name || b.name}</strong><br/>${b.address || b.name}`,
         })),
-    [branches]
+    [sortedBranches]
   );
 
-  const renderCard = (b: ExploreBranch) => {
+  const selected = sortedBranches.find((b) => b.id === selectedId) || null;
+
+  if (authLoading) {
+    return (
+      <div className={styles.dashExplore} style={{ placeItems: 'center' }}>
+        <Skeleton variant="card" height={220} />
+      </div>
+    );
+  }
+
+  const renderGuestCard = (b: ExploreBranch) => {
     if (!b.business) return null;
     const isFav = favorites.includes(b.business.id);
     const cover = coverFor(b);
@@ -270,6 +358,240 @@ export default function ExplorePage() {
     );
   };
 
+  const renderDashCard = (b: ExploreBranch) => {
+    if (!b.business) return null;
+    const isFav = favorites.includes(b.business.id);
+    const cover = coverFor(b);
+    const cat = b.business.primaryCategory?.name || 'Service';
+    return (
+      <article
+        key={b.id}
+        className={`${styles.resultCard} ${selectedId === b.id ? styles.resultCardOn : ''}`}
+        onClick={() => setSelectedId(b.id)}
+      >
+        <div className={styles.resultThumb}>
+          {cover ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={cover} alt="" />
+          ) : (
+            <div className={styles.coverFallback}>{b.business.name.slice(0, 1)}</div>
+          )}
+          {typeof b.averageRating === 'number' && b.averageRating > 0 && (
+            <span className={styles.thumbRating}>
+              <i className="fa-solid fa-star" /> {b.averageRating.toFixed(1)}
+            </span>
+          )}
+        </div>
+        <div className={styles.resultBody}>
+          <div className={styles.resultTop}>
+            <span className={styles.catPill}>{cat}</span>
+            <button
+              type="button"
+              className={`${styles.heartBtn} ${isFav ? styles.isFav : ''}`}
+              aria-label={isFav ? 'Remove from favorites' : 'Add to favorites'}
+              onClick={(e) => handleToggleFavorite(e, b.business.id)}
+            >
+              <i className={`fa-${isFav ? 'solid' : 'regular'} fa-heart`} />
+            </button>
+          </div>
+          <Link href={`/profile/business/${b.business.id}`} className={styles.resultName} onClick={(e) => e.stopPropagation()}>
+            {b.business.name}
+          </Link>
+          <p className={styles.resultAddr}>
+            {b.address || b.name}
+            {typeof b.distanceKm === 'number' ? ` · ${b.distanceKm.toFixed(1)} km` : ''}
+          </p>
+          <div className={styles.resultMeta}>
+            <Link
+              href={`/profile/business/${b.business.id}`}
+              className={styles.bookLink}
+              onClick={(e) => e.stopPropagation()}
+            >
+              View &amp; book
+            </Link>
+            <span className={styles.nextSlot}>Choose a service</span>
+          </div>
+        </div>
+      </article>
+    );
+  };
+
+  if (isAuthenticated) {
+    return (
+      <div className={styles.dashExplore}>
+        <section className={styles.findPane}>
+          <header className={styles.findHead}>
+            <div>
+              <h1>Explore</h1>
+              <p>Nearby businesses with real open slots</p>
+            </div>
+            <span className={styles.locChip}>
+              <i className="fa-solid fa-location-dot" aria-hidden />
+              {locationLabel}
+            </span>
+          </header>
+
+          <form onSubmit={handleSearchSubmit} className={styles.findSearch}>
+            <i className="fa-solid fa-magnifying-glass" aria-hidden />
+            <input
+              type="text"
+              placeholder="Search businesses, services, or categories"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Search businesses and services"
+            />
+            <button type="button" className={styles.micBtn} onClick={startVoice} aria-label="Voice search">
+              <i className="fa-solid fa-microphone" />
+            </button>
+            <button type="submit" className={styles.searchGo}>
+              Search
+            </button>
+          </form>
+
+          <div className={styles.filterRow}>
+            <button
+              type="button"
+              className={`${styles.filterMain} ${filtersOpen ? styles.filterMainOn : ''}`}
+              onClick={() => setFiltersOpen((v) => !v)}
+            >
+              <i className="fa-solid fa-sliders" /> Filters
+            </button>
+            <label className={styles.filterPill}>
+              Distance
+              <select
+                value={radiusKm}
+                onChange={(e) => {
+                  const next = Number(e.target.value);
+                  setRadiusKm(next);
+                  triggerSearchOrNearby(searchQuery, next);
+                }}
+                aria-label="Distance"
+              >
+                {DISTANCES.map((d) => (
+                  <option key={d} value={d}>
+                    {d} km
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={styles.filterPill}>
+              Sort
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'recommended' | 'rating')}
+                aria-label="Sort by"
+              >
+                <option value="recommended">Recommended</option>
+                <option value="rating">Rating</option>
+              </select>
+            </label>
+          </div>
+
+          {filtersOpen && categories.length > 0 && (
+            <div className={styles.categoryRow}>
+              {categories.map((cat) => (
+                <button
+                  type="button"
+                  key={cat.id}
+                  className={`${styles.categoryChip} ${activeCategory === cat.name ? styles.categoryChipActive : ''}`}
+                  onClick={() => handleCategoryClick(cat.name)}
+                >
+                  <i className={getCategoryIcon(cat.name)} />
+                  {cat.name}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className={styles.resultsBar}>
+            <span>Showing {sortedBranches.length} results</span>
+            <span>
+              Sort by: {sortBy === 'rating' ? 'Rating' : 'Recommended'}
+              {isSearchActive && (
+                <button type="button" className={styles.clearInline} onClick={handleClearSearch}>
+                  Clear
+                </button>
+              )}
+            </span>
+          </div>
+
+          {error && (
+            <div className="error-alert" style={{ marginBottom: 12 }}>
+              <i className="fa-solid fa-triangle-exclamation" /> {error}
+            </div>
+          )}
+          {success && (
+            <div className="success-alert" style={{ marginBottom: 12 }}>
+              <i className="fa-solid fa-circle-check" /> {success}
+            </div>
+          )}
+
+          <div className={styles.resultList}>
+            {loading ? (
+              [1, 2, 3, 4].map((n) => (
+                <div key={n} className={styles.resultCard}>
+                  <Skeleton variant="card" height={92} />
+                </div>
+              ))
+            ) : sortedBranches.length === 0 ? (
+              <EmptyState
+                icon="fa-store-slash"
+                title="No businesses found"
+                description="Try another search or a wider distance."
+                actionLabel="Refresh"
+                onAction={() => triggerSearchOrNearby(searchQuery)}
+              />
+            ) : (
+              sortedBranches.map(renderDashCard)
+            )}
+          </div>
+        </section>
+
+        <section className={styles.mapPane}>
+          <LocationMap
+            markers={mapMarkers}
+            userLocation={coords ? { lat: coords.lat, lng: coords.lon } : null}
+            height="100%"
+            selectedId={selectedId}
+            onMarkerClick={(id) => setSelectedId(Number(id))}
+            showControls
+            onLocate={() => triggerSearchOrNearby(searchQuery)}
+            scrollWheelZoom
+            className={styles.fillMap}
+          />
+          {selected?.business && (
+            <div className={styles.mapCard}>
+              <div className={styles.mapCardThumb}>
+                {coverFor(selected) ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={coverFor(selected) || ''} alt="" />
+                ) : (
+                  <div className={styles.coverFallback}>{selected.business.name.slice(0, 1)}</div>
+                )}
+              </div>
+              <div className={styles.mapCardBody}>
+                <Link href={`/profile/business/${selected.business.id}`}>{selected.business.name}</Link>
+                <p>{selected.address || selected.name}</p>
+                <span>
+                  {typeof selected.averageRating === 'number' && selected.averageRating > 0
+                    ? `${selected.averageRating.toFixed(1)} · `
+                    : ''}
+                  {typeof selected.distanceKm === 'number' ? `${selected.distanceKm.toFixed(1)} km` : 'Nearby'}
+                </span>
+              </div>
+              <Link href={`/profile/business/${selected.business.id}`} className={styles.mapCardBook}>
+                View
+              </Link>
+              <button type="button" className={styles.mapCardClose} onClick={() => setSelectedId(null)} aria-label="Close">
+                <i className="fa-solid fa-xmark" />
+              </button>
+            </div>
+          )}
+        </section>
+      </div>
+    );
+  }
+
   const isInitialState = !activeCategory && !isSearchActive;
 
   if (isInitialState) {
@@ -281,9 +603,9 @@ export default function ExplorePage() {
           </div>
         )}
         <div className={styles.categoriesLandingSection}>
-          <h2 className={styles.landingTitle}>Select a service category to begin</h2>
-          <p className={styles.landingSubtitle}>Choose a service category below, and we will find the best approved businesses near you.</p>
-          
+          <h2 className={styles.landingTitle}>Choose a category to get started</h2>
+          <p className={styles.landingSubtitle}>Browse nearby businesses by the type of service you need, then pick a real open slot.</p>
+
           {loading && categories.length === 0 ? (
             <div className={styles.categoryGrid}>
               {[1, 2, 3, 4].map((n) => (
@@ -330,7 +652,7 @@ export default function ExplorePage() {
             <i className="fa-solid fa-magnifying-glass" />
             <input
               type="text"
-              placeholder="Dentists, salons, yoga…"
+              placeholder="Salons, studios, clinics, repairs…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               aria-label="Search services"
@@ -342,12 +664,11 @@ export default function ExplorePage() {
         </form>
 
         {categories.length > 0 && (
-          <div className={styles.categoryRow} role="list">
+          <div className={styles.categoryRow}>
             {categories.map((cat) => (
               <button
                 type="button"
                 key={cat.id}
-                role="listitem"
                 className={`${styles.categoryChip} ${activeCategory === cat.name ? styles.categoryChipActive : ''}`}
                 onClick={() => handleCategoryClick(cat.name)}
               >
@@ -420,7 +741,7 @@ export default function ExplorePage() {
             onAction={() => (coords ? loadNearby(coords.lat, coords.lon) : loadSearch(''))}
           />
         ) : (
-          <div className={styles.popularGrid}>{branches.map(renderCard)}</div>
+          <div className={styles.popularGrid}>{sortedBranches.map(renderGuestCard)}</div>
         )}
       </div>
     </div>
