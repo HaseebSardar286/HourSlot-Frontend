@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { apiFetch } from '@/lib/api';
+import { parseSlots, slotTimes } from '@/lib/slots';
 import PageHeader from '@/components/PageHeader';
 import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
@@ -97,8 +98,8 @@ export default function BookingsPage() {
         if (selectedBooking.staff?.id) {
           url += `&staffId=${selectedBooking.staff.id}`;
         }
-        const slots = await apiFetch<string[]>(url, { skipAuth: true });
-        setRescheduleSlots(slots || []);
+        const slots = await apiFetch<unknown>(url, { skipAuth: true });
+        setRescheduleSlots(slotTimes(parseSlots(slots)));
       } catch {
         setRescheduleSlots([]);
       } finally {

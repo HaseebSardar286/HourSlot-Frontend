@@ -6,6 +6,7 @@ import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import type { BookingRequest, CustomerPackage, PublicBusinessProfile, Service, Staff } from '@/lib/types';
+import { parseSlots, type AvailableSlot } from '@/lib/slots';
 import Skeleton from '@/components/Skeleton';
 import EmptyState from '@/components/EmptyState';
 import styles from './book.module.css';
@@ -34,7 +35,7 @@ function BookWizardContent() {
   const [selectedServiceId, setSelectedServiceId] = useState('');
   const [selectedStaffId, setSelectedStaffId] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
-  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [availableSlots, setAvailableSlots] = useState<AvailableSlot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState('');
   const [clientNotes, setClientNotes] = useState('');
@@ -134,8 +135,8 @@ function BookWizardContent() {
       try {
         let url = `/api/public/branches/${selectedBranchId}/slots?serviceId=${selectedServiceId}&date=${selectedDate}`;
         if (selectedStaffId) url += `&staffId=${selectedStaffId}`;
-        const slots = await apiFetch<string[]>(url, { skipAuth: true });
-        setAvailableSlots(slots || []);
+        const slots = await apiFetch<unknown>(url, { skipAuth: true });
+        setAvailableSlots(parseSlots(slots));
       } catch (err: unknown) {
         const e = err as { message?: string };
         setAvailableSlots([]);
@@ -329,6 +330,17 @@ function BookWizardContent() {
 
   const serviceObj = profile.services.find((s) => s.id.toString() === selectedServiceId) as Service | undefined;
   const staffObj = profile.staff.find((s) => s.id.toString() === selectedStaffId) as Staff | undefined;
+  const selectedSlotObj = availableSlots.find((slot) => slot.startTime === selectedSlot);
+  const quotedPrice =
+    selectedSlotObj?.price != null
+      ? selectedSlotObj.price
+      : serviceObj
+        ? serviceObj.price
+        : 0;
+  const quotedBase =
+    selectedSlotObj?.basePrice != null ? selectedSlotObj.basePrice : quotedPrice;
+  const pricingKind = selectedSlotObj?.pricingKind;
+  const pricingLabel = selectedSlotObj?.pricingLabel;
   const branchStaff = (profile.staff || []).filter(
     (s) => !selectedBranchId || s.branch?.id?.toString() === selectedBranchId
   );
@@ -337,7 +349,7 @@ function BookWizardContent() {
     .map((u) => u.trim())
     .filter(Boolean);
   const thumb = gallery?.[0] || profile.business.logoUrl || null;
-  const displayTotal = paymentMethod === 'PACKAGE' ? 0 : serviceObj ? serviceObj.price : 0;
+  const displayTotal = paymentMethod === 'PACKAGE' ? 0 : quotedPrice;
   const taxEstimate = displayTotal * 0.08;
   const grandTotal = displayTotal + (paymentMethod === 'PACKAGE' ? 0 : taxEstimate);
 
@@ -494,7 +506,13 @@ function BookWizardContent() {
 
               <div className={styles.slotLegend}>
                 <span>
-                  <i className={styles.legendDot} /> Available slots
+                  <i className={styles.legendDot} /> Available
+                </span>
+                <span>
+                  <i className={`${styles.legendDot} ${styles.legendPeak}`} /> Peak
+                </span>
+                <span>
+                  <i className={`${styles.legendDot} ${styles.legendOffPeak}`} /> Off-peak
                 </span>
               </div>
 
@@ -504,16 +522,27 @@ function BookWizardContent() {
                 <p className={styles.noSlots}>No open slots for this date. Try another day or team member — this day may be outside working hours.</p>
               ) : (
                 <div className={styles.slotGrid}>
-                  {availableSlots.map((slot) => (
-                    <button
-                      key={slot}
-                      type="button"
-                      className={`${styles.slotBtn} ${selectedSlot === slot ? styles.slotBtnOn : ''}`}
-                      onClick={() => setSelectedSlot(slot)}
-                    >
-                      {formatFriendlyTime(slot)}
-                    </button>
-                  ))}
+                  {availableSlots.map((slot) => {
+                    const kind = slot.pricingKind;
+                    return (
+                      <button
+                        key={slot.startTime}
+                        type="button"
+                        className={`${styles.slotBtn} ${selectedSlot === slot.startTime ? styles.slotBtnOn : ''} ${
+                          kind === 'PEAK' ? styles.slotBtnPeak : kind === 'OFF_PEAK' ? styles.slotBtnOffPeak : ''
+                        }`}
+                        onClick={() => setSelectedSlot(slot.startTime)}
+                      >
+                        <span>{formatFriendlyTime(slot.startTime)}</span>
+                        {slot.price != null && (
+                          <em className={styles.slotPrice}>${slot.price.toFixed(2)}</em>
+                        )}
+                        {slot.pricingLabel && kind !== 'STANDARD' && (
+                          <strong className={styles.slotBadge}>{slot.pricingLabel}</strong>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </section>
@@ -658,8 +687,25 @@ function BookWizardContent() {
             <div className={styles.priceRows}>
               <div>
                 <span>Service fee</span>
-                <span>${displayTotal.toFixed(2)}</span>
+                <span>
+                  {pricingKind && pricingKind !== 'STANDARD' && quotedBase !== quotedPrice ? (
+                    <>
+                      <s className={styles.wasPrice}>${quotedBase.toFixed(2)}</s> ${displayTotal.toFixed(2)}
+                    </>
+                  ) : (
+                    `$${displayTotal.toFixed(2)}`
+                  )}
+                </span>
               </div>
+              {paymentMethod !== 'PACKAGE' && pricingLabel && pricingKind && pricingKind !== 'STANDARD' && (
+                <div className={pricingKind === 'PEAK' ? styles.peakNote : styles.offPeakNote}>
+                  <span>{pricingLabel}</span>
+                  <span>
+                    {quotedPrice >= quotedBase ? '+' : ''}
+                    ${(quotedPrice - quotedBase).toFixed(2)}
+                  </span>
+                </div>
+              )}
               {paymentMethod !== 'PACKAGE' && (
                 <div>
                   <span>Est. tax (8%)</span>

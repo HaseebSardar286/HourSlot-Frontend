@@ -456,6 +456,7 @@
 .slotLegend {
   display: flex;
   justify-content: flex-end;
+  gap: 14px;
   margin-bottom: 12px;
   font-size: 0.75rem;
   font-weight: 600;
@@ -471,6 +472,14 @@
   margin-right: 6px;
 }
 
+.legendPeak {
+  background: #d97706;
+}
+
+.legendOffPeak {
+  background: #059669;
+}
+
 .slotGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -481,17 +490,92 @@
   border: 0;
   background: rgba(26, 138, 138, 0.08);
   border-radius: 12px;
-  padding: 14px 8px;
+  padding: 12px 8px;
   font: inherit;
   font-weight: 700;
   font-size: 0.88rem;
   color: var(--text-main);
   cursor: pointer;
   transition: var(--transition-fast);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 
 .slotBtn:hover {
   background: rgba(26, 138, 138, 0.16);
+}
+
+.slotPrice {
+  font-style: normal;
+  font-weight: 700;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.slotBadge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #b45309;
+}
+
+.slotBtnPeak {
+  background: rgba(217, 119, 6, 0.12);
+}
+
+.slotBtnPeak:hover {
+  background: rgba(217, 119, 6, 0.2);
+}
+
+.slotBtnPeak .slotBadge {
+  color: #b45309;
+}
+
+.slotBtnOffPeak {
+  background: rgba(5, 150, 105, 0.1);
+}
+
+.slotBtnOffPeak:hover {
+  background: rgba(5, 150, 105, 0.18);
+}
+
+.slotBtnOffPeak .slotBadge {
+  color: #047857;
+}
+
+.slotBtnOn.slotBtnPeak {
+  background: #d97706;
+  color: #fff;
+}
+
+.slotBtnOn.slotBtnPeak .slotPrice,
+.slotBtnOn.slotBtnPeak .slotBadge,
+.slotBtnOn.slotBtnOffPeak .slotPrice,
+.slotBtnOn.slotBtnOffPeak .slotBadge {
+  color: #fff;
+}
+
+.slotBtnOn.slotBtnOffPeak {
+  background: #059669;
+  color: #fff;
+}
+
+.wasPrice {
+  color: var(--text-muted);
+  margin-right: 6px;
+  font-weight: 500;
+}
+
+.peakNote {
+  color: #b45309;
+  font-weight: 700;
+}
+
+.offPeakNote {
+  color: #047857;
+  font-weight: 700;
 }
 
 .slotBtnOn {

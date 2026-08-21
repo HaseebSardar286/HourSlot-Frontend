@@ -70,6 +70,17 @@ export interface Service {
   bufferMinutes?: number;
 }
 
+export interface AvailableSlot {
+  startTime: string;
+  endTime?: string;
+  basePrice?: number;
+  price?: number;
+  priceMultiplier?: number;
+  pricingKind?: 'STANDARD' | 'PEAK' | 'OFF_PEAK';
+  pricingLabel?: string | null;
+  currency?: string;
+}
+
 export interface Staff {
   id: number;
   name: string;

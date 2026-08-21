@@ -2,6 +2,8 @@
 
 import { useState, useEffect, FormEvent } from 'react';
 import { apiFetch } from '@/lib/api';
+import { useOwnerPlan } from '@/lib/owner-plan-context';
+import { atLimit, limitHint } from '@/lib/plan';
 import PageHeader from '@/components/PageHeader';
 import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
@@ -29,6 +31,8 @@ interface Staff {
 }
 
 export default function StaffPage() {
+  const { plan, loaded: planLoaded, refresh: refreshPlan } = useOwnerPlan();
+  const canAdd = planLoaded && !atLimit(plan, 'staff', 'max_staff');
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [staffList, setStaffList] = useState<Staff[]>([]);
@@ -47,15 +51,33 @@ export default function StaffPage() {
     branchId: '',
     userId: '',
   });
+  const [inviteForm, setInviteForm] = useState({
+    email: '',
+    displayName: '',
+    designation: '',
+    branchId: '',
+  });
+  const [invites, setInvites] = useState<
+    { id: number; email: string; displayName: string; status: string; branchName?: string }[]
+  >([]);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [inviting, setInviting] = useState(false);
 
   const loadInitialData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const branchData = await apiFetch<Branch[]>('/api/business/branches');
+      const [branchData, inviteData] = await Promise.all([
+        apiFetch<Branch[]>('/api/business/branches'),
+        apiFetch<{ id: number; email: string; displayName: string; status: string; branchName?: string }[]>(
+          '/api/business/staff/invites'
+        ).catch(() => []),
+      ]);
       setBranches(branchData);
+      setInvites(inviteData);
       if (branchData.length > 0) {
         setSelectedBranchId(branchData[0].id.toString());
+        setInviteForm((p) => ({ ...p, branchId: branchData[0].id.toString() }));
       }
     } catch (err: any) {
       setError(err?.message || 'Could not load directory data. Please ensure branches exist.');
@@ -147,6 +169,7 @@ export default function StaffPage() {
       }
       setShowForm(false);
       await loadStaffForBranch(selectedBranchId);
+      await refreshPlan();
     } catch (err: any) {
       setError(err?.message || 'Failed to save staff member details.');
     } finally {
@@ -164,6 +187,7 @@ export default function StaffPage() {
       setMessage('Staff member removed successfully.');
       setDeleteId(null);
       await loadStaffForBranch(selectedBranchId);
+      await refreshPlan();
     } catch (err: any) {
       setError(err?.message || 'Failed to remove staff member.');
     } finally {
@@ -184,11 +208,17 @@ export default function StaffPage() {
     <div className={styles.page}>
       <PageHeader
         title="Staff"
-        subtitle="Manage specialists by branch and optional portal account links."
+        subtitle={
+          canAdd
+            ? 'Manage specialists by branch and optional portal account links.'
+            : limitHint(plan, 'max_staff', 'staff members')
+        }
         actions={
-          <button type="button" className="btn btn-primary" onClick={handleAddClick} disabled={branches.length === 0}>
-            <i className="fa-solid fa-plus" /> Add Staff
-          </button>
+          canAdd ? (
+            <button type="button" className="btn btn-primary" onClick={handleAddClick} disabled={branches.length === 0}>
+              <i className="fa-solid fa-plus" /> Add Staff
+            </button>
+          ) : undefined
         }
       />
 
@@ -200,6 +230,95 @@ export default function StaffPage() {
       {error && (
         <div className="error-alert">
           <i className="fa-solid fa-triangle-exclamation" /> {error}
+        </div>
+      )}
+
+      {branches.length > 0 && canAdd && (
+        <div className={`surface ${styles.inviteCard}`}>
+          <h3>Invite staff by email</h3>
+          <p className={styles.inviteHint}>Sends an accept link. Staff create their own login and join this branch.</p>
+          <div className={styles.inviteGrid}>
+            <input
+              className="input-field"
+              placeholder="Email"
+              value={inviteForm.email}
+              onChange={(e) => setInviteForm((p) => ({ ...p, email: e.target.value }))}
+            />
+            <input
+              className="input-field"
+              placeholder="Display name"
+              value={inviteForm.displayName}
+              onChange={(e) => setInviteForm((p) => ({ ...p, displayName: e.target.value }))}
+            />
+            <input
+              className="input-field"
+              placeholder="Designation"
+              value={inviteForm.designation}
+              onChange={(e) => setInviteForm((p) => ({ ...p, designation: e.target.value }))}
+            />
+            <select
+              className="select-field"
+              value={inviteForm.branchId}
+              onChange={(e) => setInviteForm((p) => ({ ...p, branchId: e.target.value }))}
+            >
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={inviting}
+              onClick={async () => {
+                setInviting(true);
+                setError(null);
+                setInviteLink(null);
+                try {
+                  const res = await apiFetch<{
+                    acceptPath: string;
+                    inviteToken: string;
+                  }>('/api/business/staff/invites', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                      email: inviteForm.email,
+                      displayName: inviteForm.displayName,
+                      designation: inviteForm.designation || null,
+                      branchId: Number(inviteForm.branchId),
+                    }),
+                  });
+                  const link = `${window.location.origin}${res.acceptPath}`;
+                  setInviteLink(link);
+                  setMessage('Invite created. Share the link with your staff member.');
+                  setInviteForm((p) => ({ ...p, email: '', displayName: '', designation: '' }));
+                  await loadInitialData();
+                  await refreshPlan();
+                } catch (err: any) {
+                  setError(err?.message || 'Invite failed.');
+                } finally {
+                  setInviting(false);
+                }
+              }}
+            >
+              {inviting ? 'Creating…' : 'Create invite'}
+            </button>
+          </div>
+          {inviteLink && (
+            <p className={styles.inviteLink}>
+              Invite link: <code>{inviteLink}</code>
+            </p>
+          )}
+          {invites.length > 0 && (
+            <ul className={styles.inviteList}>
+              {invites.slice(0, 5).map((inv) => (
+                <li key={inv.id}>
+                  {inv.displayName} · {inv.email} · {inv.status}
+                  {inv.branchName ? ` · ${inv.branchName}` : ''}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
@@ -237,11 +356,15 @@ export default function StaffPage() {
             <Skeleton variant="row" count={4} />
           ) : staffList.length === 0 ? (
             <EmptyState
-              icon="fa-users"
-              title="No staff at this branch"
-              description="Add specialists to manage their shifts and bookings."
-              actionLabel="Add staff member"
-              onAction={handleAddClick}
+              icon={canAdd ? 'fa-users' : 'fa-lock'}
+              title={canAdd ? 'No staff at this branch' : 'Staff limit reached'}
+              description={
+                canAdd
+                  ? 'Add specialists to manage their shifts and bookings.'
+                  : limitHint(plan, 'max_staff', 'staff members')
+              }
+              actionLabel={canAdd ? 'Add staff member' : undefined}
+              onAction={canAdd ? handleAddClick : undefined}
             />
           ) : (
             <DataTable

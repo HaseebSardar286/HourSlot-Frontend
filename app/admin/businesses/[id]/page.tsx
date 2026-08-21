@@ -59,6 +59,20 @@ interface BusinessDetailResponse {
   branches: Branch[];
   services: Service[];
   staff: Staff[];
+  verificationDocuments?: {
+    id: number;
+    documentType: string;
+    label: string;
+    status: string;
+    originalFilename?: string;
+    url?: string;
+    reviewNotes?: string;
+  }[];
+  verificationReadiness?: {
+    readyForVerifiedBadge: boolean;
+    approvedCount: number;
+    requiredCount: number;
+  };
 }
 
 export default function BusinessDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -93,6 +107,22 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
     loadDetails();
   }, [businessId]);
 
+  const handleApproveListing = async () => {
+    if (!detail) return;
+    setError(null);
+    setMessage(null);
+    setActionLoading(true);
+    try {
+      await apiFetch(`/api/admin/businesses/${businessId}/approve`, { method: 'PUT' });
+      setMessage('Listing approved. Customers can book once setup is complete.');
+      await loadDetails();
+    } catch (err: any) {
+      setError(err.message || 'Failed to approve listing.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleApprove = async () => {
     if (!detail) return;
     setError(null);
@@ -100,12 +130,27 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
     setActionLoading(true);
     try {
       await apiFetch(`/api/admin/businesses/${businessId}/verify`, { method: 'PUT' });
-      setMessage('Business application verified and approved successfully.');
+      setMessage('Verified badge granted.');
       await loadDetails();
     } catch (err: any) {
-      setError(err.message || 'Failed to approve business.');
+      setError(err.message || 'Failed to grant verified badge. Approve all three documents first.');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const reviewDocument = async (documentId: number, approve: boolean) => {
+    setError(null);
+    setMessage(null);
+    try {
+      await apiFetch(`/api/admin/businesses/${businessId}/verification-documents/${documentId}/review`, {
+        method: 'PUT',
+        body: JSON.stringify({ approve, notes: approve ? 'Looks valid' : 'Please re-upload a clearer document' }),
+      });
+      setMessage(approve ? 'Document approved.' : 'Document rejected.');
+      await loadDetails();
+    } catch (err: any) {
+      setError(err.message || 'Document review failed.');
     }
   };
 
@@ -301,12 +346,63 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
           </div>
 
           <div className="surface">
-            <h3 className={styles.sectionTitle}>Verification & rates</h3>
+            <h3 className={styles.sectionTitle}>Verification documents</h3>
+            <p className={styles.description}>
+              Ready for verified badge:{' '}
+              {detail.verificationReadiness?.readyForVerifiedBadge
+                ? 'Yes'
+                : `No (${detail.verificationReadiness?.approvedCount ?? 0}/${detail.verificationReadiness?.requiredCount ?? 3} approved)`}
+            </p>
+            {(detail.verificationDocuments || []).length === 0 ? (
+              <p className={styles.description}>No documents uploaded yet.</p>
+            ) : (
+              <div className={styles.infoGroup}>
+                {detail.verificationDocuments!.map((doc) => (
+                  <div key={doc.id} className={styles.infoRow} style={{ alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                    <span className={styles.infoLabel}>{doc.label}</span>
+                    <StatusBadge status={doc.status} />
+                    {doc.url && (
+                      <a href={doc.url} target="_blank" rel="noreferrer" className="btn btn-sm btn-outline">
+                        View
+                      </a>
+                    )}
+                    {doc.status === 'SUBMITTED' && (
+                      <>
+                        <button type="button" className="btn btn-sm btn-primary" onClick={() => reviewDocument(doc.id, true)}>
+                          Approve doc
+                        </button>
+                        <button type="button" className="btn btn-sm btn-danger" onClick={() => reviewDocument(doc.id, false)}>
+                          Reject doc
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="surface">
+            <h3 className={styles.sectionTitle}>Listing & verified badge</h3>
             <div className={styles.actionBtns}>
               {business.status === 'PENDING' && (
                 <>
-                  <button type="button" className="btn btn-primary" onClick={handleApprove} disabled={actionLoading}>
-                    Approve
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={handleApproveListing}
+                    disabled={actionLoading}
+                  >
+                    Approve listing
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleApprove}
+                    disabled={actionLoading || !detail.verificationReadiness?.readyForVerifiedBadge}
+                    title="Requires all three documents approved"
+                  >
+                    Grant verified badge
                   </button>
                   <button
                     type="button"
@@ -319,18 +415,30 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
                 </>
               )}
               {business.status === 'APPROVED' && (
-                <button
-                  type="button"
-                  className="btn btn-danger"
-                  onClick={() => setShowSuspendConfirm(true)}
-                  disabled={actionLoading}
-                >
-                  Suspend
-                </button>
+                <>
+                  {!business.verified && (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={handleApprove}
+                      disabled={actionLoading || !detail.verificationReadiness?.readyForVerifiedBadge}
+                    >
+                      Grant verified badge
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    onClick={() => setShowSuspendConfirm(true)}
+                    disabled={actionLoading}
+                  >
+                    Suspend
+                  </button>
+                </>
               )}
               {(business.status === 'REJECTED' || business.status === 'SUSPENDED') && (
-                <button type="button" className="btn btn-primary" onClick={handleApprove} disabled={actionLoading}>
-                  Restore & approve
+                <button type="button" className="btn btn-primary" onClick={handleApproveListing} disabled={actionLoading}>
+                  Restore listing
                 </button>
               )}
             </div>

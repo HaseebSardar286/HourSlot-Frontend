@@ -3,6 +3,8 @@
 import { useState, useEffect, FormEvent } from 'react';
 import dynamic from 'next/dynamic';
 import { apiFetch } from '@/lib/api';
+import { useOwnerPlan } from '@/lib/owner-plan-context';
+import { atLimit, limitHint } from '@/lib/plan';
 import PageHeader from '@/components/PageHeader';
 import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
@@ -31,6 +33,8 @@ interface Branch {
 }
 
 export default function BranchesPage() {
+  const { plan, loaded: planLoaded, refresh: refreshPlan } = useOwnerPlan();
+  const canAdd = planLoaded && !atLimit(plan, 'branches', 'max_branches');
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -121,6 +125,7 @@ export default function BranchesPage() {
       }
       setShowForm(false);
       await loadBranches();
+      await refreshPlan();
     } catch (err: any) {
       setError(err?.message || 'Action failed. Please verify your profile is verified.');
     } finally {
@@ -138,6 +143,7 @@ export default function BranchesPage() {
       setMessage('Branch deleted successfully.');
       setDeleteId(null);
       await loadBranches();
+      await refreshPlan();
     } catch (err: any) {
       setError(err?.message || 'Failed to delete branch.');
     } finally {
@@ -158,11 +164,17 @@ export default function BranchesPage() {
     <div className={styles.page}>
       <PageHeader
         title="Branches"
-        subtitle="Manage locations on the map. Coordinates are stored as latitude and longitude."
+        subtitle={
+          canAdd
+            ? 'Manage locations on the map. Coordinates are stored as latitude and longitude.'
+            : limitHint(plan, 'max_branches', 'branches')
+        }
         actions={
-          <button type="button" className="btn btn-primary" onClick={handleAddClick}>
-            <i className="fa-solid fa-plus" /> Add Branch
-          </button>
+          canAdd ? (
+            <button type="button" className="btn btn-primary" onClick={handleAddClick}>
+              <i className="fa-solid fa-plus" /> Add Branch
+            </button>
+          ) : undefined
         }
       />
 
@@ -187,11 +199,15 @@ export default function BranchesPage() {
         <Skeleton variant="row" count={4} />
       ) : branches.length === 0 ? (
         <EmptyState
-          icon="fa-location-dot"
-          title="No branches added"
-          description="Add a branch and pin it on the map so customers can find you."
-          actionLabel="Add your first branch"
-          onAction={handleAddClick}
+          icon={canAdd ? 'fa-location-dot' : 'fa-lock'}
+          title={canAdd ? 'No branches added' : 'Branch limit reached'}
+          description={
+            canAdd
+              ? 'Add a branch and pin it on the map so customers can find you.'
+              : limitHint(plan, 'max_branches', 'branches')
+          }
+          actionLabel={canAdd ? 'Add your first branch' : undefined}
+          onAction={canAdd ? handleAddClick : undefined}
         />
       ) : (
         <DataTable

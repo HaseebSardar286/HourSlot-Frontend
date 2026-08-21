@@ -8,13 +8,58 @@
 
 .registrationCard {
   width: 100%;
-  max-width: 540px;
+  max-width: 640px;
   padding: 40px;
 }
 
 .registrationHeader {
   text-align: center;
   margin-bottom: 28px;
+}
+
+.steps {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.step,
+.stepActive {
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border-color);
+}
+
+.stepActive {
+  background: var(--accent-primary);
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.actions .btn {
+  flex: 1;
+  justify-content: center;
+}
+
+.review h3 {
+  margin: 0 0 8px;
+}
+
+.review p {
+  margin: 0 0 8px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.hint {
+  margin-top: 12px !important;
+  font-size: 0.88rem;
 }
 
 .registrationHeader h2 {

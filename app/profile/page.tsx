@@ -134,7 +134,7 @@ export default function ProfilePage() {
           <h4>
             {firstName} {lastName}
           </h4>
-          <span className={styles.roleBadge}>{profile.role.replaceAll('_', ' ')}</span>
+          <span className={styles.roleBadge}>{(profile.role || 'UNKNOWN').replaceAll('_', ' ')}</span>
           <button type="button" className={styles.logoutBtn} onClick={handleLogout}>
             Sign out
           </button>

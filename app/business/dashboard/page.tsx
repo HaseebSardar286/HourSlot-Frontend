@@ -45,6 +45,8 @@ export default function BusinessDashboardPage() {
     staff: 0,
     hours: 0,
   });
+  const [docsReady, setDocsReady] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   const [formData, setFormData] = useState<{
     name: string;
@@ -116,6 +118,15 @@ export default function BusinessDashboardPage() {
 
   useEffect(() => {
     loadBusinessProfile();
+    apiFetch<{ readiness?: { submittedCount?: number; requiredCount?: number } }>(
+      '/api/business/verification-documents'
+    )
+      .then((data) => {
+        const submitted = data.readiness?.submittedCount ?? 0;
+        const required = data.readiness?.requiredCount ?? 3;
+        setDocsReady(submitted >= required);
+      })
+      .catch(() => setDocsReady(false));
   }, []);
 
   const handleInputChange = (field: string, value: any) => {
@@ -191,24 +202,50 @@ export default function BusinessDashboardPage() {
 
   const checklist = [
     { done: !!business?.name && !!business?.description, label: 'Complete business profile', href: '/business/dashboard' },
-    { done: setup.branches > 0, label: 'Add at least one branch', href: '/business/branches' },
-    { done: setup.services > 0, label: 'Add a bookable service', href: '/business/services' },
-    { done: setup.staff > 0, label: 'Add staff members', href: '/business/staff' },
-    { done: setup.hours > 0, label: 'Configure working hours', href: '/business/availability' },
+    { done: setup.branches > 0, label: 'Add a branch', href: '/business/branches' },
+    { done: setup.services > 0, label: 'Add a service', href: '/business/services' },
+    { done: setup.staff > 0, label: 'Add staff', href: '/business/staff' },
+    { done: setup.hours > 0, label: 'Set working hours', href: '/business/availability' },
+    { done: docsReady, label: 'Upload verification docs', href: '/business/verification' },
   ];
-  const readyForReview = checklist.every((c) => c.done);
-  const doneCount = checklist.filter((c) => c.done).length;
+  const checklistWithDocs = checklist;
+  const readyForReview = checklistWithDocs.every((c) => c.done);
+  const doneCount = checklistWithDocs.filter((c) => c.done).length;
+  const publicPath = `/profile/business/${business?.id}`;
+  const publicUrl =
+    typeof window !== 'undefined' ? `${window.location.origin}${publicPath}` : publicPath;
+
+  const handleShare = async () => {
+    if (!business) return;
+    setSharing(true);
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: business.name,
+          text: `Book with ${business.name} on HourSlot`,
+          url: publicUrl,
+        });
+      } else {
+        await navigator.clipboard.writeText(publicUrl);
+        setMessage('Booking page link copied.');
+      }
+    } catch {
+      // user cancelled share
+    } finally {
+      setSharing(false);
+    }
+  };
 
   return (
     <div className={styles.dashboardContainer}>
       <PageHeader
-        title={business?.name || 'Business Dashboard'}
+        title={business?.name || 'Business dashboard'}
         subtitle="Track setup progress, status, and keep your public profile up to date."
         actions={
           business?.status === 'APPROVED' ? (
-            <Link href={`/profile/business/${business.id}`} className="btn btn-secondary">
-              View public page
-            </Link>
+            <button type="button" className="btn btn-primary" onClick={handleShare} disabled={sharing}>
+              <i className="fa-solid fa-share-nodes" /> {sharing ? 'Sharing…' : "You're live — share booking page"}
+            </button>
           ) : undefined
         }
       />
@@ -218,7 +255,10 @@ export default function BusinessDashboardPage() {
           <i className="fa-solid fa-clock-rotate-left" />
           <div>
             <strong>Registration pending review</strong>
-            <p>Administrators are verifying your application. Some scheduling features unlock after approval.</p>
+            <p>
+              Super Admin will review your listing. Upload trade license, bank statement, and owner ID under
+              Verification to qualify for a verified badge.
+            </p>
           </div>
         </div>
       )}
@@ -229,8 +269,8 @@ export default function BusinessDashboardPage() {
           <div>
             <strong>Registration rejected</strong>
             <p>
-              Reason: {business.rejectionReason || 'No reason specified'}. Update your details and resubmit for
-              approval.
+              Reason: {business.rejectionReason || 'No reason specified'}. Update your details and verification
+              documents, then wait for another review.
             </p>
           </div>
         </div>
@@ -241,7 +281,7 @@ export default function BusinessDashboardPage() {
           <i className="fa-solid fa-triangle-exclamation" />
           <div>
             <strong>Account suspended</strong>
-            <p>Customers cannot book right now. Please contact HourSlot Support.</p>
+            <p>Customers cannot book right now. Contact HourSlot Support.</p>
           </div>
         </div>
       )}
@@ -259,53 +299,64 @@ export default function BusinessDashboardPage() {
 
       <MetricGrid>
         <StatCard label="Status" value={business?.status?.replace('_', ' ') || '—'} icon="fa-shield-halved" />
-        <StatCard label="Setup progress" value={`${doneCount}/${checklist.length}`} hint="Checklist items complete" icon="fa-list-check" />
+        <StatCard
+          label="Setup progress"
+          value={`${doneCount}/${checklistWithDocs.length}`}
+          hint="Checklist items complete"
+          icon="fa-list-check"
+        />
         <StatCard
           label="Rating"
           value={business?.rating ? business.rating.toFixed(1) : '0.0'}
           icon="fa-star"
         />
-        <StatCard label="Commission" value={`${business?.commissionRate ?? 0}%`} icon="fa-percent" />
+        <StatCard
+          label="Verified"
+          value={business?.verified ? 'Yes' : 'No'}
+          hint="Requires approved documents"
+          icon="fa-badge-check"
+        />
       </MetricGrid>
 
-      <div className={`surface ${styles.checklistCard}`}>
-        <div className={styles.checklistHeader}>
-          <div>
-            <h3>Setup checklist</h3>
-            <p>Finish these steps so customers can book once your business is approved.</p>
+      <div className={styles.dashboardLayout}>
+        <aside className={`surface ${styles.checklistRail}`}>
+          <div className={styles.checklistHeader}>
+            <div>
+              <h3>Setup</h3>
+              <p>{doneCount}/{checklistWithDocs.length} complete</p>
+            </div>
+            <StatusBadge status={business?.status || 'PENDING'} />
           </div>
-          <StatusBadge status={business?.status || 'PENDING'} />
-        </div>
-        <ul className={styles.checklist}>
-          {checklist.map((item) => (
-            <li key={item.label}>
-              <span>
-                <i
-                  className={`fa-solid ${item.done ? 'fa-circle-check' : 'fa-circle'}`}
-                  style={{ color: item.done ? 'var(--accent-green)' : 'var(--text-muted)', marginRight: 8 }}
-                />
-                {item.label}
-              </span>
-              {!item.done && (
-                <Link href={item.href} className="btn btn-secondary btn-sm">
-                  Continue
-                </Link>
-              )}
-            </li>
-          ))}
-        </ul>
-        {business?.status === 'APPROVED' ? (
-          <div className="success-alert">
-            You&apos;re live — share your booking page:{' '}
-            <Link href={`/profile/business/${business.id}`}>/profile/business/{business.id}</Link>
-          </div>
-        ) : readyForReview ? (
-          <div className="success-alert">Setup complete. Waiting for admin approval before customers can book.</div>
-        ) : (
-          <div className={`error-alert ${styles.warnAlert}`}>Complete the checklist before going live.</div>
-        )}
-      </div>
+          <ul className={styles.checklist}>
+            {checklistWithDocs.map((item) => (
+              <li key={item.label}>
+                <span>
+                  <i
+                    className={`fa-solid ${item.done ? 'fa-circle-check' : 'fa-circle'}`}
+                    style={{ color: item.done ? 'var(--accent-green)' : 'var(--text-muted)', marginRight: 8 }}
+                  />
+                  {item.label}
+                </span>
+                {!item.done && (
+                  <Link href={item.href} className={styles.checklistLink}>
+                    Go
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ul>
+          {business?.status === 'APPROVED' ? (
+            <button type="button" className="btn btn-primary btn-sm" style={{ width: '100%' }} onClick={handleShare}>
+              Share booking page
+            </button>
+          ) : readyForReview ? (
+            <p className={styles.railHint}>Setup complete. Waiting for admin approval.</p>
+          ) : (
+            <p className={styles.railHint}>Finish the remaining steps on the left.</p>
+          )}
+        </aside>
 
+        <div className={styles.dashboardMain}>
       <div className={styles.dashboardGrid}>
         <div className="surface">
           <div className={styles.profileHeader}>
@@ -334,7 +385,7 @@ export default function BusinessDashboardPage() {
           <form onSubmit={handleSubmit} className={styles.profileForm}>
             <div className="form-group">
               <label className="form-label" htmlFor="name">
-                Business Name
+                Business name
               </label>
               <input
                 id="name"
@@ -342,7 +393,6 @@ export default function BusinessDashboardPage() {
                 className="input-field"
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
-                placeholder="e.g. Apex Health Clinic"
                 disabled={business?.status === 'SUSPENDED'}
               />
             </div>
@@ -356,14 +406,13 @@ export default function BusinessDashboardPage() {
                 className={`input-field ${styles.textarea}`}
                 value={formData.description}
                 onChange={(e) => handleInputChange('description', e.target.value)}
-                placeholder="Briefly describe your services..."
                 disabled={business?.status === 'SUSPENDED'}
               />
             </div>
 
             <div className="form-group">
               <label className="form-label" htmlFor="logoUrl">
-                Logo Image URL
+                Logo image URL
               </label>
               <input
                 id="logoUrl"
@@ -371,14 +420,13 @@ export default function BusinessDashboardPage() {
                 className="input-field"
                 value={formData.logoUrl}
                 onChange={(e) => handleInputChange('logoUrl', e.target.value)}
-                placeholder="https://example.com/logo.png"
                 disabled={business?.status === 'SUSPENDED'}
               />
             </div>
 
             <div className="form-group">
               <label className="form-label" htmlFor="registrationNumber">
-                Government Reg / License Number
+                Government registration / license number
               </label>
               <input
                 id="registrationNumber"
@@ -386,14 +434,13 @@ export default function BusinessDashboardPage() {
                 className="input-field"
                 value={formData.registrationNumber}
                 onChange={(e) => handleInputChange('registrationNumber', e.target.value)}
-                placeholder="e.g. REG-776483-ABC"
                 disabled={business?.status === 'SUSPENDED'}
               />
             </div>
 
             <div className="form-group">
               <label className="form-label" htmlFor="primaryCategorySelect">
-                Primary Category
+                Primary category
               </label>
               <select
                 id="primaryCategorySelect"
@@ -442,11 +489,7 @@ export default function BusinessDashboardPage() {
 
         <div className={styles.sideColumn}>
           <div className="surface">
-            <h3 className={styles.sideTitle}>Business metrics</h3>
-            <div className={styles.metricRow}>
-              <span>Platform commission</span>
-              <strong>{business?.commissionRate}%</strong>
-            </div>
+            <h3 className={styles.sideTitle}>Listing</h3>
             <div className={styles.metricRow}>
               <span>Average rating</span>
               <strong className={styles.ratingValue}>
@@ -455,17 +498,22 @@ export default function BusinessDashboardPage() {
             </div>
             <div className={styles.metricRow}>
               <span>Public link</span>
-              <span className={styles.slugLink}>{business?.slug ? `/b/${business.slug}` : 'No slug yet'}</span>
+              <span className={styles.slugLink}>{publicPath}</span>
             </div>
           </div>
 
           <div className={`surface ${styles.tipCard}`}>
-            <h4>Verification badges</h4>
+            <h4>Verified badge</h4>
             <p>
-              Add your official registration number to apply for the verified checkmark. Verified businesses get higher
-              visibility in local search.
+              Upload your trade license, bank statement, and owner government ID under Verification. Super Admin
+              reviews each file before the verified badge is granted.
             </p>
+            <Link href="/business/verification" className="btn btn-secondary btn-sm">
+              Open verification
+            </Link>
           </div>
+        </div>
+      </div>
         </div>
       </div>
     </div>

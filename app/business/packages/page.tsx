@@ -2,6 +2,8 @@
 
 import { useState, useEffect, FormEvent } from 'react';
 import { apiFetch } from '@/lib/api';
+import { useOwnerPlan } from '@/lib/owner-plan-context';
+import { hasFeature, upgradeHint } from '@/lib/plan';
 import PageHeader from '@/components/PageHeader';
 import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
@@ -29,6 +31,8 @@ interface ServicePackage {
 }
 
 export default function PackagesPage() {
+  const { plan, loaded: planLoaded } = useOwnerPlan();
+  const canManage = planLoaded && hasFeature(plan, 'packages');
   const [packages, setPackages] = useState<ServicePackage[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
@@ -181,11 +185,17 @@ export default function PackagesPage() {
     <div className={styles.page}>
       <PageHeader
         title="Packages"
-        subtitle="Create session bundles and combo deals for repeat customers."
+        subtitle={
+          canManage
+            ? 'Create session bundles and combo deals for repeat customers.'
+            : upgradeHint(plan, 'packages', 'session packages')
+        }
         actions={
-          <button type="button" className="btn btn-primary" onClick={handleAddClick}>
-            <i className="fa-solid fa-plus" /> Create Package
-          </button>
+          canManage ? (
+            <button type="button" className="btn btn-primary" onClick={handleAddClick}>
+              <i className="fa-solid fa-plus" /> Create Package
+            </button>
+          ) : undefined
         }
       />
 
@@ -204,11 +214,15 @@ export default function PackagesPage() {
         <Skeleton variant="row" count={4} />
       ) : packages.length === 0 ? (
         <EmptyState
-          icon="fa-box-open"
-          title="No packages available"
-          description="Create combo deals for repeat customer bookings."
-          actionLabel="Create package"
-          onAction={handleAddClick}
+          icon={canManage ? 'fa-box-open' : 'fa-lock'}
+          title={canManage ? 'No packages available' : 'Packages are a paid feature'}
+          description={
+            canManage
+              ? 'Create combo deals for repeat customer bookings.'
+              : upgradeHint(plan, 'packages', 'session packages')
+          }
+          actionLabel={canManage ? 'Create package' : undefined}
+          onAction={canManage ? handleAddClick : undefined}
         />
       ) : (
         <DataTable
@@ -240,9 +254,11 @@ export default function PackagesPage() {
               header: 'Actions',
               render: (pkg) => (
                 <div className={styles.actions}>
-                  <button type="button" className="btn btn-sm btn-outline" onClick={() => handleEditClick(pkg)}>
-                    Edit
-                  </button>
+                  {canManage && (
+                    <button type="button" className="btn btn-sm btn-outline" onClick={() => handleEditClick(pkg)}>
+                      Edit
+                    </button>
+                  )}
                   <button type="button" className="btn btn-sm btn-danger" onClick={() => setDeleteId(pkg.id)}>
                     Delete
                   </button>

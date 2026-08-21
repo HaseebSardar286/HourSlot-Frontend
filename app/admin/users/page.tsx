@@ -157,7 +157,11 @@ export default function AdminUsersPage() {
                 </div>
               ),
             },
-            { key: 'role', header: 'Role', render: (u) => <span className={styles.role}>{u.role.replaceAll('_', ' ')}</span> },
+            {
+              key: 'role',
+              header: 'Role',
+              render: (u) => <span className={styles.role}>{(u.role || 'UNKNOWN').replaceAll('_', ' ')}</span>,
+            },
             { key: 'phone', header: 'Phone', render: (u) => u.phoneNumber || '—' },
             { key: 'created', header: 'Registered', render: (u) => formatDate(u.createdAt) },
             {

@@ -20,13 +20,14 @@ const COLORS: Record<string, { bg: string; color: string }> = {
   UNPAID: { bg: 'rgba(245, 158, 11, 0.12)', color: '#b45309' },
 };
 
-export default function StatusBadge({ status }: { status: string }) {
-  const key = status?.toUpperCase().replace(/\s+/g, '_') || '';
+export default function StatusBadge({ status }: { status?: string | null }) {
+  const safeStatus = typeof status === 'string' && status.trim() ? status.trim() : 'UNKNOWN';
+  const key = safeStatus.toUpperCase().replace(/\s+/g, '_');
   const normalized = key.startsWith('PAID') ? 'PAID' : key;
   const style = COLORS[normalized] || { bg: 'rgba(26, 138, 138, 0.08)', color: 'var(--text-secondary)' };
   return (
     <span className={styles.statusBadge} style={{ background: style.bg, color: style.color }}>
-      {status.replaceAll('_', ' ').toLowerCase()}
+      {safeStatus.replaceAll('_', ' ').toLowerCase()}
     </span>
   );
 }

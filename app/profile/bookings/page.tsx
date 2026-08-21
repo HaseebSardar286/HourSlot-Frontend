@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect, FormEvent } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
+import { parseSlots, slotTimes } from '@/lib/slots';
 import PageHeader from '@/components/PageHeader';
 import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
@@ -94,8 +95,8 @@ function MyBookingsContent() {
         if (reschedulingBooking.staff?.id) {
           url += `&staffId=${reschedulingBooking.staff.id}`;
         }
-        const slots = await apiFetch<string[]>(url, { skipAuth: true });
-        setRescheduleSlots(slots || []);
+        const slots = await apiFetch<unknown>(url, { skipAuth: true });
+        setRescheduleSlots(slotTimes(parseSlots(slots)));
       } catch {
         setRescheduleSlots([]);
       } finally {

@@ -2,6 +2,8 @@
 
 import { useState, useEffect, FormEvent } from 'react';
 import { apiFetch } from '@/lib/api';
+import { useOwnerPlan } from '@/lib/owner-plan-context';
+import { hasFeature, upgradeHint } from '@/lib/plan';
 import PageHeader from '@/components/PageHeader';
 import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
@@ -36,6 +38,8 @@ const DAYS_OF_WEEK = [
 ];
 
 export default function PeakPricingPage() {
+  const { plan, loaded: planLoaded } = useOwnerPlan();
+  const canManage = planLoaded && hasFeature(plan, 'peak_pricing');
   const [rules, setRules] = useState<TimeOfDayPricing[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
@@ -168,11 +172,17 @@ export default function PeakPricingPage() {
     <div className={styles.page}>
       <PageHeader
         title="Peak pricing"
-        subtitle="Configure day-of-week and time-of-day demand multipliers."
+        subtitle={
+          canManage
+            ? 'Configure day-of-week and time-of-day demand multipliers.'
+            : upgradeHint(plan, 'peak_pricing', 'peak pricing')
+        }
         actions={
-          <button type="button" className="btn btn-primary" onClick={handleAddClick} disabled={services.length === 0}>
-            <i className="fa-solid fa-plus" /> Configure Peak Rate
-          </button>
+          canManage ? (
+            <button type="button" className="btn btn-primary" onClick={handleAddClick} disabled={services.length === 0}>
+              <i className="fa-solid fa-plus" /> Configure Peak Rate
+            </button>
+          ) : undefined
         }
       />
 
@@ -189,6 +199,12 @@ export default function PeakPricingPage() {
 
       {loading ? (
         <Skeleton variant="row" count={4} />
+      ) : !canManage && rules.length === 0 ? (
+        <EmptyState
+          icon="fa-lock"
+          title="Peak pricing is a paid feature"
+          description={upgradeHint(plan, 'peak_pricing', 'peak pricing')}
+        />
       ) : services.length === 0 ? (
         <EmptyState
           icon="fa-tags"
@@ -232,9 +248,11 @@ export default function PeakPricingPage() {
               header: 'Actions',
               render: (r) => (
                 <div className={styles.actions}>
-                  <button type="button" className="btn btn-sm btn-outline" onClick={() => handleEditClick(r)}>
-                    Edit
-                  </button>
+                  {canManage && (
+                    <button type="button" className="btn btn-sm btn-outline" onClick={() => handleEditClick(r)}>
+                      Edit
+                    </button>
+                  )}
                   <button type="button" className="btn btn-sm btn-danger" onClick={() => setDeleteId(r.id)}>
                     Delete
                   </button>
