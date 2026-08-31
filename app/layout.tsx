@@ -39,7 +39,7 @@ export default function RootLayout({
           referrerPolicy="no-referrer"
         />
       </head>
-      <body className={roboto.className}>
+      <body className={roboto.className} suppressHydrationWarning>
         <AuthProvider>
           <ToastProvider>
             {children}

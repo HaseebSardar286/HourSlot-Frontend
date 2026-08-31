@@ -12,19 +12,34 @@ interface NotificationItem {
   createdAt: string;
 }
 
+interface NotificationListResponse {
+  notifications?: NotificationItem[];
+  unreadCount?: number;
+}
+
+const POLL_MS = 60_000;
+const MAX_BACKOFF_MS = 5 * 60_000;
+
 export default function NotificationPanel() {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const failStreak = useRef(0);
 
-  const unread = items.filter((n) => !n.read).length;
-
-  const load = useCallback(async () => {
+  const loadList = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiFetch<NotificationItem[]>('/api/notifications');
-      setItems(Array.isArray(data) ? data : []);
+      const data = await apiFetch<NotificationListResponse | NotificationItem[]>('/api/notifications');
+      const list = Array.isArray(data) ? data : data?.notifications ?? [];
+      setItems(list);
+      if (!Array.isArray(data) && typeof data?.unreadCount === 'number') {
+        setUnreadCount(data.unreadCount);
+      } else {
+        setUnreadCount(list.filter((n) => !n.read).length);
+      }
+      failStreak.current = 0;
     } catch {
       setItems([]);
     } finally {
@@ -32,11 +47,47 @@ export default function NotificationPanel() {
     }
   }, []);
 
+  const loadUnread = useCallback(async () => {
+    if (typeof document !== 'undefined' && document.hidden) return;
+    try {
+      const data = await apiFetch<{ unreadCount: number }>('/api/notifications/unread-count');
+      setUnreadCount(data?.unreadCount ?? 0);
+      failStreak.current = 0;
+    } catch {
+      failStreak.current += 1;
+    }
+  }, []);
+
   useEffect(() => {
-    load();
-    const id = setInterval(load, 60000);
-    return () => clearInterval(id);
-  }, [load]);
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const schedule = (ms: number) => {
+      timer = setTimeout(run, ms);
+    };
+
+    const run = async () => {
+      if (cancelled) return;
+      if (typeof document === 'undefined' || !document.hidden) {
+        await loadUnread();
+      }
+      if (cancelled) return;
+      const delay =
+        failStreak.current === 0 ? POLL_MS : Math.min(POLL_MS * 2 ** failStreak.current, MAX_BACKOFF_MS);
+      schedule(delay);
+    };
+
+    void run();
+    const onVis = () => {
+      if (!document.hidden) void loadUnread();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [loadUnread]);
 
   useEffect(() => {
     if (!open) return;
@@ -53,6 +104,7 @@ export default function NotificationPanel() {
     try {
       await apiFetch(`/api/notifications/${id}/read`, { method: 'PUT' });
       setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+      setUnreadCount((n) => Math.max(0, n - 1));
     } catch {
       /* ignore */
     }
@@ -62,6 +114,7 @@ export default function NotificationPanel() {
     try {
       await apiFetch('/api/notifications/read-all', { method: 'PUT' });
       setItems((prev) => prev.map((n) => ({ ...n, read: true })));
+      setUnreadCount(0);
     } catch {
       /* ignore */
     }
@@ -81,6 +134,8 @@ export default function NotificationPanel() {
     }
   };
 
+  const unread = unreadCount || items.filter((n) => !n.read).length;
+
   return (
     <div className={styles.notifWrap} ref={wrapRef}>
       <button
@@ -90,7 +145,7 @@ export default function NotificationPanel() {
         aria-expanded={open}
         onClick={() => {
           setOpen((v) => !v);
-          if (!open) load();
+          if (!open) void loadList();
         }}
       >
         <i className="fa-solid fa-bell" />

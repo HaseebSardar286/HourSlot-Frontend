@@ -16,7 +16,7 @@ interface ScheduleStepProps {
   selectedSlot: string;
   currency?: string;
   onDateChange: (date: string) => void;
-  onSlotChange: (slot: string) => void;
+  onSlotChange: (slot: string, quoted?: AvailableSlot) => void;
   compact?: boolean;
 }
 
@@ -170,7 +170,7 @@ export default function ScheduleStep({
                   className={`${styles.slotBtn} ${on ? styles.slotBtnOn : ''} ${
                     kind === 'PEAK' ? styles.slotBtnPeak : kind === 'OFF_PEAK' ? styles.slotBtnOffPeak : ''
                   }`}
-                  onClick={() => onSlotChange(slot.startTime)}
+                  onClick={() => onSlotChange(slot.startTime, slot)}
                 >
                   <span>{formatFriendlyTime(slot.startTime)}</span>
                   {slot.price != null && <em className={styles.slotPrice}>{money(slot.price, slot.currency)}</em>}

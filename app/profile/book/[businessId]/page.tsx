@@ -180,8 +180,21 @@ function BookWizardInner() {
 
   useEffect(() => {
     if (!profile || !profileLoaded.current) return;
-    const initial = mergeFlowFromParams(searchParams, profile);
-    setFlow(initial);
+    const next = mergeFlowFromParams(searchParams, profile);
+    setFlow((prev) => {
+      if (
+        prev.step === next.step &&
+        prev.serviceId === next.serviceId &&
+        prev.branchId === next.branchId &&
+        prev.staffId === next.staffId &&
+        prev.date === next.date &&
+        prev.slot === next.slot &&
+        prev.customerPackageId === next.customerPackageId
+      ) {
+        return prev;
+      }
+      return next;
+    });
   }, [searchParams, profile]);
 
   useEffect(() => {
@@ -196,7 +209,8 @@ function BookWizardInner() {
 
   useEffect(() => {
     const fetchQuoted = async () => {
-      if (!flow.branchId || !flow.serviceId || !flow.date || !flow.slot) {
+      if (flow.step !== 'confirm' || !flow.branchId || !flow.serviceId || !flow.date || !flow.slot) {
+        if (flow.step !== 'confirm') return;
         setQuotedSlot(null);
         return;
       }
@@ -216,7 +230,7 @@ function BookWizardInner() {
       }
     };
     fetchQuoted();
-  }, [flow.branchId, flow.serviceId, flow.staffId, flow.date, flow.slot]);
+  }, [flow.step, flow.branchId, flow.serviceId, flow.staffId, flow.date, flow.slot]);
 
   const service = useMemo(
     () => profile?.services.find((s) => String(s.id) === flow.serviceId) || null,
@@ -330,7 +344,7 @@ function BookWizardInner() {
 
   if (loading) {
     return (
-      <div style={{ maxWidth: 1080, margin: '0 auto', padding: '24px 8px' }}>
+      <div style={{ width: '100%', padding: '24px 8px' }}>
         <Skeleton variant="title" />
         <Skeleton variant="card" height={360} />
       </div>
@@ -339,7 +353,7 @@ function BookWizardInner() {
 
   if (!profile) {
     return (
-      <div style={{ maxWidth: 1080, margin: '0 auto', padding: '24px 8px' }}>
+      <div style={{ width: '100%', padding: '24px 8px' }}>
         <EmptyState
           icon="fa-calendar-xmark"
           title="Unable to start booking"
@@ -353,7 +367,7 @@ function BookWizardInner() {
 
   if (profile.services.length === 0) {
     return (
-      <div style={{ maxWidth: 1080, margin: '0 auto', padding: '24px 8px' }}>
+      <div style={{ width: '100%', padding: '24px 8px' }}>
         <EmptyState
           icon="fa-scissors"
           title="No bookable services"
@@ -437,7 +451,10 @@ function BookWizardInner() {
           selectedSlot={flow.slot}
           currency={quotedSlot?.currency || service?.currency || profile.business.currency}
           onDateChange={(date) => applyFlow({ date, slot: '', step: 'schedule' })}
-          onSlotChange={(slot) => applyFlow({ slot, step: 'schedule' })}
+          onSlotChange={(slot, quoted) => {
+            applyFlow({ slot, step: 'schedule' });
+            setQuotedSlot(quoted || null);
+          }}
         />
       )}
 
@@ -466,7 +483,7 @@ export default function BookWizardPage() {
   return (
     <Suspense
       fallback={
-        <div style={{ maxWidth: 1080, margin: '0 auto', padding: '24px 8px' }}>
+        <div style={{ width: '100%', padding: '24px 8px' }}>
           <Skeleton variant="title" />
           <Skeleton variant="card" height={360} />
         </div>

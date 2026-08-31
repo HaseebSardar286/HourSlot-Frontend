@@ -22,6 +22,14 @@ interface ExploreBranch extends Branch {
   distanceKm?: number;
 }
 
+function withExploreMeta(list: ExploreBranch[]): ExploreBranch[] {
+  return list.map((b) => ({
+    ...b,
+    averageRating: b.business?.rating ?? b.averageRating ?? 0,
+    distanceKm: typeof b.distanceMeters === 'number' ? b.distanceMeters / 1000 : b.distanceKm,
+  }));
+}
+
 const DISTANCES = [5, 10, 25, 50];
 
 const CATEGORY_ACCENTS = ['teal', 'coral', 'violet', 'sky', 'rose', 'indigo', 'amber', 'emerald'] as const;
@@ -46,29 +54,6 @@ export default function ExplorePage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const bootstrapped = useRef(false);
 
-  const enrichRatings = async (list: ExploreBranch[]) => {
-    const uniqueBiz = Array.from(
-      new Set(list.map((b) => b.business?.id).filter((id): id is number => typeof id === 'number'))
-    );
-    const ratingMap = new Map<number, number>();
-    await Promise.all(
-      uniqueBiz.slice(0, 12).map(async (id) => {
-        try {
-          const profile = await apiFetch<{ averageRating: number }>(`/api/discover/business/${id}`, {
-            skipAuth: true,
-          });
-          ratingMap.set(id, profile.averageRating || 0);
-        } catch {
-          ratingMap.set(id, 0);
-        }
-      })
-    );
-    return list.map((b) => ({
-      ...b,
-      averageRating: (b.business?.id != null ? ratingMap.get(b.business.id) : undefined) ?? 0,
-    }));
-  };
-
   const loadNearby = useCallback(async (lat: number, lon: number, queryVal = '', radius = radiusKm) => {
     setLoading(true);
     setError(null);
@@ -82,11 +67,7 @@ export default function ExplorePage() {
         apiFetch<Category[]>('/api/discover/categories', { skipAuth: true }),
         favPromise,
       ]);
-      const withDist = branchData.map((b) => ({
-        ...b,
-        distanceKm: typeof b.distanceMeters === 'number' ? b.distanceMeters / 1000 : undefined,
-      }));
-      const rated = await enrichRatings(withDist);
+      const rated = withExploreMeta(branchData);
       setBranches(rated);
       setCategories(catData);
       setFavorites(favData.map((f) => f.business.id));
@@ -115,7 +96,7 @@ export default function ExplorePage() {
         apiFetch<Category[]>('/api/discover/categories', { skipAuth: true }),
         favPromise,
       ]);
-      const rated = await enrichRatings(branchData);
+      const rated = withExploreMeta(branchData);
       setBranches(rated);
       setCategories(catData);
       setFavorites(favData.map((f) => f.business.id));

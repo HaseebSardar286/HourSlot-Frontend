@@ -1,14 +1,16 @@
 .page {
   --cover-height: clamp(220px, 38vw, 380px);
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 0 12px 88px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0 0 88px;
 }
 
 .flowBarWrap {
   padding: 16px 4px 0;
-  max-width: 1080px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
 }
 
 .guestQuickStrip {
@@ -55,7 +57,7 @@
   height: var(--cover-height);
   border-radius: 0 0 24px 24px;
   overflow: hidden;
-  margin: 0 -12px;
+  margin: 0;
   background: linear-gradient(135deg, #0c3535 0%, #1a8a8a 45%, #5bb88c 100%);
 }
 
@@ -1105,8 +1107,9 @@
 }
 
 .mobileDockInner {
-  max-width: 1120px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1137,7 +1140,7 @@
 .skeletonCover {
   height: var(--cover-height);
   border-radius: 0 0 24px 24px;
-  margin: 0 -12px;
+  margin: 0;
 }
 
 .skeletonBody {

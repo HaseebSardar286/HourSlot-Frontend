@@ -200,9 +200,7 @@ export default function BusinessProfilePage() {
       setProfile(profileData);
       setFavorites(favData.map((f) => f.business.id));
       if (profileData.branches.length > 0) {
-        const branchId = String(profileData.branches[0].id);
-        setSelectedBranchId(branchId);
-        await loadHours(profileData.branches[0].id);
+        setSelectedBranchId(String(profileData.branches[0].id));
       }
     } catch (err: unknown) {
       const e = err as { message?: string };
