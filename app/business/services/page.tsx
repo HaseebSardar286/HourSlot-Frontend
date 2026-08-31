@@ -9,6 +9,7 @@ import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import DataTable from '@/components/DataTable';
 import StatusBadge from '@/components/StatusBadge';
+import { useOrgLocale } from '@/lib/org-locale-context';
 import styles from './services.module.css';
 
 interface Service {
@@ -25,6 +26,7 @@ interface Service {
 }
 
 export default function ServicesPage() {
+  const { format, currency } = useOrgLocale();
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +36,7 @@ export default function ServicesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -115,17 +118,24 @@ export default function ServicesPage() {
     setError(null);
     setMessage(null);
 
+    // If it's not a group service, capacity/maxConcurrent defaults to 1
+    const payload = {
+      ...formData,
+      capacity: formData.groupService ? formData.capacity : 1,
+      maxConcurrent: formData.groupService ? formData.maxConcurrent : 1,
+    };
+
     try {
       if (editingService) {
         await apiFetch(`/api/business/services/${editingService.id}`, {
           method: 'PUT',
-          body: JSON.stringify(formData),
+          body: JSON.stringify(payload),
         });
         setMessage('Service updated successfully!');
       } else {
         await apiFetch('/api/business/services', {
           method: 'POST',
-          body: JSON.stringify(formData),
+          body: JSON.stringify(payload),
         });
         setMessage('Service added successfully!');
       }
@@ -155,6 +165,22 @@ export default function ServicesPage() {
     }
   };
 
+  // Calculate statistics
+  const totalOfferings = services.length;
+  const avgPrice =
+    services.length > 0
+      ? (services.reduce((acc, curr) => acc + curr.price, 0) / services.length).toFixed(2)
+      : '0.00';
+  const activeCount = services.filter((s) => s.active).length;
+  const groupCount = services.filter((s) => s.groupService).length;
+
+  // Filter list of services
+  const filteredServices = services.filter(
+    (s) =>
+      s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (s.description && s.description.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
   return (
     <div className={styles.page}>
       <PageHeader
@@ -178,6 +204,62 @@ export default function ServicesPage() {
         </div>
       )}
 
+      {services.length > 0 && (
+        <div className={styles.statsRow}>
+          <div className={styles.statCard}>
+            <div className={styles.statIcon}>
+              <i className="fa-solid fa-tags" />
+            </div>
+            <div className={styles.statInfo}>
+              <div className={styles.statValue}>{totalOfferings}</div>
+              <div className={styles.statLabel}>Catalog Offerings</div>
+            </div>
+          </div>
+          <div className={styles.statCard}>
+            <div className={styles.statIcon}>
+              <i className="fa-solid fa-dollar-sign" />
+            </div>
+            <div className={styles.statInfo}>
+              <div className={styles.statValue}>{format(Number(avgPrice))}</div>
+              <div className={styles.statLabel}>Average Price</div>
+            </div>
+          </div>
+          <div className={styles.statCard}>
+            <div className={styles.statIcon}>
+              <i className="fa-solid fa-circle-check" style={{ color: '#059669' }} />
+            </div>
+            <div className={styles.statInfo}>
+              <div className={styles.statValue}>{activeCount}</div>
+              <div className={styles.statLabel}>Active Offerings</div>
+            </div>
+          </div>
+          <div className={styles.statCard}>
+            <div className={styles.statIcon}>
+              <i className="fa-solid fa-users-rectangle" />
+            </div>
+            <div className={styles.statInfo}>
+              <div className={styles.statValue}>{groupCount}</div>
+              <div className={styles.statLabel}>Group Services</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {services.length > 0 && (
+        <div className={styles.searchBarContainer}>
+          <div className={styles.searchContainer}>
+            <i className={`fa-solid fa-magnifying-glass ${styles.searchIcon}`} />
+            <input
+              type="text"
+              className={`input-field ${styles.searchInput}`}
+              placeholder="Search service name or details..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <Skeleton variant="row" count={4} />
       ) : services.length === 0 ? (
@@ -189,90 +271,99 @@ export default function ServicesPage() {
           onAction={handleAddClick}
         />
       ) : (
-        <DataTable
-          columns={[
-            {
-              key: 'name',
-              header: 'Service',
-              render: (s) => (
-                <div>
-                  <strong>{s.name}</strong>
-                  {s.description && <div className={styles.desc}>{s.description}</div>}
+        <div className={styles.serviceGrid}>
+          {filteredServices.map((s) => (
+            <div key={s.id} className={styles.serviceCard}>
+              <div className={styles.cardHeader}>
+                <h4 className={styles.serviceName}>{s.name}</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-end' }}>
+                  <span className={s.active ? styles.badgeActive : styles.badgeSuspended}>
+                    {s.active ? 'ACTIVE' : 'SUSPENDED'}
+                  </span>
+                  <span className={s.groupService ? styles.badgeGroup : styles.badgeIndividual}>
+                    {s.groupService ? 'GROUP' : 'INDIVIDUAL'}
+                  </span>
                 </div>
-              ),
-            },
-            { key: 'price', header: 'Price', render: (s) => `$${s.price.toFixed(2)}` },
-            { key: 'duration', header: 'Duration', render: (s) => `${s.durationMinutes} min` },
-            {
-              key: 'status',
-              header: 'Status',
-              render: (s) => <StatusBadge status={s.active ? 'ACTIVE' : 'SUSPENDED'} />,
-            },
-            {
-              key: 'actions',
-              header: 'Actions',
-              render: (s) => (
+              </div>
+
+              <p className={styles.descText}>{s.description || 'No description provided.'}</p>
+
+              <div className={styles.cardDetails}>
+                <div className={styles.detailItem}>
+                  <i className="fa-regular fa-clock" />
+                  <span>Duration: {s.durationMinutes} min</span>
+                </div>
+                {s.bufferMinutes > 0 && (
+                  <div className={styles.detailItem}>
+                    <i className="fa-solid fa-hourglass-half" />
+                    <span>Buffer Time: {s.bufferMinutes} min</span>
+                  </div>
+                )}
+                {s.groupService && (
+                  <div className={styles.detailItem}>
+                    <i className="fa-solid fa-users" />
+                    <span>Max Capacity: {s.capacity} clients</span>
+                  </div>
+                )}
+              </div>
+
+              <div className={styles.cardBottom}>
+                <span className={styles.priceBadge}>{format(s.price)}</span>
                 <div className={styles.actions}>
                   <button type="button" className="btn btn-sm btn-outline" onClick={() => handleEditClick(s)}>
-                    Edit
+                    <i className="fa-regular fa-pen-to-square" style={{ marginRight: 4 }} /> Edit
                   </button>
                   <button type="button" className="btn btn-sm btn-danger" onClick={() => setDeleteId(s.id)}>
-                    Delete
+                    <i className="fa-regular fa-trash-can" style={{ marginRight: 4 }} /> Delete
                   </button>
                 </div>
-              ),
-            },
-          ]}
-          rows={services}
-          rowKey={(s) => s.id}
-        />
+              </div>
+            </div>
+          ))}
+
+          {filteredServices.length === 0 && (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
+              <i className="fa-solid fa-magnifying-glass" style={{ fontSize: '2rem', marginBottom: 12 }} />
+              <p>No catalog offerings match your search query.</p>
+            </div>
+          )}
+        </div>
       )}
 
       <Modal
         open={showForm}
         title={editingService ? 'Edit service' : 'Create service'}
         onClose={() => setShowForm(false)}
+        wide
         footer={
           <>
             <button type="button" className="btn btn-outline" onClick={() => setShowForm(false)} disabled={submitting}>
               Cancel
             </button>
             <button type="submit" form="service-form" className="btn btn-primary" disabled={submitting}>
-              {submitting ? 'Saving...' : editingService ? 'Update service' : 'Add service'}
+              {submitting ? 'Saving...' : editingService ? 'Update details' : 'Add service'}
             </button>
           </>
         }
       >
         <form id="service-form" onSubmit={handleSubmit} className={styles.form}>
-          <div className="form-group">
-            <label className="form-label" htmlFor="serviceName">
-              Service name
-            </label>
-            <input
-              id="serviceName"
-              type="text"
-              className="input-field"
-              value={formData.name}
-              onChange={(e) => handleInputChange('name', e.target.value)}
-              placeholder="e.g. Teeth Whitening"
-            />
-          </div>
-          <div className="form-group">
-            <label className="form-label" htmlFor="serviceDesc">
-              Description
-            </label>
-            <textarea
-              id="serviceDesc"
-              className={`input-field ${styles.textarea}`}
-              value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              placeholder="Describe what the service includes..."
-            />
-          </div>
           <div className={styles.twoCol}>
             <div className="form-group">
+              <label className="form-label" htmlFor="serviceName">
+              Service name:
+            </label>
+              <input
+                id="serviceName"
+                type="text"
+                className="input-field"
+                value={formData.name}
+                onChange={(e) => handleInputChange('name', e.target.value)}
+                placeholder="e.g. Teeth Whitening"
+              />
+            </div>
+            <div className="form-group">
               <label className="form-label" htmlFor="servicePrice">
-                Price ($)
+                Price ({currency}):
               </label>
               <input
                 id="servicePrice"
@@ -284,19 +375,106 @@ export default function ServicesPage() {
                 onChange={(e) => handleInputChange('price', parseFloat(e.target.value))}
               />
             </div>
-            <div className="form-group">
-              <label className="form-label" htmlFor="serviceDuration">
-                Duration (min)
-              </label>
-              <input
-                id="serviceDuration"
-                type="number"
-                min="1"
-                className="input-field"
-                value={formData.durationMinutes}
-                onChange={(e) => handleInputChange('durationMinutes', parseInt(e.target.value))}
-              />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="serviceDesc">
+              Description:
+            </label>
+            <textarea
+              id="serviceDesc"
+              className={`input-field ${styles.textarea}`}
+              value={formData.description}
+              onChange={(e) => handleInputChange('description', e.target.value)}
+              placeholder="Describe what the service includes..."
+            />
+          </div>
+
+          <div className={styles.formSection}>
+            <h5 className={styles.sectionTitle}>Advanced Scheduling settings</h5>
+            <div className={styles.twoCol}>
+              <div className="form-group">
+                <label className="form-label" htmlFor="serviceDuration">
+              Duration (min):
+            </label>
+                <input
+                  id="serviceDuration"
+                  type="number"
+                  min="1"
+                  className="input-field"
+                  value={formData.durationMinutes}
+                  onChange={(e) => handleInputChange('durationMinutes', parseInt(e.target.value))}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="serviceBuffer">
+              Buffer time after service (min):
+            </label>
+                <input
+                  id="serviceBuffer"
+                  type="number"
+                  min="0"
+                  className="input-field"
+                  value={formData.bufferMinutes}
+                  onChange={(e) => handleInputChange('bufferMinutes', parseInt(e.target.value))}
+                />
+              </div>
             </div>
+
+            <div className={styles.twoCol} style={{ marginTop: 6 }}>
+              <div className="form-group">
+                <label className={styles.checkboxRow}>
+                  <input
+                    type="checkbox"
+                    checked={formData.groupService}
+                    onChange={(e) => handleInputChange('groupService', e.target.checked)}
+                  />
+                  <span className={styles.checkboxLabel}>Group service</span>
+                </label>
+              </div>
+
+              <div className="form-group">
+                <label className={styles.checkboxRow}>
+                  <input
+                    type="checkbox"
+                    checked={formData.active}
+                    onChange={(e) => handleInputChange('active', e.target.checked)}
+                  />
+                  <span className={styles.checkboxLabel}>Active catalog offering</span>
+                </label>
+              </div>
+            </div>
+
+            {formData.groupService && (
+              <div className={styles.twoCol}>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="serviceCapacity">
+              Maximum capacity (clients per slot):
+            </label>
+                  <input
+                    id="serviceCapacity"
+                    type="number"
+                    min="1"
+                    className="input-field"
+                    value={formData.capacity}
+                    onChange={(e) => handleInputChange('capacity', parseInt(e.target.value))}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="serviceMaxConcurrent">
+              Maximum concurrent slots:
+            </label>
+                  <input
+                    id="serviceMaxConcurrent"
+                    type="number"
+                    min="1"
+                    className="input-field"
+                    value={formData.maxConcurrent}
+                    onChange={(e) => handleInputChange('maxConcurrent', parseInt(e.target.value))}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </form>
       </Modal>
@@ -314,3 +492,4 @@ export default function ServicesPage() {
     </div>
   );
 }
+

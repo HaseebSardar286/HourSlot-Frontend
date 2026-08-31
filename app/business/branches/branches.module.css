@@ -1,45 +1,225 @@
 .page {
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.splitLayout {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: 24px;
+  width: 100%;
+  align-items: start;
+}
+
+.listSide {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.mapPanel {
-  margin-bottom: 4px;
+.mapSide {
+  position: sticky;
+  top: 90px;
+  height: calc(100vh - 170px);
+  min-height: 480px;
   border-radius: var(--radius-lg);
   overflow: hidden;
-  border: 1px solid var(--border-color);
+  border: 1.5px solid var(--border-color);
+  box-shadow: var(--glass-shadow);
+  transition: var(--transition-smooth);
+}
+
+.searchBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.searchContainer {
+  position: relative;
+  flex: 1;
+}
+
+.searchIcon {
+  color: var(--text-muted);
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.92rem;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.searchInput {
+  padding-left: 38px !important;
+}
+
+.branchesList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.branchCard {
+  background: var(--bg-secondary);
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: var(--transition-smooth);
+  cursor: pointer;
+  position: relative;
   box-shadow: var(--card-shadow);
 }
 
-.actions {
+.branchCard:hover {
+  border-color: rgba(15, 118, 118, 0.45);
+  box-shadow: var(--glow-shadow);
+  transform: translateY(-2px);
+}
+
+.branchCardActive {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 24px rgba(15, 118, 118, 0.12);
+  background: rgba(242, 248, 247, 0.4);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.branchTitle {
+  font-family: var(--font-headers);
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.badgesRow {
+  display: flex;
+  gap: 6px;
+}
+
+.badgeMain {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(15, 118, 118, 0.1);
+  color: var(--accent-primary);
+}
+
+.badgeActive {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--accent-green);
+}
+
+.cardDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 14px;
+}
+
+.detailItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: var(--transition-fast);
+}
+
+a.detailItem:hover {
+  color: var(--accent-primary);
+}
+
+.detailItem i {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  width: 16px;
+  text-align: center;
+}
+
+.cardBottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.cardStats {
+  display: flex;
+  gap: 16px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.statItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.statItem i {
+  font-size: 0.85rem;
+  color: var(--accent-primary);
+}
+
+.cardActions {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .coords {
   font-family: var(--font-mono, monospace);
-  font-size: 0.82rem;
-  color: var(--text-secondary);
+  font-size: 0.8rem;
+  color: var(--text-muted);
 }
 
 .form {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
 .twoCol {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 14px;
 }
 
-@media (max-width: 600px) {
-  .twoCol {
+@media (max-width: 992px) {
+  .splitLayout {
     grid-template-columns: 1fr;
+  }
+  .mapSide {
+    position: relative;
+    top: 0;
+    height: 360px;
+    min-height: 360px;
+    order: -1;
   }
 }

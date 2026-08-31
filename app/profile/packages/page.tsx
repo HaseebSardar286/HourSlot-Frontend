@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
+import { buildBookingHref } from '@/lib/booking-flow';
 import type { CustomerPackage } from '@/lib/types';
 import PageHeader from '@/components/PageHeader';
 import EmptyState from '@/components/EmptyState';
@@ -94,7 +95,10 @@ export default function CustomerPackagesPage() {
               </div>
               {cp.servicePackage.business?.id && cp.status === 'ACTIVE' && cp.sessionsRemaining > 0 && (
                 <Link
-                  href={`/profile/business/${cp.servicePackage.business.id}`}
+                  href={buildBookingHref(cp.servicePackage.business.id, {
+                    step: 'service',
+                    customerPackageId: String(cp.id),
+                  })}
                   className="btn btn-outline btn-sm"
                   style={{ marginTop: 14, alignSelf: 'flex-start' }}
                 >

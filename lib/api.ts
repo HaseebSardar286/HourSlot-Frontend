@@ -3,6 +3,7 @@
  */
 
 import type { ApiError } from './types';
+import { currentReturnUrl, loginHref } from './auth-redirect';
 
 const STORAGE_KEY = 'hourslot_user_session';
 
@@ -96,6 +97,8 @@ export async function apiFetch<T = unknown>(
     }
   }
 
+  const hadSession = !skipAuth && (!!getToken() || !!getRefreshToken());
+
   const res = await fetch(path, { headers, ...rest });
 
   if (res.status === 401 && !skipAuth && !_retried) {
@@ -104,6 +107,13 @@ export async function apiFetch<T = unknown>(
       return apiFetch<T>(path, { ...options, _retried: true });
     }
     clearSession();
+    // Only redirect when a session expired — guests browsing without login stay on the page.
+    if (hadSession && typeof window !== 'undefined') {
+      const returnPath = currentReturnUrl();
+      if (!returnPath.startsWith('/auth/')) {
+        window.location.href = loginHref(returnPath);
+      }
+    }
   }
 
   if (!res.ok) {

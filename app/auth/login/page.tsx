@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { safeReturnUrl } from '@/lib/auth-redirect';
-import styles from './login.module.css';
+import shared from '../auth-shared.module.css';
 
 function LoginForm() {
   const { login } = useAuth();
@@ -18,6 +18,9 @@ function LoginForm() {
   const [touched, setTouched] = useState({ email: false, password: false });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const returnUrlRaw = searchParams.get('returnUrl');
+  const isBookingReturn = Boolean(returnUrlRaw?.includes('/profile/book/'));
 
   const emailError =
     touched.email && !email
@@ -64,45 +67,59 @@ function LoginForm() {
   };
 
   return (
-    <div className={`surface ${styles.authCard}`}>
-      <div className={styles.authHeader}>
-        <h2 className={styles.authTitle}>Welcome back</h2>
-        <p className={styles.authSubtitle}>Sign in to manage your appointments</p>
+    <div className={shared.authCard}>
+      <div className={shared.authHeader}>
+        <div className={shared.authHeaderIcon}>
+          <i className={`fa-solid ${isBookingReturn ? 'fa-calendar-check' : 'fa-right-to-bracket'}`} />
+        </div>
+        <h2 className={shared.authTitle}>{isBookingReturn ? 'Complete your booking' : 'Welcome back'}</h2>
+        <p className={shared.authSubtitle}>
+          {isBookingReturn
+            ? 'Sign in to confirm your appointment. Your selections are saved.'
+            : 'Sign in to manage appointments, bookings, and your account.'}
+        </p>
       </div>
 
-      {errorMessage && (
-        <div className="error-alert">
-          <i className="fa-solid fa-triangle-exclamation" /> {errorMessage}
+      {isBookingReturn && (
+        <div className={shared.contextBanner}>
+          <i className="fa-solid fa-circle-info" />
+          <div>
+            <strong>Almost there</strong>
+            After signing in you&apos;ll return to checkout to confirm your booking.
+          </div>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className={styles.authForm} noValidate>
-        <div className="form-group">
-          <label htmlFor="login-email" className="form-label">
-            Email address
-          </label>
+      {errorMessage && (
+        <div className={shared.alertError}>
+          <i className="fa-solid fa-triangle-exclamation" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className={shared.authForm} noValidate>
+        <div className={shared.fieldGroup}>
+          <label htmlFor="login-email">Email address</label>
           <input
             id="login-email"
             type="email"
-            className={`input-field${emailError ? ' input-error' : ''}`}
+            className={`${shared.fieldInput}${emailError ? ` ${shared.fieldInputError}` : ''}`}
             placeholder="name@company.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             onBlur={() => setTouched((t) => ({ ...t, email: true }))}
             autoComplete="email"
           />
-          {emailError && <span className="validation-error">{emailError}</span>}
+          {emailError && <span className={shared.fieldError}>{emailError}</span>}
         </div>
 
-        <div className="form-group">
-          <label htmlFor="login-password" className="form-label">
-            Password
-          </label>
-          <div className={styles.passwordWrapper}>
+        <div className={shared.fieldGroup}>
+          <label htmlFor="login-password">Password</label>
+          <div className={shared.passwordWrap}>
             <input
               id="login-password"
               type={showPassword ? 'text' : 'password'}
-              className={`input-field${passwordError ? ' input-error' : ''}`}
+              className={`${shared.fieldInput}${passwordError ? ` ${shared.fieldInputError}` : ''}`}
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -111,7 +128,7 @@ function LoginForm() {
             />
             <button
               type="button"
-              className={styles.passwordToggle}
+              className={shared.passwordToggle}
               onClick={() => setShowPassword(!showPassword)}
               tabIndex={-1}
               aria-label={showPassword ? 'Hide password' : 'Show password'}
@@ -119,17 +136,16 @@ function LoginForm() {
               <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`} />
             </button>
           </div>
-          {passwordError && <span className="validation-error">{passwordError}</span>}
+          {passwordError && <span className={shared.fieldError}>{passwordError}</span>}
         </div>
 
-        <div className={styles.formMeta}>
-          <span />
-          <Link href="/auth/forgot-password" className={styles.forgotLink}>
+        <div className={shared.formMeta}>
+          <Link href="/auth/forgot-password" className={shared.forgotLink}>
             Forgot password?
           </Link>
         </div>
 
-        <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
+        <button type="submit" className={shared.submitBtn} disabled={loading}>
           {loading ? (
             <>
               <span className="spinner" /> Signing in…
@@ -140,7 +156,7 @@ function LoginForm() {
         </button>
       </form>
 
-      <div className={styles.authFooter}>
+      <div className={shared.authFooter}>
         <p>
           Don&apos;t have an account?{' '}
           <Link
@@ -153,9 +169,6 @@ function LoginForm() {
             Create one
           </Link>
         </p>
-        <p style={{ marginTop: 8 }}>
-          <Link href="/">← Back to HourSlot</Link>
-        </p>
       </div>
     </div>
   );
@@ -165,7 +178,7 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="surface" style={{ padding: 24, textAlign: 'center' }}>
+        <div className={shared.authCard} style={{ textAlign: 'center', padding: 40 }}>
           Loading…
         </div>
       }

@@ -55,7 +55,7 @@
 .columnHeader h3 {
   font-size: 1.15rem;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--text-main);
 }
 
 .daysList {
@@ -65,7 +65,7 @@
 }
 
 .dayRow {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 16px 20px;
@@ -73,6 +73,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 20px;
+  box-shadow: var(--card-shadow);
 }
 
 @media (max-width: 768px) {
@@ -93,7 +94,7 @@
 .dayLabel {
   font-weight: 700;
   font-size: 1rem;
-  color: #ffffff;
+  color: var(--text-main);
   min-width: 100px;
 }
 
@@ -221,19 +222,20 @@
 }
 
 .holidayRow {
-  background: rgba(255, 255, 255, 0.01);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 12px 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  box-shadow: var(--card-shadow);
 }
 
 .holidayDate {
   font-weight: 700;
   font-size: 0.95rem;
-  color: #ffffff;
+  color: var(--text-main);
   display: block;
 }
 
@@ -293,7 +295,7 @@
 .modalHeader h3 {
   font-size: 1.2rem;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--text-main);
 }
 
 .closeBtn {
@@ -336,5 +338,312 @@
   color: var(--text-secondary);
   font-size: 0.9rem;
   padding: 12px 0;
+}
+
+/* ==========================================================================
+   SCROLLBAR HIDERS (NO-SCROLL LAYOUT)
+   ========================================================================== */
+.hoursColumn::-webkit-scrollbar,
+.daysList::-webkit-scrollbar,
+.holidaysColumn::-webkit-scrollbar,
+.holidaysList::-webkit-scrollbar {
+  display: none !important;
+}
+
+.hoursColumn,
+.daysList,
+.holidaysColumn,
+.holidaysList {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* ==========================================================================
+   BULK WEEK CONFIGURATOR STYLES
+   ========================================================================== */
+.bulkContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 100%;
+  width: 100%;
+}
+
+.bulkHeaderActions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.bracketLabel {
+  font-family: var(--font-headers);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.copyAllBtn {
+  background: transparent;
+  border: none;
+  color: var(--accent-primary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: var(--transition-fast);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.copyAllBtn:hover {
+  background: rgba(26, 138, 138, 0.05);
+  transform: translateY(-0.5px);
+}
+
+.bulkList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: none;
+  overflow-y: hidden;
+  padding-right: 0;
+}
+
+.bulkDayRow {
+  display: grid;
+  grid-template-columns: 120px 100px 1fr;
+  gap: 16px;
+  align-items: center;
+  padding: 12px 6px;
+  border-bottom: 1px solid var(--border-color);
+  transition: var(--transition-fast);
+}
+
+.bulkDayRow:hover {
+  background: rgba(26, 138, 138, 0.01);
+}
+
+.bulkDayRow:last-child {
+  border-bottom: none;
+}
+
+.bulkDayLabel {
+  font-family: var(--font-headers);
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-main);
+}
+
+.bulkStatusToggle {
+  display: flex;
+  align-items: center;
+}
+
+.statusCheckbox {
+  appearance: none;
+  width: 50px;
+  height: 24px;
+  background: #cbd5e1;
+  border-radius: 12px;
+  position: relative;
+  cursor: pointer;
+  outline: none;
+  transition: var(--transition-smooth);
+}
+
+.statusCheckbox::before {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  top: 3px;
+  left: 3px;
+  transition: var(--transition-smooth);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.statusCheckbox:checked {
+  background: var(--accent-gradient);
+}
+
+.statusCheckbox:checked::before {
+  transform: translateX(26px);
+}
+
+.statusLabel {
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-left: 8px;
+  color: var(--text-secondary);
+}
+
+.bulkTimeInputs {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.bulkTimeInputs > div {
+  flex: 1;
+}
+
+.bulkTimeInputs input[type="time"] {
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  width: 100px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-main);
+  outline: none;
+  font-family: inherit;
+  transition: var(--transition-fast);
+}
+
+.bulkTimeInputs input[type="time"]:focus {
+  border-color: var(--accent-primary);
+}
+
+.bulkTimeInputs input[type="time"]:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  background: #f1f5f9;
+}
+
+.bulkTimeSep {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.bracketGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.bracketHint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  max-width: 320px;
+}
+
+.bulkDayCard {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  background: var(--bg-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bulkDayHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.blockGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+  padding: 4px 2px;
+}
+
+.blockChip {
+  border: 1px solid var(--border-color);
+  background: #fff;
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.blockChip:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.blockChipOn {
+  background: rgba(26, 138, 138, 0.12);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.selectedRanges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.rangeChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(26, 138, 138, 0.08);
+  color: var(--accent-primary);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.rangeChip button {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.customRangeRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.customLabel {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.intervalChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.stepHint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .bulkDayRow {
+    grid-template-columns: 1fr;
+  }
 }
 

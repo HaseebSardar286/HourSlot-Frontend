@@ -6,23 +6,43 @@
    ========================================================================== */
 
 :root {
-  /* Color Palette (Light Theme — Teal/Green palette matching logo-hourslot.png) */
-  --bg-primary: #eef6f6;
+  /* Color Palette — Teal primary + vibrant supporting accents */
+  --bg-primary: #f4f7fb;
   --bg-secondary: #ffffff;
-  --bg-elevated: #f7fbfb;
-  --bg-card: rgba(255, 255, 255, 0.92);
+  --bg-elevated: #f8fafc;
+  --bg-card: rgba(255, 255, 255, 0.94);
   --bg-card-hover: #ffffff;
-  --bg-atmosphere: radial-gradient(ellipse 80% 60% at 10% -10%, rgba(26, 138, 138, 0.12), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 90% 0%, rgba(91, 184, 140, 0.1), transparent 50%),
-    linear-gradient(180deg, #eef6f6 0%, #f5faf9 100%);
+  --bg-atmosphere:
+    radial-gradient(ellipse 80% 60% at 10% -10%, rgba(26, 138, 138, 0.07), transparent 55%),
+    linear-gradient(180deg, #f4f7fb 0%, #f8fafc 100%);
 
   --accent-primary: #1a8a8a;
   --accent-secondary: #5bb88c;
+  /* Simple brand gradient — teal only, used sparingly on primary actions */
   --accent-gradient: linear-gradient(135deg, #1a8a8a, #5bb88c);
   --accent-primary-rgb: 26, 138, 138;
   --accent-green: #10b981;
   --accent-yellow: #f59e0b;
   --accent-red: #ef4444;
+
+  /* Supporting accent colors — use as flat fills, not rainbow blends */
+  --accent-coral: #f97316;
+  --accent-violet: #8b5cf6;
+  --accent-indigo: #6366f1;
+  --accent-sky: #0ea5e9;
+  --accent-rose: #f43f5e;
+  --accent-amber: #f59e0b;
+  --accent-emerald: #10b981;
+  --accent-pink: #ec4899;
+  --accent-lime: #84cc16;
+
+  /* Soft tints for cards/sections — single hue each */
+  --tint-teal: rgba(26, 138, 138, 0.08);
+  --tint-indigo: rgba(99, 102, 241, 0.08);
+  --tint-coral: rgba(249, 115, 22, 0.08);
+  --tint-violet: rgba(139, 92, 246, 0.08);
+  --tint-sky: rgba(14, 165, 233, 0.08);
+  --tint-rose: rgba(244, 63, 94, 0.08);
 
   --text-main: #14282e;
   --text-secondary: #3d5a65;
@@ -369,6 +389,42 @@ a.glass-card:hover {
   background: rgba(26, 138, 138, 0.04);
 }
 
+.btn-warm {
+  background: var(--accent-coral);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(249, 115, 22, 0.22);
+}
+
+.btn-warm:hover {
+  background: #ea580c;
+  box-shadow: 0 6px 20px rgba(249, 115, 22, 0.3);
+  transform: translateY(-1px) scale(1.01);
+}
+
+.btn-cool {
+  background: var(--accent-indigo);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.22);
+}
+
+.btn-cool:hover {
+  background: #4f46e5;
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.3);
+  transform: translateY(-1px) scale(1.01);
+}
+
+.btn-violet {
+  background: var(--accent-violet);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.22);
+}
+
+.btn-violet:hover {
+  background: #7c3aed;
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.3);
+  transform: translateY(-1px) scale(1.01);
+}
+
 /* ==========================================================================
    FORMS & INPUTS
    ========================================================================== */
@@ -384,8 +440,8 @@ a.glass-card:hover {
   font-size: 0.82rem;
   font-weight: 600;
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .input-field {
@@ -476,11 +532,15 @@ a.glass-card:hover {
   align-items: center;
 }
 
-.badge-success { background: rgba(16, 185, 129, 0.1); color: #059669; }
-.badge-warning { background: rgba(245, 158, 11, 0.1); color: #d97706; }
-.badge-danger  { background: rgba(239, 68, 68, 0.1); color: #dc2626; }
-.badge-primary { background: rgba(26, 138, 138, 0.1); color: var(--accent-primary); }
-.badge-info    { background: rgba(91, 184, 140, 0.1); color: var(--accent-secondary); }
+.badge-success { background: rgba(16, 185, 129, 0.12); color: #059669; }
+.badge-warning { background: rgba(245, 158, 11, 0.12); color: #d97706; }
+.badge-danger  { background: rgba(239, 68, 68, 0.12); color: #dc2626; }
+.badge-primary { background: rgba(26, 138, 138, 0.12); color: var(--accent-primary); }
+.badge-info    { background: rgba(14, 165, 233, 0.12); color: #0284c7; }
+.badge-violet  { background: rgba(139, 92, 246, 0.12); color: #7c3aed; }
+.badge-coral   { background: rgba(249, 115, 22, 0.12); color: #ea580c; }
+.badge-rose    { background: rgba(244, 63, 94, 0.12); color: #e11d48; }
+.badge-indigo  { background: rgba(99, 102, 241, 0.12); color: #4f46e5; }
 
 /* ==========================================================================
    ALERTS
@@ -666,3 +726,33 @@ a.glass-card:hover {
     animation: none;
   }
 }
+
+/* ==========================================================================
+   COLOR ACCENT UTILITIES (system-wide)
+   ========================================================================== */
+
+.accent-teal { color: var(--accent-primary); }
+.accent-coral { color: var(--accent-coral); }
+.accent-violet { color: var(--accent-violet); }
+.accent-sky { color: var(--accent-sky); }
+.accent-rose { color: var(--accent-rose); }
+.accent-indigo { color: var(--accent-indigo); }
+
+.icon-chip {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  font-size: 1.05rem;
+  flex-shrink: 0;
+}
+
+.icon-chip-teal { background: rgba(26, 138, 138, 0.12); color: var(--accent-primary); }
+.icon-chip-coral { background: rgba(249, 115, 22, 0.12); color: var(--accent-coral); }
+.icon-chip-violet { background: rgba(139, 92, 246, 0.12); color: var(--accent-violet); }
+.icon-chip-sky { background: rgba(14, 165, 233, 0.12); color: var(--accent-sky); }
+.icon-chip-rose { background: rgba(244, 63, 94, 0.12); color: var(--accent-rose); }
+.icon-chip-indigo { background: rgba(99, 102, 241, 0.12); color: var(--accent-indigo); }
+.icon-chip-amber { background: rgba(245, 158, 11, 0.12); color: var(--accent-amber); }
+.icon-chip-emerald { background: rgba(16, 185, 129, 0.12); color: var(--accent-emerald); }

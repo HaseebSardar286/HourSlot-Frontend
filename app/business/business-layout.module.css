@@ -10,7 +10,7 @@
 .sidebar {
   width: 240px;
   height: 100vh;
-  background: linear-gradient(185deg, #0d2a2a 0%, #143838 48%, #1a4545 100%);
+  background: #0f2f2f;
   color: #c5dde0;
   display: flex;
   flex-direction: column;
@@ -104,7 +104,7 @@
 
 .navActive {
   color: #ffffff;
-  background: linear-gradient(135deg, rgba(26, 138, 138, 0.35) 0%, rgba(91, 184, 140, 0.18) 100%);
+  background: rgba(26, 138, 138, 0.22);
   border-color: rgba(91, 184, 140, 0.25);
   box-shadow: inset 3px 0 0 var(--accent-secondary);
 }
@@ -369,4 +369,62 @@
 .sidebarCollapsed .logoutBtn {
   justify-content: center;
   padding: 12px 0;
+}
+
+.sidebarCollapsed {
+  width: 60px;
+  overflow: visible !important;
+}
+
+.sidebarCollapsed .sidebarNav {
+  overflow: visible !important;
+}
+
+.sidebarCollapsed .navGroup {
+  position: relative;
+}
+
+.sidebarCollapsed .navGroupBtn {
+  justify-content: center;
+  padding: 12px 0;
+}
+
+.sidebarCollapsed .navChildren {
+  display: none;
+  position: absolute;
+  left: 56px;
+  top: 0;
+  background: #0d2a2a;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-md);
+  padding: 6px;
+  min-width: 180px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  z-index: 10000;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebarCollapsed .navGroup:hover .navChildren {
+  display: flex;
+}
+
+/* Transparent hover bridge between sidebar and submenu */
+.sidebarCollapsed .navChildren::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  background: transparent;
+}
+
+.sidebarCollapsed .navChildren .navItem {
+  justify-content: flex-start;
+  padding: 10px 14px;
+}
+
+.sidebarCollapsed .navChildren .navItem span {
+  display: inline !important;
 }

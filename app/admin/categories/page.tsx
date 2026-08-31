@@ -286,8 +286,8 @@ export default function AdminCategoriesPage() {
           <div className={styles.twoCol}>
             <div className="form-group">
               <label className="form-label" htmlFor="catIcon">
-                Icon class
-              </label>
+              Icon class
+            </label>
               <input
                 id="catIcon"
                 type="text"
@@ -299,8 +299,8 @@ export default function AdminCategoriesPage() {
             </div>
             <div className="form-group">
               <label className="form-label" htmlFor="catTags">
-                Search keywords
-              </label>
+              Search keywords
+            </label>
               <input
                 id="catTags"
                 type="text"

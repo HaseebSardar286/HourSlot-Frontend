@@ -24,9 +24,11 @@ interface ExploreBranch extends Branch {
 
 const DISTANCES = [5, 10, 25, 50];
 
+const CATEGORY_ACCENTS = ['teal', 'coral', 'violet', 'sky', 'rose', 'indigo', 'amber', 'emerald'] as const;
+
 export default function ExplorePage() {
   const router = useRouter();
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading, user } = useAuth();
   const [branches, setBranches] = useState<ExploreBranch[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [favorites, setFavorites] = useState<number[]>([]);
@@ -72,10 +74,13 @@ export default function ExplorePage() {
     setError(null);
     try {
       const nearbyUrl = `/api/discover/nearby?lat=${lat}&lon=${lon}&radius=${radius * 1000}${queryVal ? `&q=${encodeURIComponent(queryVal)}` : ''}`;
+      const favPromise = isAuthenticated
+        ? apiFetch<{ business: { id: number } }[]>('/api/favorites').catch(() => [])
+        : Promise.resolve([] as { business: { id: number } }[]);
       const [branchData, catData, favData] = await Promise.all([
         apiFetch<ExploreBranch[]>(nearbyUrl, { skipAuth: true }),
         apiFetch<Category[]>('/api/discover/categories', { skipAuth: true }),
-        apiFetch<{ business: { id: number } }[]>('/api/favorites').catch(() => []),
+        favPromise,
       ]);
       const withDist = branchData.map((b) => ({
         ...b,
@@ -95,17 +100,20 @@ export default function ExplorePage() {
     } finally {
       setLoading(false);
     }
-  }, [radiusKm]);
+  }, [radiusKm, isAuthenticated]);
 
   const loadSearch = useCallback(async (queryVal = '', isSearching = false) => {
     setLoading(true);
     setError(null);
     try {
       const searchUrl = `/api/discover/search?q=${encodeURIComponent(queryVal)}`;
+      const favPromise = isAuthenticated
+        ? apiFetch<{ business: { id: number } }[]>('/api/favorites').catch(() => [])
+        : Promise.resolve([] as { business: { id: number } }[]);
       const [branchData, catData, favData] = await Promise.all([
         apiFetch<ExploreBranch[]>(searchUrl, { skipAuth: true }),
         apiFetch<Category[]>('/api/discover/categories', { skipAuth: true }),
-        apiFetch<{ business: { id: number } }[]>('/api/favorites').catch(() => []),
+        favPromise,
       ]);
       const rated = await enrichRatings(branchData);
       setBranches(rated);
@@ -120,7 +128,7 @@ export default function ExplorePage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   const loadCategoriesOnly = useCallback(async () => {
     setLoading(true);
@@ -321,6 +329,7 @@ export default function ExplorePage() {
     if (!b.business) return null;
     const isFav = favorites.includes(b.business.id);
     const cover = coverFor(b);
+    const cat = b.business.primaryCategory?.name || 'Service';
     return (
       <Link href={`/profile/business/${b.business.id}`} key={b.id} className={styles.popularCard}>
         <div className={styles.popularCardImageWrapper}>
@@ -330,6 +339,7 @@ export default function ExplorePage() {
           ) : (
             <div className={styles.coverFallback}>{b.business.name.slice(0, 1)}</div>
           )}
+          <span className={styles.cardCatPill}>{cat}</span>
           {typeof b.averageRating === 'number' && b.averageRating > 0 && (
             <div className={styles.ratingBadge}>
               <i className="fa-solid fa-star" /> {b.averageRating.toFixed(1)}
@@ -346,13 +356,14 @@ export default function ExplorePage() {
         </div>
         <div className={styles.popularCardContent}>
           <h4>{b.business.name}</h4>
-          <p className={styles.categorySub}>
-            {b.business.primaryCategory?.name || 'Service'} · {b.name}
-          </p>
+          <p className={styles.categorySub}>{b.name}</p>
           <p className={styles.distanceText}>
             <i className="fa-solid fa-location-dot" />{' '}
-            {typeof b.distanceKm === 'number' ? `${b.distanceKm.toFixed(1)} km away` : b.address}
+            {typeof b.distanceKm === 'number' ? `${b.distanceKm.toFixed(1)} km away` : [b.city, b.region, b.address].filter(Boolean).join(', ')}
           </p>
+          <span className={styles.cardCta}>
+            View profile <i className="fa-solid fa-arrow-right" />
+          </span>
         </div>
       </Link>
     );
@@ -398,7 +409,7 @@ export default function ExplorePage() {
             {b.business.name}
           </Link>
           <p className={styles.resultAddr}>
-            {b.address || b.name}
+            {[b.city, b.region, b.address].filter(Boolean).join(', ') || b.name}
             {typeof b.distanceKm === 'number' ? ` · ${b.distanceKm.toFixed(1)} km` : ''}
           </p>
           <div className={styles.resultMeta}>
@@ -417,19 +428,47 @@ export default function ExplorePage() {
   };
 
   if (isAuthenticated) {
+    const firstName = user?.firstName || 'there';
     return (
       <div className={styles.dashExplore}>
         <section className={styles.findPane}>
           <header className={styles.findHead}>
             <div>
-              <h1>Explore</h1>
-              <p>Nearby businesses with real open slots</p>
+              <span className={styles.findEyebrow}>
+                <i className="fa-solid fa-sparkles" /> Marketplace
+              </span>
+              <h1>Hi {firstName}, explore nearby</h1>
+              <p>Search businesses, compare services, and book open slots.</p>
             </div>
             <span className={styles.locChip}>
               <i className="fa-solid fa-location-dot" aria-hidden />
               {locationLabel}
             </span>
           </header>
+
+          <div className={styles.dashStats}>
+            <div className={`${styles.dashStat} ${styles.dashStatTeal}`}>
+              <i className="fa-solid fa-store" />
+              <div>
+                <strong>{sortedBranches.length}</strong>
+                <span>Results</span>
+              </div>
+            </div>
+            <div className={`${styles.dashStat} ${styles.dashStatRose}`}>
+              <i className="fa-solid fa-heart" />
+              <div>
+                <strong>{favorites.length}</strong>
+                <span>Saved</span>
+              </div>
+            </div>
+            <div className={`${styles.dashStat} ${styles.dashStatIndigo}`}>
+              <i className="fa-solid fa-ruler" />
+              <div>
+                <strong>{radiusKm} km</strong>
+                <span>Radius</span>
+              </div>
+            </div>
+          </div>
 
           <form onSubmit={handleSearchSubmit} className={styles.findSearch}>
             <i className="fa-solid fa-magnifying-glass" aria-hidden />
@@ -489,17 +528,20 @@ export default function ExplorePage() {
 
           {filtersOpen && categories.length > 0 && (
             <div className={styles.categoryRow}>
-              {categories.map((cat) => (
-                <button
-                  type="button"
-                  key={cat.id}
-                  className={`${styles.categoryChip} ${activeCategory === cat.name ? styles.categoryChipActive : ''}`}
-                  onClick={() => handleCategoryClick(cat.name)}
-                >
-                  <i className={getCategoryIcon(cat.name)} />
-                  {cat.name}
-                </button>
-              ))}
+              {categories.map((cat, idx) => {
+                const accent = CATEGORY_ACCENTS[idx % CATEGORY_ACCENTS.length];
+                return (
+                  <button
+                    type="button"
+                    key={cat.id}
+                    className={`${styles.categoryChip} ${styles[`chipAccent${accent.charAt(0).toUpperCase()}${accent.slice(1)}`]} ${activeCategory === cat.name ? styles.categoryChipActive : ''}`}
+                    onClick={() => handleCategoryClick(cat.name)}
+                  >
+                    <i className={getCategoryIcon(cat.name)} />
+                    {cat.name}
+                  </button>
+                );
+              })}
             </div>
           )}
 
@@ -548,6 +590,12 @@ export default function ExplorePage() {
         </section>
 
         <section className={styles.mapPane}>
+          <div className={styles.mapPaneHead}>
+            <span><i className="fa-solid fa-map" /> Map view</span>
+            <button type="button" className={styles.mapLocateBtn} onClick={() => triggerSearchOrNearby(searchQuery)}>
+              <i className="fa-solid fa-crosshairs" /> Re-center
+            </button>
+          </div>
           <LocationMap
             markers={mapMarkers}
             userLocation={coords ? { lat: coords.lat, lng: coords.lon } : null}
@@ -596,56 +644,162 @@ export default function ExplorePage() {
 
   if (isInitialState) {
     return (
-      <div className={styles.exploreContainer}>
+      <div className={styles.exploreApp}>
         {error && (
-          <div className="error-alert" style={{ marginBottom: 20, marginTop: 10 }}>
+          <div className="error-alert" style={{ marginBottom: 16 }}>
             <i className="fa-solid fa-triangle-exclamation" /> {error}
           </div>
         )}
-        <div className={styles.categoriesLandingSection}>
-          <h2 className={styles.landingTitle}>Choose a category to get started</h2>
-          <p className={styles.landingSubtitle}>Browse nearby businesses by the type of service you need, then pick a real open slot.</p>
 
-          {loading && categories.length === 0 ? (
-            <div className={styles.categoryGrid}>
-              {[1, 2, 3, 4].map((n) => (
-                <div key={n} className={styles.categoryCard} style={{ pointerEvents: 'none' }}>
-                  <Skeleton width={60} height={60} className={styles.skeletonCircle} />
-                  <div style={{ height: 18 }} />
-                  <Skeleton variant="title" width="60%" />
-                  <div style={{ height: 8 }} />
-                  <Skeleton variant="text" width="80%" />
-                </div>
-              ))}
+        <header className={styles.appHeader}>
+          <div className={styles.appHeaderMain}>
+            <span className={styles.appKicker}>
+              <i className="fa-solid fa-compass" /> Directory
+            </span>
+            <h1 className={styles.appTitle}>Explore</h1>
+            <p className={styles.appSub}>
+              Live marketplace — search, filter, and open a business profile to book.
+            </p>
+          </div>
+          <div className={styles.appHeaderMeta}>
+            <span className={styles.guestBadge}>
+              <i className="fa-solid fa-user" /> Guest
+            </span>
+            <button
+              type="button"
+              className={styles.locBtn}
+              onClick={() => triggerSearchOrNearby('')}
+              disabled={loading}
+            >
+              <i className="fa-solid fa-location-crosshairs" />
+              {loading ? 'Locating…' : 'Use my location'}
+            </button>
+          </div>
+        </header>
+
+        <form onSubmit={handleSearchSubmit} className={styles.appSearchPanel}>
+          <label className={styles.appSearchField}>
+            <i className="fa-solid fa-magnifying-glass" />
+            <input
+              type="text"
+              placeholder="Business name, service, or keyword…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Search marketplace"
+            />
+          </label>
+          <button type="submit" className="btn btn-primary">
+            Search
+          </button>
+        </form>
+
+        <div className={styles.appLayout}>
+          <section className={styles.categoryPanel} aria-label="Categories">
+            <div className={styles.panelHead}>
+              <h2>Categories</h2>
+              <span>{categories.length} listed</span>
             </div>
-          ) : (
-            <div className={styles.categoryGrid}>
-              {categories.map((cat) => (
-                <button
-                  type="button"
-                  key={cat.id}
-                  className={styles.categoryCard}
-                  onClick={() => handleCategoryClick(cat.name)}
-                >
-                  <div className={styles.categoryCardIcon}>
-                    <i className={getCategoryIcon(cat.name)} />
+
+            {loading && categories.length === 0 ? (
+              <div className={styles.categoryList}>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <div key={n} className={styles.categoryRow} style={{ pointerEvents: 'none' }}>
+                    <Skeleton width={40} height={40} />
+                    <Skeleton variant="title" width="60%" />
                   </div>
-                  <h3>{cat.name}</h3>
-                  <p>Find nearby {cat.name.toLowerCase()} businesses</p>
-                </button>
-              ))}
+                ))}
+              </div>
+            ) : (
+              <div className={styles.categoryList}>
+                {categories.map((cat, idx) => {
+                  const accent = CATEGORY_ACCENTS[idx % CATEGORY_ACCENTS.length];
+                  return (
+                    <button
+                      type="button"
+                      key={cat.id}
+                      className={styles.categoryRow}
+                      data-accent={accent}
+                      onClick={() => handleCategoryClick(cat.name)}
+                    >
+                      <span className={styles.categoryRowIcon}>
+                        <i className={getCategoryIcon(cat.name)} />
+                      </span>
+                      <span className={styles.categoryRowBody}>
+                        <strong>{cat.name}</strong>
+                        <span>Browse {cat.name.toLowerCase()} near you</span>
+                      </span>
+                      <i className={`fa-solid fa-chevron-right ${styles.categoryRowChev}`} />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          <aside className={styles.browsePanel}>
+            <div className={styles.browseEmpty}>
+              <div className={styles.browseEmptyIcon}>
+                <i className="fa-solid fa-map-location-dot" />
+              </div>
+              <h3>Results appear here</h3>
+              <p>
+                Pick a category or run a search to load businesses on the map and in the list below.
+              </p>
+              <ul className={styles.browseTips}>
+                <li>
+                  <i className="fa-solid fa-check" /> View services &amp; packages without signing in
+                </li>
+                <li>
+                  <i className="fa-solid fa-check" /> Sign in only when you confirm a booking
+                </li>
+                <li>
+                  <i className="fa-solid fa-heart" />{' '}
+                  <button type="button" className={styles.inlineLink} onClick={() => router.push(loginHref('/profile/explore'))}>
+                    Sign in
+                  </button>{' '}
+                  to save favorites
+                </li>
+              </ul>
             </div>
-          )}
+          </aside>
         </div>
+
+        <footer className={styles.appFootnote}>
+          <Link href="/" className={styles.homeLink}>
+            <i className="fa-solid fa-arrow-left" /> HourSlot home
+          </Link>
+          <span>New here? Read about the product on the landing page.</span>
+        </footer>
       </div>
     );
   }
 
   return (
     <div className={styles.exploreContainer}>
-      <div className={styles.browseCompose}>
-        <h1>Find and book local services</h1>
-        <p>Discover approved businesses {locationLabel.toLowerCase()}. Search or browse by category.</p>
+      <div className={`${styles.browseCompose} ${styles.resultsToolbar}`}>
+        <div className={styles.browseComposeTop}>
+          <div>
+            <span className={styles.resultsEyebrow}>
+              <i className="fa-solid fa-list-ul" /> Marketplace results
+            </span>
+            <h1>
+              {isSearchActive ? `“${searchQuery}”` : `Businesses ${locationLabel.toLowerCase()}`}
+            </h1>
+            <p>Tap a listing to view services, packages, and book a slot.</p>
+          </div>
+          <div className={styles.resultsToolbarActions}>
+            {!loading && branches.length > 0 && (
+              <span className={styles.resultCount}>
+                {branches.length} found
+              </span>
+            )}
+            {isSearchActive && (
+              <button type="button" onClick={handleClearSearch} className={styles.clearSearchBtn}>
+                <i className="fa-solid fa-xmark" /> Clear
+              </button>
+            )}
+          </div>
+        </div>
 
         <form onSubmit={handleSearchSubmit} className={styles.searchBar}>
           <div className={styles.searchInputWrapper}>
@@ -694,15 +848,8 @@ export default function ExplorePage() {
       <div className={styles.sectionArea}>
         <div className={styles.sectionHead}>
           <h2 className={styles.sectionTitle}>
-            {isSearchActive
-              ? `Results for “${searchQuery}”`
-              : `Popular ${locationLabel.toLowerCase()}`}
+            {isSearchActive ? 'Matching listings' : 'Nearby listings'}
           </h2>
-          {isSearchActive && (
-            <button type="button" onClick={handleClearSearch} className={styles.clearSearchBtn}>
-              <i className="fa-solid fa-xmark" /> Clear
-            </button>
-          )}
         </div>
 
         {!loading && (mapMarkers.length > 0 || coords) && (

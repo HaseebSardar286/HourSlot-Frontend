@@ -139,7 +139,7 @@
   margin: 0 0 8px;
   color: var(--text-muted);
   font-size: 0.72rem;
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.05em;
 }
 
@@ -180,6 +180,196 @@
   color: #fff;
 }
 
+/* ==========================================================================
+   METRICS / STATISTICS ROW
+   ========================================================================== */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.statCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: var(--card-shadow);
+  transition: var(--transition-smooth);
+}
+
+.statCard:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--glow-shadow);
+  border-color: rgba(26, 138, 138, 0.25);
+}
+
+.statIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: var(--accent-gradient);
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.statInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.statLabel {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.statValue {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--text-main);
+  line-height: 1.2;
+}
+
+/* ==========================================================================
+   WALK-IN BOOKING SCHEDULER
+   ========================================================================== */
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.autocompleteContainer {
+  position: relative;
+  width: 100%;
+}
+
+.autocompleteDropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg-secondary);
+  border: 1.5px solid var(--border-color);
+  border-top: none;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  max-height: 180px;
+  overflow-y: auto;
+  z-index: 100;
+  box-shadow: var(--glass-shadow);
+  margin-top: -2px;
+}
+
+.autocompleteItem {
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: var(--transition-fast);
+  color: var(--text-main);
+}
+
+.autocompleteItem:hover {
+  background: rgba(15, 118, 118, 0.05);
+  color: var(--accent-primary);
+}
+
+.selectedClientBadge {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(15, 118, 118, 0.06);
+  border: 1.5px solid var(--accent-primary);
+  border-radius: var(--radius-sm);
+  color: var(--accent-primary);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.removeClientBtn {
+  background: none;
+  border: none;
+  color: var(--accent-red);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 2px 6px;
+  transition: var(--transition-fast);
+}
+
+.removeClientBtn:hover {
+  transform: scale(1.1);
+}
+
+.clientToggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(15, 118, 118, 0.03);
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-sm);
+  margin-bottom: 12px;
+}
+
+.clientToggleText {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.inlineForm {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 14px;
+  background: rgba(15, 118, 118, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  margin-bottom: 16px;
+}
+
+.inlineFormTitle {
+  grid-column: span 2;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+  margin-bottom: 4px;
+}
+
+.dateFilterGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.resetDateBtn {
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.resetDateBtn:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
 @media (max-width: 768px) {
   .bookingCard {
     flex-direction: column;
@@ -189,4 +379,48 @@
   .metaInfo {
     align-items: flex-start;
   }
+
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .inlineForm {
+    grid-template-columns: 1fr;
+  }
+
+  .inlineFormTitle {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 480px) {
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================================================================
+   SCROLLBAR HIDERS (NO-SCROLL LAYOUT)
+   ========================================================================== */
+.bookingsList::-webkit-scrollbar,
+.calendarContainer::-webkit-scrollbar,
+.dateFilterGroup::-webkit-scrollbar,
+.statsGrid::-webkit-scrollbar,
+.slotGrid::-webkit-scrollbar,
+.calWrap::-webkit-scrollbar,
+.calGrid::-webkit-scrollbar,
+.calCell::-webkit-scrollbar {
+  display: none !important;
+}
+
+.bookingsList,
+.calendarContainer,
+.dateFilterGroup,
+.statsGrid,
+.slotGrid,
+.calWrap,
+.calGrid,
+.calCell {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
 }

@@ -24,6 +24,8 @@ export default function GalleryPage() {
   const [newPhotoUrl, setNewPhotoUrl] = useState('');
   const [deleteUrl, setDeleteUrl] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   const loadBusiness = async () => {
     setLoading(true);
@@ -138,6 +140,73 @@ export default function GalleryPage() {
     }
   };
 
+  const handleSetCover = async (url: string) => {
+    if (!business) return;
+    setSubmitting(true);
+    setError(null);
+    setMessage(null);
+
+    const filtered = photos.filter((p) => p !== url);
+    const updatedPhotos = [url, ...filtered];
+    const galleryUrlsString = updatedPhotos.join(',');
+
+    try {
+      await apiFetch('/api/business/profile', {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: business.name,
+          galleryUrls: galleryUrlsString,
+        }),
+      });
+      setPhotos(updatedPhotos);
+      setMessage('Cover photo updated successfully!');
+    } catch (err: any) {
+      setError(err?.message || 'Failed to update cover photo.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragOver(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      await handleUploadFile(file);
+    }
+  };
+
+  const handleNextPhoto = () => {
+    if (lightboxIndex === null) return;
+    setLightboxIndex((lightboxIndex + 1) % photos.length);
+  };
+
+  const handlePrevPhoto = () => {
+    if (lightboxIndex === null) return;
+    setLightboxIndex((lightboxIndex - 1 + photos.length) % photos.length);
+  };
+
+  // Keyboard navigation support for lightbox
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (lightboxIndex === null) return;
+      if (e.key === 'Escape') setLightboxIndex(null);
+      if (e.key === 'ArrowRight') handleNextPhoto();
+      if (e.key === 'ArrowLeft') handlePrevPhoto();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lightboxIndex]);
+
   if (loading) {
     return (
       <div className={styles.page}>
@@ -149,6 +218,10 @@ export default function GalleryPage() {
       </div>
     );
   }
+
+  // Calculate statistics
+  const totalPhotos = photos.length;
+  const coverStatus = photos.length > 0 ? 'Configured' : 'Not Configured';
 
   return (
     <div className={styles.page}>
@@ -168,27 +241,58 @@ export default function GalleryPage() {
         </div>
       )}
 
+      {photos.length > 0 && (
+        <div className={styles.statsRow}>
+          <div className={styles.statCard}>
+            <div className={styles.statIcon}>
+              <i className="fa-solid fa-images" />
+            </div>
+            <div className={styles.statInfo}>
+              <div className={styles.statValue}>{totalPhotos}</div>
+              <div className={styles.statLabel}>Active Media</div>
+            </div>
+          </div>
+          <div className={styles.statCard}>
+            <div className={styles.statIcon}>
+              <i className="fa-solid fa-crown" style={{ color: '#d97706' }} />
+            </div>
+            <div className={styles.statInfo}>
+              <div className={styles.statValue}>{coverStatus}</div>
+              <div className={styles.statLabel}>Cover Image Status</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className={styles.layout}>
         <div className="surface">
           <h3 className={styles.panelTitle}>Add gallery photo</h3>
-          <div className="form-group">
-            <label className="form-label" htmlFor="photoFileInput">
-              Upload image
-            </label>
+          
+          <div
+            className={`${styles.dragZone} ${isDragOver ? styles.dragZoneActive : ''}`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => document.getElementById('photoFileInput')?.click()}
+          >
+            <i className="fa-solid fa-cloud-arrow-up" />
+            <p className={styles.dragText}>Drag & drop photo here</p>
+            <p className={styles.dragSub}>or click to upload from computer</p>
             <input
               id="photoFileInput"
               type="file"
               accept="image/*"
-              className="input-field"
+              style={{ display: 'none' }}
               onChange={(e) => handleUploadFile(e.target.files?.[0] || null)}
               disabled={submitting}
             />
           </div>
+
           <form onSubmit={handleAddPhoto} className={styles.form}>
             <div className="form-group">
               <label className="form-label" htmlFor="photoUrlInput">
-                Or paste image URL
-              </label>
+              Or paste image URL:
+            </label>
               <input
                 id="photoUrlInput"
                 type="text"
@@ -217,19 +321,45 @@ export default function GalleryPage() {
           ) : (
             <div className={styles.photosGrid}>
               {photos.map((url, idx) => (
-                <div key={`${url}-${idx}`} className={`surface ${styles.photoCard}`}>
+                <div key={`${url}-${idx}`} className={styles.photoCard}>
+                  {idx === 0 && (
+                    <span className={styles.badgeCover}>
+                      <i className="fa-solid fa-crown" /> Cover
+                    </span>
+                  )}
                   <div className={styles.imageWrapper}>
                     <img src={url} alt={`Gallery ${idx + 1}`} className={styles.galleryImg} />
-                    <button
-                      type="button"
-                      className={styles.deleteBtn}
-                      onClick={() => setDeleteUrl(url)}
-                      title="Remove image"
-                    >
-                      <i className="fa-solid fa-trash-can" />
-                    </button>
+                    <div className={styles.overlayActions}>
+                      <button
+                        type="button"
+                        className={styles.overlayBtn}
+                        onClick={() => setLightboxIndex(idx)}
+                        title="Zoom Preview"
+                      >
+                        <i className="fa-solid fa-magnifying-glass-plus" />
+                      </button>
+                      <button
+                        type="button"
+                        className={`${styles.overlayBtn} ${styles.overlayDelete}`}
+                        onClick={() => setDeleteUrl(url)}
+                        title="Remove image"
+                      >
+                        <i className="fa-solid fa-trash-can" />
+                      </button>
+                    </div>
                   </div>
-                  <div className={styles.cardFooter}>Image {idx + 1}</div>
+                  <div className={styles.cardFooter}>
+                    <span>Image {idx + 1}</span>
+                    {idx > 0 && (
+                      <button
+                        type="button"
+                        className={styles.coverActionBtn}
+                        onClick={() => handleSetCover(url)}
+                      >
+                        <i className="fa-solid fa-crown" style={{ fontSize: '0.7rem' }} /> Set as cover
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -247,6 +377,26 @@ export default function GalleryPage() {
         onConfirm={handleDeletePhoto}
         onCancel={() => setDeleteUrl(null)}
       />
+
+      {lightboxIndex !== null && (
+        <div className={styles.lightboxOverlay} onClick={() => setLightboxIndex(null)} tabIndex={0}>
+          <div className={styles.lightboxContent} onClick={(e) => e.stopPropagation()}>
+            <button type="button" className={styles.lightboxClose} onClick={() => setLightboxIndex(null)}>
+              <i className="fa-solid fa-xmark" />
+            </button>
+            <button type="button" className={`${styles.lightboxNav} ${styles.lightboxPrev}`} onClick={handlePrevPhoto}>
+              <i className="fa-solid fa-chevron-left" />
+            </button>
+            <img src={photos[lightboxIndex]} alt={`Preview ${lightboxIndex + 1}`} className={styles.lightboxImg} />
+            <button type="button" className={`${styles.lightboxNav} ${styles.lightboxNext}`} onClick={handleNextPhoto}>
+              <i className="fa-solid fa-chevron-right" />
+            </button>
+            <div className={styles.lightboxCaption}>
+              Image {lightboxIndex + 1} of {photos.length}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

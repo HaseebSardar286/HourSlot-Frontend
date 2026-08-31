@@ -5,10 +5,13 @@ const AUTH_ROUTES = ['/auth/login', '/auth/register', '/auth/forgot-password', '
 const STORAGE_KEY = 'hourslot_user_session';
 
 function isPublicBrowse(pathname: string): boolean {
+  // Guests may explore businesses, services, packages, and the booking wizard
+  // without signing in. Auth is required only for favorites, wallet, bookings, etc.
   return (
     pathname === '/profile/explore' ||
     pathname.startsWith('/profile/explore/') ||
-    pathname.startsWith('/profile/business/')
+    pathname.startsWith('/profile/business/') ||
+    pathname.startsWith('/profile/book/')
   );
 }
 

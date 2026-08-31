@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { loginHref } from '@/lib/auth-redirect';
@@ -11,12 +11,19 @@ import type { ServicePackage } from '@/lib/types';
 import Modal from '@/components/Modal';
 import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
+import CustomSelect from '@/components/CustomSelect';
+import { formatMoney } from '@/lib/money';
+import { buildBookingHref } from '@/lib/booking-flow';
+import CustomerFlowBar from '@/components/CustomerFlowBar';
+import GuestBrowseBanner from '@/components/guest/GuestBrowseBanner';
 import styles from './business-profile.module.css';
 
 const LocationMap = dynamic(() => import('@/components/LocationMap'), {
   ssr: false,
-  loading: () => <Skeleton variant="card" height={220} />,
+  loading: () => <Skeleton variant="card" height={260} />,
 });
+
+type TabId = 'overview' | 'services' | 'packages' | 'team' | 'reviews' | 'visit';
 
 interface Branch {
   id: number;
@@ -33,6 +40,7 @@ interface Service {
   description?: string;
   price: number;
   durationMinutes: number;
+  currency?: string;
 }
 
 interface Staff {
@@ -57,6 +65,7 @@ interface WorkingHour {
   startTime?: string;
   endTime?: string;
   closed: boolean;
+  intervals?: { startTime: string; endTime: string }[];
 }
 
 interface BusinessProfile {
@@ -67,6 +76,8 @@ interface BusinessProfile {
     logoUrl?: string;
     galleryUrls?: string;
     verified?: boolean;
+    currency?: string;
+    primaryCategory?: { name: string };
   };
   branches: Branch[];
   services: Service[];
@@ -76,55 +87,122 @@ interface BusinessProfile {
   averageRating: number;
 }
 
-function serviceIcon(name: string) {
-  const n = name.toLowerCase();
-  if (n.includes('consult')) return 'fa-comments';
-  if (n.includes('color') || n.includes('dye')) return 'fa-palette';
-  if (n.includes('cut') || n.includes('hair')) return 'fa-scissors';
-  if (n.includes('massage') || n.includes('spa') || n.includes('facial')) return 'fa-spa';
-  if (n.includes('train') || n.includes('fitness') || n.includes('yoga')) return 'fa-dumbbell';
-  if (n.includes('repair') || n.includes('fix')) return 'fa-wrench';
-  return 'fa-calendar-check';
+const DAY_LABELS: Record<number, string> = {
+  1: 'Monday',
+  2: 'Tuesday',
+  3: 'Wednesday',
+  4: 'Thursday',
+  5: 'Friday',
+  6: 'Saturday',
+  7: 'Sunday',
+};
+
+const TABS: { id: TabId; label: string; show?: (p: BusinessProfile) => boolean }[] = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'services', label: 'Services' },
+  { id: 'packages', label: 'Packages', show: (p) => (p.packages?.length ?? 0) > 0 },
+  { id: 'team', label: 'Team' },
+  { id: 'reviews', label: 'Reviews', show: (p) => p.reviews.length > 0 },
+  { id: 'visit', label: 'Visit' },
+];
+
+function formatHm(time?: string) {
+  if (!time) return '';
+  return time.slice(0, 5);
+}
+
+function formatDayHours(day: WorkingHour): string {
+  if (day.closed) return 'Closed';
+  if (day.intervals && day.intervals.length > 0) {
+    return day.intervals.map((i) => `${formatHm(i.startTime)}–${formatHm(i.endTime)}`).join(', ');
+  }
+  if (day.startTime && day.endTime) return `${formatHm(day.startTime)} – ${formatHm(day.endTime)}`;
+  return 'Closed';
+}
+
+function todayDow(): number {
+  const d = new Date().getDay();
+  return d === 0 ? 7 : d;
 }
 
 export default function BusinessProfilePage() {
   const { id } = useParams();
   const router = useRouter();
   const { isAuthenticated } = useAuth();
+  const searchParams = useSearchParams();
 
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
   const [favorites, setFavorites] = useState<number[]>([]);
   const [workingHours, setWorkingHours] = useState<WorkingHour[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('');
+  const [heroIndex, setHeroIndex] = useState(0);
+  const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   const [serviceFilter, setServiceFilter] = useState('All');
-  const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
-  const [preferredStaffId, setPreferredStaffId] = useState<number | null>(null);
 
   const [selectedPackage, setSelectedPackage] = useState<ServicePackage | null>(null);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [purchaseLoading, setPurchaseLoading] = useState(false);
+
+  const [customerPackage, setCustomerPackage] = useState<any | null>(null);
+
+  useEffect(() => {
+    const pkgId = searchParams.get('customerPackageId') || searchParams.get('packageId');
+    if (pkgId && isAuthenticated) {
+      apiFetch<any[]>('/api/customer/packages')
+        .then((pkgs) => {
+          const match = pkgs.find((p) => String(p.id) === pkgId);
+          if (match) {
+            setCustomerPackage(match);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [searchParams, isAuthenticated]);
+
+  const money = (amount: number, code?: string) =>
+    formatMoney(amount, code || profile?.business?.currency);
+
+  const getServiceBookingHref = (serviceId: number) => {
+    return profile
+      ? buildBookingHref(profile.business.id, {
+          step: 'schedule',
+          serviceId: String(serviceId),
+          branchId: selectedBranchId || undefined,
+          customerPackageId: customerPackage ? String(customerPackage.id) : undefined,
+        })
+      : '#';
+  };
+
+  const loadHours = async (branchId: number) => {
+    const hours = await apiFetch<WorkingHour[]>(
+      `/api/public/branches/${branchId}/working-hours`,
+      { skipAuth: true }
+    );
+    setWorkingHours(hours);
+  };
 
   const loadData = async () => {
     if (!id) return;
     setLoading(true);
     setError(null);
     try {
+      const favPromise = isAuthenticated
+        ? apiFetch<{ business: { id: number } }[]>('/api/favorites').catch(() => [])
+        : Promise.resolve([] as { business: { id: number } }[]);
       const [profileData, favData] = await Promise.all([
         apiFetch<BusinessProfile>(`/api/discover/business/${id}`, { skipAuth: true }),
-        apiFetch<{ business: { id: number } }[]>('/api/favorites').catch(() => []),
+        favPromise,
       ]);
       setProfile(profileData);
       setFavorites(favData.map((f) => f.business.id));
-      if (profileData.services[0]) setSelectedServiceId(profileData.services[0].id);
       if (profileData.branches.length > 0) {
-        const hours = await apiFetch<WorkingHour[]>(
-          `/api/public/branches/${profileData.branches[0].id}/working-hours`,
-          { skipAuth: true }
-        );
-        setWorkingHours(hours);
+        const branchId = String(profileData.branches[0].id);
+        setSelectedBranchId(branchId);
+        await loadHours(profileData.branches[0].id);
       }
     } catch (err: unknown) {
       const e = err as { message?: string };
@@ -137,7 +215,12 @@ export default function BusinessProfilePage() {
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, isAuthenticated]);
+
+  useEffect(() => {
+    if (!selectedBranchId) return;
+    loadHours(Number.parseInt(selectedBranchId, 10)).catch(() => setWorkingHours([]));
+  }, [selectedBranchId]);
 
   const handleToggleFavorite = async () => {
     if (!profile) return;
@@ -174,7 +257,7 @@ export default function BusinessProfilePage() {
         setSuccess('Link copied to clipboard.');
       }
     } catch {
-      /* ignore cancel */
+      /* cancelled */
     }
   };
 
@@ -216,21 +299,35 @@ export default function BusinessProfilePage() {
     }
   };
 
-  const continueBookHref = () => {
-    if (!profile || !selectedServiceId) return `/profile/business/${id}`;
-    const params = new URLSearchParams({ serviceId: String(selectedServiceId) });
-    if (profile.branches[0]) params.set('branchId', String(profile.branches[0].id));
-    if (preferredStaffId) params.set('staffId', String(preferredStaffId));
-    return `/profile/book/${profile.business.id}?${params.toString()}`;
-  };
+  const bookStartHref = profile
+    ? buildBookingHref(profile.business.id, {
+        step: 'service',
+        branchId: selectedBranchId || undefined,
+        customerPackageId: customerPackage ? String(customerPackage.id) : undefined,
+      })
+    : '#';
+
+  const galleryImages = useMemo(() => {
+    if (!profile) return [] as string[];
+    const urls = profile.business.galleryUrls
+      ? String(profile.business.galleryUrls)
+          .split(',')
+          .map((u) => u.trim())
+          .filter(Boolean)
+      : [];
+    if (profile.business.logoUrl && !urls.includes(profile.business.logoUrl)) {
+      urls.unshift(profile.business.logoUrl);
+    }
+    return urls;
+  }, [profile]);
 
   if (loading) {
     return (
       <div className={styles.page}>
-        <Skeleton variant="card" height={280} />
-        <div className={styles.skeletonRow}>
+        <Skeleton variant="card" className={styles.skeletonCover} />
+        <div className={styles.skeletonBody}>
           <Skeleton variant="card" height={420} />
-          <Skeleton variant="card" height={420} />
+          <Skeleton variant="card" height={320} />
         </div>
       </div>
     );
@@ -254,22 +351,17 @@ export default function BusinessProfilePage() {
 
   const { business, branches, services, staff, reviews, averageRating } = profile;
   const isFav = favorites.includes(business.id);
-  const gallery = business.galleryUrls
-    ? String(business.galleryUrls)
-        .split(',')
-        .map((u) => u.trim())
-        .filter(Boolean)
-    : [];
-  const bannerSrc = gallery[0] || business.logoUrl || null;
-  const primaryBranch = branches[0];
+  const coverSrc = galleryImages[heroIndex] || galleryImages[0] || null;
+  const activeBranch = branches.find((b) => String(b.id) === selectedBranchId) || branches[0];
   const hasCoords =
-    primaryBranch &&
-    Number.isFinite(primaryBranch.latitude) &&
-    Number.isFinite(primaryBranch.longitude);
-  const mapQuery = encodeURIComponent(primaryBranch?.address || business.name);
-  const selectedService = services.find((s) => s.id === selectedServiceId) || null;
+    activeBranch &&
+    Number.isFinite(activeBranch.latitude) &&
+    Number.isFinite(activeBranch.longitude);
+  const mapQuery = encodeURIComponent(activeBranch?.address || business.name);
   const packages = profile.packages || [];
-  const preferredStaff = staff.find((s) => s.id === preferredStaffId) || null;
+  const categoryName = business.primaryCategory?.name;
+  const visibleTabs = TABS.filter((t) => !t.show || t.show(profile));
+  const canBook = services.length > 0;
 
   const filters = (() => {
     const tags = new Set<string>(['All']);
@@ -290,287 +382,514 @@ export default function BusinessProfilePage() {
     return !s.name.toLowerCase().includes('consult');
   });
 
-  const amenities = [
-    business.verified ? { icon: 'fa-certificate', label: 'Verified' } : { icon: 'fa-shield-halved', label: 'Trusted' },
-    workingHours.some((w) => !w.closed) ? { icon: 'fa-clock', label: 'Open hours' } : { icon: 'fa-leaf', label: 'Eco-Friendly' },
-    hasCoords ? { icon: 'fa-wheelchair', label: 'Accessible' } : { icon: 'fa-store', label: 'Local venue' },
-    { icon: 'fa-square-parking', label: 'Free Parking' },
+  const highlights = [
+    business.verified
+      ? { icon: 'fa-certificate', label: 'Verified business' }
+      : { icon: 'fa-shield-halved', label: 'Trusted listing' },
+    workingHours.some((w) => !w.closed)
+      ? { icon: 'fa-clock', label: 'Online booking' }
+      : { icon: 'fa-calendar', label: 'By appointment' },
+    staff.length > 0
+      ? { icon: 'fa-user-group', label: `${staff.length} specialist${staff.length === 1 ? '' : 's'}` }
+      : { icon: 'fa-store', label: 'Local venue' },
+    services.length > 0
+      ? { icon: 'fa-list-check', label: `${services.length} service${services.length === 1 ? '' : 's'}` }
+      : { icon: 'fa-sparkles', label: 'Curated offerings' },
   ];
+
+  const sortedHours = [...workingHours].sort((a, b) => a.dayOfWeek - b.dayOfWeek);
+  const todayHours = sortedHours.find((d) => d.dayOfWeek === todayDow());
+  const todayLabel = todayHours ? formatDayHours(todayHours) : 'Hours not listed';
+  const isOpenToday = todayHours && !todayHours.closed;
 
   return (
     <div className={styles.page}>
-      <section className={styles.hero}>
-        {bannerSrc ? (
+      <div className={styles.flowBarWrap}>
+        <CustomerFlowBar businessId={business.id} businessName={business.name} current="business" />
+      </div>
+      {/* Cover */}
+      <div className={styles.coverWrap}>
+        {coverSrc ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={bannerSrc} alt="" className={styles.heroImg} />
-        ) : (
-          <div className={styles.heroFallback} />
-        )}
-        <div className={styles.heroShade} />
-        <div className={styles.heroContent}>
-          <div className={styles.ratingPill}>
-            <i className="fa-solid fa-star" />
-            {averageRating > 0 ? averageRating.toFixed(1) : 'New'}
-            <span>({reviews.length} Reviews)</span>
+          <img src={coverSrc} alt="" className={styles.coverImg} />
+        ) : null}
+        <div className={styles.coverShade} />
+        <div className={styles.coverTop}>
+          <Link href="/profile/explore" className={styles.backBtn}>
+            <i className="fa-solid fa-arrow-left" /> Explore
+          </Link>
+          <div className={styles.coverActions}>
+            <button
+              type="button"
+              className={`${styles.iconBtn} ${isFav ? styles.iconBtnOn : ''}`}
+              onClick={handleToggleFavorite}
+              aria-label={isFav ? 'Remove from favorites' : 'Save to favorites'}
+            >
+              <i className={`fa-${isFav ? 'solid' : 'regular'} fa-heart`} />
+            </button>
+            <button type="button" className={styles.iconBtn} onClick={handleShare} aria-label="Share">
+              <i className="fa-solid fa-arrow-up-from-bracket" />
+            </button>
           </div>
-          <h1>
-            {business.name}
-            {business.verified && <i className={`fa-solid fa-circle-check ${styles.verified}`} title="Verified" />}
-          </h1>
-          {primaryBranch?.address && (
-            <p className={styles.loc}>
-              <i className="fa-solid fa-location-dot" />
-              {primaryBranch.address}
-            </p>
-          )}
         </div>
-        <div className={styles.heroActions}>
-          <button
-            type="button"
-            className={`${styles.roundBtn} ${isFav ? styles.roundBtnOn : ''}`}
-            onClick={handleToggleFavorite}
-            aria-label={isFav ? 'Remove from favorites' : 'Add to favorites'}
+        {galleryImages.length > 1 && (
+          <div className={styles.galleryDots}>
+            {galleryImages.map((src, idx) => (
+              <button
+                key={src}
+                type="button"
+                className={`${styles.dot} ${idx === heroIndex ? styles.dotOn : ''}`}
+                onClick={() => setHeroIndex(idx)}
+                aria-label={`Photo ${idx + 1}`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Identity */}
+      <div className={styles.identity}>
+        <div className={styles.identityCard}>
+          <div className={styles.logoMark}>
+            {business.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={business.logoUrl} alt="" />
+            ) : (
+              business.name.charAt(0)
+            )}
+          </div>
+          <div className={styles.identityMain}>
+            <h1>
+              {business.name}
+              {business.verified && (
+                <i className={`fa-solid fa-circle-check ${styles.verified}`} title="Verified" />
+              )}
+            </h1>
+            <div className={styles.metaRow}>
+              <span className={styles.metaItem}>
+                <i className="fa-solid fa-star" />
+                {averageRating > 0 ? averageRating.toFixed(1) : 'New'}
+                {reviews.length > 0 && ` (${reviews.length})`}
+              </span>
+              {categoryName && (
+                <>
+                  <span className={styles.metaDot} />
+                  <span className={styles.categoryTag}>
+                    <i className="fa-solid fa-tag" /> {categoryName}
+                  </span>
+                </>
+              )}
+              {activeBranch?.address && (
+                <>
+                  <span className={styles.metaDot} />
+                  <span className={styles.metaItem}>
+                    <i className="fa-solid fa-location-dot" />
+                    {activeBranch.address}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+          <Link
+            href={canBook ? bookStartHref : '#'}
+            className={`${styles.bookCta} ${styles.bookCtaDesk} ${!canBook ? styles.bookCtaDisabled : ''}`}
+            aria-disabled={!canBook}
           >
-            <i className={`fa-${isFav ? 'solid' : 'regular'} fa-heart`} />
-            <span>Favorite</span>
-          </button>
-          <button type="button" className={styles.roundBtn} onClick={handleShare} aria-label="Share">
-            <i className="fa-solid fa-arrow-up-from-bracket" />
-            <span>Share</span>
-          </button>
+            Book appointment <i className="fa-solid fa-calendar-check" />
+          </Link>
         </div>
-      </section>
+
+        <div className={styles.tabBar} role="tablist">
+          {visibleTabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              className={`${styles.tab} ${activeTab === tab.id ? styles.tabOn : ''}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {(success || error) && (
-        <div className={success ? 'success-alert' : 'error-alert'} style={{ marginBottom: 16 }}>
+        <div className={success ? 'success-alert' : 'error-alert'} style={{ marginTop: 16 }}>
           <i className={`fa-solid ${success ? 'fa-circle-check' : 'fa-triangle-exclamation'}`} /> {success || error}
         </div>
       )}
 
-      <div className={styles.layout}>
-        <div className={styles.main}>
-          <section className={styles.section}>
-            <h2>About the business</h2>
-            <p className={styles.aboutText}>
-              {business.description?.trim() ||
-                'Browse services below and book a real open slot. Availability updates live from the business calendar.'}
-            </p>
-            <div className={styles.amenityRow}>
-              {amenities.map((a) => (
-                <div key={a.label} className={styles.amenity}>
-                  <span className={styles.amenityIcon}>
-                    <i className={`fa-solid ${a.icon}`} />
-                  </span>
-                  <span>{a.label}</span>
-                </div>
-              ))}
-            </div>
-          </section>
+      {!isAuthenticated && (
+        <>
+          <GuestBrowseBanner />
+          <div className={styles.guestQuickStrip}>
+            <span className={styles.guestPill}>
+              <i className="fa-solid fa-list-check" /> {services.length} services
+            </span>
+            {packages.length > 0 && (
+              <span className={`${styles.guestPill} ${styles.guestPillViolet}`}>
+                <i className="fa-solid fa-gift" /> {packages.length} packages
+              </span>
+            )}
+            <span className={`${styles.guestPill} ${styles.guestPillSky}`}>
+              <i className="fa-solid fa-clock" /> {isOpenToday ? `Open today · ${todayLabel}` : todayLabel}
+            </span>
+            <span className={`${styles.guestPill} ${styles.guestPillCoral}`}>
+              <i className="fa-solid fa-heart" /> Sign in to save favorites
+            </span>
+          </div>
+        </>
+      )}
 
-          <section className={styles.section}>
-            <div className={styles.sectionHead}>
-              <h2>Service Menu</h2>
-              <div className={styles.chips}>
-                {filters.map((f) => (
-                  <button
-                    key={f}
-                    type="button"
-                    className={`${styles.chip} ${serviceFilter === f ? styles.chipOn : ''}`}
-                    onClick={() => setServiceFilter(f)}
-                  >
-                    {f === 'All' ? 'All Services' : f}
-                  </button>
+      <div className={styles.content}>
+        {customerPackage && (
+          <div className={styles.packageBanner}>
+            <i className="fa-solid fa-gift" />
+            <div>
+              <strong>Redeeming Session from: {customerPackage.servicePackage.name}</strong>
+              <p>{customerPackage.sessionsRemaining} sessions remaining in wallet</p>
+            </div>
+            <button
+              type="button"
+              className={styles.clearPackageBtn}
+              onClick={() => setCustomerPackage(null)}
+              title="Cancel redemption"
+            >
+              <i className="fa-solid fa-xmark" />
+            </button>
+          </div>
+        )}
+
+          {activeTab === 'overview' && (
+            <div className={styles.panel} role="tabpanel">
+              <div className={styles.aboutBlock}>
+                <h2 className={styles.panelTitle}>About {business.name}</h2>
+                <p className={styles.panelLead}>Learn more before you book</p>
+                <p className={styles.aboutText}>
+                  {business.description?.trim() ||
+                    'Browse services and book an open slot. Availability updates live from the business calendar.'}
+                </p>
+              </div>
+              <div className={styles.featureGrid}>
+                {highlights.map((h) => (
+                  <div key={h.label} className={styles.feature}>
+                    <span className={styles.featureIcon}>
+                      <i className={`fa-solid ${h.icon}`} />
+                    </span>
+                    <span>{h.label}</span>
+                  </div>
                 ))}
               </div>
-            </div>
-
-            {filteredServices.length === 0 ? (
-              <EmptyState icon="fa-scissors" title="No services listed" description="This business has not published services yet." />
-            ) : (
-              <div className={styles.serviceList}>
-                {filteredServices.map((s, idx) => {
-                  const on = selectedServiceId === s.id;
-                  return (
+              {todayHours && (
+                <div className={styles.todayHours}>
+                  <div>
+                    <strong>Today&apos;s hours</strong>
+                    <em className={isOpenToday ? styles.todayOpen : styles.todayClosed}>{todayLabel}</em>
+                  </div>
+                  <button type="button" className={styles.filterBtn} onClick={() => setActiveTab('visit')}>
+                    Full schedule <i className="fa-solid fa-chevron-right" />
+                  </button>
+                </div>
+              )}
+              {services.length > 0 && (
+                <div style={{ marginTop: 28 }}>
+                  <h2 className={styles.panelTitle}>Popular services</h2>
+                  <p className={styles.panelLead}>Starting prices — full list in the booking flow</p>
+                  <div className={styles.serviceList}>
+                    {services.slice(0, 4).map((s) => {
+                      const isIncludedInPackage = customerPackage?.servicePackage?.services?.some(
+                        (ps: any) => ps.id === s.id
+                      );
+                      return (
+                        <div key={s.id} className={styles.serviceCatalogRow}>
+                          <div className={styles.serviceInfo}>
+                            <strong>
+                              {s.name}
+                              {isIncludedInPackage && (
+                                <span className={styles.packageBadge}>
+                                  <i className="fa-solid fa-gift" style={{ marginRight: 4 }} /> Included in package
+                                </span>
+                              )}
+                            </strong>
+                            <p>{s.description || `${s.durationMinutes}-minute session`}</p>
+                            <span>
+                              <i className="fa-regular fa-clock" /> {s.durationMinutes} min · {money(s.price, s.currency)}
+                            </span>
+                          </div>
+                          {canBook && (
+                            <Link
+                              href={getServiceBookingHref(s.id)}
+                              className="btn btn-outline btn-sm"
+                              style={{ alignSelf: 'center', marginLeft: 'auto' }}
+                            >
+                              Book now
+                            </Link>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {services.length > 4 && (
                     <button
-                      key={s.id}
                       type="button"
-                      className={`${styles.serviceRow} ${on ? styles.serviceRowOn : ''}`}
-                      onClick={() => setSelectedServiceId(s.id)}
+                      className={styles.filterBtn}
+                      style={{ marginTop: 14 }}
+                      onClick={() => setActiveTab('services')}
                     >
-                      {idx === 0 && <span className={styles.popularTag}>Popular</span>}
-                      <span className={styles.serviceIcon}>
-                        <i className={`fa-solid ${serviceIcon(s.name)}`} />
-                      </span>
-                      <div className={styles.serviceCopy}>
-                        <strong>{s.name}</strong>
-                        <p>{s.description || `${s.durationMinutes}-minute appointment with live availability.`}</p>
-                      </div>
-                      <div className={styles.serviceMeta}>
-                        <span>
-                          <i className="fa-regular fa-clock" /> {s.durationMinutes} mins
-                        </span>
-                        <em>${s.price.toFixed(0)}</em>
-                      </div>
-                      <span className={`${styles.selectBtn} ${on ? styles.selectBtnOn : ''}`}>
-                        {on ? 'Selected' : 'Select'}
-                      </span>
+                      View all {services.length} services
                     </button>
-                  );
-                })}
-              </div>
-            )}
-          </section>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
-          {packages.length > 0 && (
-            <section className={styles.section}>
-              <h2>Packages</h2>
-              <div className={styles.packageList}>
+          {activeTab === 'services' && (
+            <div className={styles.panel} role="tabpanel">
+              <h2 className={styles.panelTitle}>Services</h2>
+              <p className={styles.panelLead}>All services offered at this business</p>
+              {filters.length > 1 && (
+                <div className={styles.serviceToolbar}>
+                  {filters.map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      className={`${styles.filterBtn} ${serviceFilter === f ? styles.filterBtnOn : ''}`}
+                      onClick={() => setServiceFilter(f)}
+                    >
+                      {f === 'All' ? 'All services' : f}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {filteredServices.length === 0 ? (
+                <EmptyState icon="fa-scissors" title="No services listed" description="This business has not published services yet." />
+              ) : (
+                <div className={styles.serviceList}>
+                  {filteredServices.map((s) => {
+                    const isIncludedInPackage = customerPackage?.servicePackage?.services?.some(
+                      (ps: any) => ps.id === s.id
+                    );
+                    return (
+                      <div key={s.id} className={styles.serviceCatalogRow}>
+                        <div className={styles.serviceInfo}>
+                          <strong>
+                            {s.name}
+                            {isIncludedInPackage && (
+                              <span className={styles.packageBadge}>
+                                <i className="fa-solid fa-gift" style={{ marginRight: 4 }} /> Included in package
+                              </span>
+                            )}
+                          </strong>
+                          <p>{s.description || `${s.durationMinutes}-minute appointment with live availability.`}</p>
+                          <span>
+                            <i className="fa-regular fa-clock" /> {s.durationMinutes} min · {money(s.price, s.currency)}
+                          </span>
+                        </div>
+                        {canBook && (
+                          <Link
+                            href={getServiceBookingHref(s.id)}
+                            className="btn btn-outline btn-sm"
+                            style={{ alignSelf: 'center', marginLeft: 'auto' }}
+                          >
+                            Book now
+                          </Link>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'packages' && packages.length > 0 && (
+            <div className={styles.panel} role="tabpanel">
+              <h2 className={styles.panelTitle}>Packages</h2>
+              <p className={styles.panelLead}>Save with bundled sessions</p>
+              <div className={styles.packageRow}>
                 {packages.map((pkg) => (
-                  <div key={pkg.id} className={styles.packageRow}>
-                    <div>
-                      <strong>{pkg.name}</strong>
-                      <p>
-                        {pkg.sessionsCount} sessions
-                        {pkg.expiryDays > 0 ? ` · ${pkg.expiryDays} days validity` : ''}
-                      </p>
-                    </div>
-                    <div className={styles.packageRight}>
-                      <em>${pkg.price.toFixed(2)}</em>
+                  <article key={pkg.id} className={styles.packageCard}>
+                    <strong>{pkg.name}</strong>
+                    <p>
+                      {pkg.sessionsCount} sessions
+                      {pkg.expiryDays > 0 ? ` · valid ${pkg.expiryDays} days` : ' · no expiry'}
+                    </p>
+                    <div className={styles.packageFoot}>
+                      <span className={styles.packagePrice}>{money(pkg.price, pkg.currency)}</span>
                       <button type="button" className="btn btn-primary btn-sm" onClick={() => handleOpenPurchaseModal(pkg)}>
                         Buy
                       </button>
                     </div>
-                  </div>
+                  </article>
                 ))}
               </div>
-            </section>
+            </div>
           )}
 
-          <section className={styles.section}>
-            <h2>Our Team</h2>
-            {staff.length === 0 ? (
-              <EmptyState icon="fa-user-group" title="No team listed" description="You can still book with any available staff." />
-            ) : (
-              <div className={styles.teamGrid}>
-                {staff.map((s) => {
-                  const preferred = preferredStaffId === s.id;
-                  return (
-                    <article key={s.id} className={styles.teamCard}>
-                      <div className={styles.teamAvatar}>{s.name.charAt(0)}</div>
-                      <div className={styles.teamBody}>
-                        <strong>{s.name}</strong>
-                        <span className={styles.teamRole}>{s.specialty || s.designation || 'Team member'}</span>
-                        <span className={styles.teamRating}>
-                          <i className="fa-solid fa-star" />
-                          {typeof s.rating === 'number' && s.rating > 0 ? s.rating.toFixed(1) : '5.0'}
-                        </span>
-                        <p>
-                          Available for bookings at this location. Select a service, then continue to pick a time
-                          {preferred ? ` with ${s.name.split(' ')[0]}` : ''}.
-                        </p>
-                        <button
-                          type="button"
-                          className={styles.viewProfile}
-                          onClick={() => setPreferredStaffId(preferred ? null : s.id)}
-                        >
-                          {preferred ? 'Preferred' : `Prefer ${s.name.split(' ')[0]}`}
-                        </button>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          <section className={styles.section}>
-            <h2>Location</h2>
-            <div className={styles.mapWrap}>
-              {hasCoords ? (
-                <LocationMap
-                  markers={[
-                    {
-                      id: primaryBranch!.id,
-                      lat: primaryBranch!.latitude as number,
-                      lng: primaryBranch!.longitude as number,
-                      label: primaryBranch!.name,
-                    },
-                  ]}
-                  height={260}
-                  zoom={15}
-                />
+          {activeTab === 'team' && (
+            <div className={styles.panel} role="tabpanel">
+              <h2 className={styles.panelTitle}>Our team</h2>
+              <p className={styles.panelLead}>Meet the specialists at this business</p>
+              {staff.length === 0 ? (
+                <EmptyState icon="fa-user-group" title="No team listed" description="You can still book with any available staff." />
               ) : (
-                <div className={styles.mapFallback}>
-                  <i className="fa-solid fa-map-location-dot" />
-                  <span>{primaryBranch?.address || 'Address unavailable'}</span>
+                <div className={styles.teamGrid}>
+                  {staff.map((s) => (
+                    <article key={s.id} className={styles.teamMember}>
+                      <div className={styles.teamAvatar}>{s.name.charAt(0)}</div>
+                      <strong>{s.name}</strong>
+                      <span className={styles.teamRole}>{s.specialty || s.designation || 'Team member'}</span>
+                      <span className={styles.teamRating}>
+                        <i className="fa-solid fa-star" />
+                        {typeof s.rating === 'number' && s.rating > 0 ? s.rating.toFixed(1) : '5.0'}
+                      </span>
+                    </article>
+                  ))}
                 </div>
               )}
-              <a
-                className={styles.directionsCard}
-                href={
-                  hasCoords
-                    ? `https://www.openstreetmap.org/?mlat=${primaryBranch!.latitude}&mlon=${primaryBranch!.longitude}#map=16/${primaryBranch!.latitude}/${primaryBranch!.longitude}`
-                    : `https://www.openstreetmap.org/search?query=${mapQuery}`
-                }
-                target="_blank"
-                rel="noreferrer"
-              >
-                <span className={styles.directionsIcon}>
-                  <i className="fa-solid fa-car" />
-                </span>
-                <span>
-                  <strong>Get Directions</strong>
-                  <em>{primaryBranch?.address || 'Open in maps'}</em>
-                </span>
-              </a>
             </div>
-          </section>
-        </div>
+          )}
 
-        <aside className={styles.bookingRail}>
-          <div className={styles.bookingCard}>
-            <header className={styles.bookingHead}>
-              <h3>Your Booking</h3>
-              <span className={styles.countBadge}>{selectedService ? '1 Service' : '0 Services'}</span>
-            </header>
-
-            {selectedService ? (
-              <div className={styles.bookingService}>
-                <div>
-                  <strong>{selectedService.name}</strong>
-                  <p>{selectedService.durationMinutes} mins</p>
+          {activeTab === 'reviews' && reviews.length > 0 && (
+            <div className={styles.panel} role="tabpanel">
+              <h2 className={styles.panelTitle}>Reviews</h2>
+              <p className={styles.panelLead}>Feedback from recent clients</p>
+              <div className={styles.reviewSummary}>
+                <span className={styles.reviewBig}>{averageRating > 0 ? averageRating.toFixed(1) : '—'}</span>
+                <div className={styles.reviewSummaryMeta}>
+                  <div>
+                    <i className="fa-solid fa-star" /> Average rating
+                  </div>
+                  <div>{reviews.length} review{reviews.length === 1 ? '' : 's'}</div>
                 </div>
-                <em>${selectedService.price.toFixed(0)}</em>
               </div>
-            ) : (
-              <p className={styles.bookingHint}>Select a service to continue.</p>
-            )}
-
-            {preferredStaff && (
-              <p className={styles.bookingHint} style={{ marginTop: 8 }}>
-                Preferred staff: <strong>{preferredStaff.name}</strong>
-              </p>
-            )}
-
-            <div className={styles.bookingTotal}>
-              <span>Total</span>
-              <strong>${selectedService ? selectedService.price.toFixed(0) : '0'}</strong>
+              <div className={styles.reviewFeed}>
+                {reviews.slice(0, 8).map((r) => (
+                  <article key={r.id} className={styles.reviewItem}>
+                    <div className={styles.reviewItemHead}>
+                      <strong>
+                        {r.customer.user.firstName} {r.customer.user.lastName.charAt(0)}.
+                      </strong>
+                      <span className={styles.stars} aria-label={`${r.rating} stars`}>
+                        {'★'.repeat(r.rating)}
+                      </span>
+                    </div>
+                    {r.comment && <p>{r.comment}</p>}
+                    <span className={styles.reviewDate}>
+                      {new Date(r.createdAt).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </span>
+                  </article>
+                ))}
+              </div>
             </div>
+          )}
 
-            <Link
-              href={continueBookHref()}
-              className={styles.continueBtn}
-              aria-disabled={!selectedService}
-              onClick={(e) => {
-                if (!selectedService) e.preventDefault();
-              }}
-            >
-              Continue to schedule <i className="fa-solid fa-arrow-right" />
-            </Link>
-            <p className={styles.noCharge}>Next: pick a time, then checkout. You won&apos;t be charged yet.</p>
-          </div>
-        </aside>
+          {activeTab === 'visit' && (
+            <div className={styles.panel} role="tabpanel">
+              <h2 className={styles.panelTitle}>Visit us</h2>
+              <p className={styles.panelLead}>Hours, location, and contact details</p>
+              <div className={styles.visitStack}>
+                {branches.length > 1 && (
+                  <div className={styles.branchPick}>
+                    <CustomSelect
+                      options={branches.map((b) => ({ value: String(b.id), label: b.name, sublabel: b.address }))}
+                      value={selectedBranchId}
+                      onChange={setSelectedBranchId}
+                      placeholder="Select location"
+                    />
+                  </div>
+                )}
+                <div className={styles.hoursTable}>
+                  {sortedHours.length === 0 ? (
+                    <p className={styles.aboutText} style={{ padding: 16 }}>
+                      Hours not published yet.
+                    </p>
+                  ) : (
+                    sortedHours.map((day) => {
+                      const isToday = day.dayOfWeek === todayDow();
+                      const hoursText = formatDayHours(day);
+                      return (
+                        <div
+                          key={day.id || day.dayOfWeek}
+                          className={`${styles.hoursRow} ${isToday ? styles.hoursRowToday : ''}`}
+                        >
+                          <strong>{DAY_LABELS[day.dayOfWeek] || `Day ${day.dayOfWeek}`}</strong>
+                          <span className={day.closed ? styles.hoursClosed : undefined}>{hoursText}</span>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+                <div className={styles.mapBlock}>
+                  {hasCoords ? (
+                    <LocationMap
+                      markers={[
+                        {
+                          id: activeBranch!.id,
+                          lat: activeBranch!.latitude as number,
+                          lng: activeBranch!.longitude as number,
+                          label: activeBranch!.name,
+                        },
+                      ]}
+                      height={260}
+                      zoom={15}
+                    />
+                  ) : (
+                    <div className={styles.mapFallback}>
+                      <i className="fa-solid fa-map-location-dot" />
+                      <span>{activeBranch?.address || 'Address unavailable'}</span>
+                    </div>
+                  )}
+                </div>
+                <div className={styles.contactStrip}>
+                  {activeBranch?.address && (
+                    <span className={styles.contactChip}>
+                      <i className="fa-solid fa-location-dot" /> {activeBranch.address}
+                    </span>
+                  )}
+                  {activeBranch?.phoneNumber && (
+                    <span className={styles.contactChip}>
+                      <i className="fa-solid fa-phone" /> {activeBranch.phoneNumber}
+                    </span>
+                  )}
+                  <a
+                    className={styles.directionsLink}
+                    href={
+                      hasCoords
+                        ? `https://www.openstreetmap.org/?mlat=${activeBranch!.latitude}&mlon=${activeBranch!.longitude}#map=16/${activeBranch!.latitude}/${activeBranch!.longitude}`
+                        : `https://www.openstreetmap.org/search?query=${mapQuery}`
+                    }
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <i className="fa-solid fa-diamond-turn-up" /> Directions
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
       </div>
+
+      {canBook && (
+        <div className={styles.mobileDock}>
+          <div className={styles.mobileDockInner}>
+            <div className={styles.mobileDockMeta}>
+              <strong>{business.name}</strong>
+              <span>{services.length} service{services.length === 1 ? '' : 's'} available</span>
+            </div>
+            <Link href={bookStartHref} className={styles.mobileDockBtn}>
+              Book appointment
+            </Link>
+          </div>
+        </div>
+      )}
 
       <Modal
         open={showPurchaseModal && !!selectedPackage}
@@ -586,7 +905,7 @@ export default function BusinessProfilePage() {
           <div>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', margin: 0, lineHeight: 1.5 }}>
               Choose payment for <strong>{selectedPackage.name}</strong> ({selectedPackage.sessionsCount} sessions) —{' '}
-              <strong>${selectedPackage.price.toFixed(2)}</strong>.
+              <strong>{money(selectedPackage.price, selectedPackage.currency)}</strong>.
             </p>
             <div className={styles.purchaseChoices}>
               <button type="button" className="btn btn-primary" onClick={() => handlePurchaseSubmit('ONLINE')} disabled={purchaseLoading}>

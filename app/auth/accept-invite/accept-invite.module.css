@@ -1,31 +1,59 @@
-.page {
-  min-height: 70vh;
+.inviteBanner {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 18px;
+  margin-bottom: 20px;
+  border-radius: 16px;
+  background: var(--tint-teal);
+  border: 1px solid rgba(26, 138, 138, 0.14);
 }
 
-.card {
-  width: 100%;
-  max-width: 480px;
-  padding: 28px;
+.inviteBannerIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(26, 138, 138, 0.12);
+  color: var(--accent-primary);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
 }
 
-.card h1 {
-  margin: 0 0 12px;
-  font-size: 1.4rem;
-}
-
-.meta {
-  color: var(--text-secondary);
+.inviteBannerTitle {
   font-size: 0.92rem;
-  line-height: 1.45;
+  font-weight: 800;
+  color: var(--text-main);
+  margin: 0 0 4px;
 }
 
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 12px;
+.inviteBannerMeta {
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.inviteEmail {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  width: 100%;
+}
+
+.inviteEmail i {
+  color: var(--accent-primary);
+}
+
+.loadingState {
+  text-align: center;
+  padding: 24px 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
 }

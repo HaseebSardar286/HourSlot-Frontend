@@ -1,0 +1,105 @@
+.timePickerContainer {
+  position: relative;
+  width: 100%;
+}
+
+.timeTrigger {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--bg-secondary);
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  text-align: left;
+}
+
+.timeTrigger:hover:not(:disabled) {
+  border-color: rgba(26, 138, 138, 0.35);
+}
+
+.timeTrigger:disabled {
+  background: #f1f5f9;
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: var(--border-color);
+}
+
+.triggerLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.clockIcon {
+  color: var(--text-muted);
+}
+
+.chevron {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.dropdownMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 300;
+  width: 100%;
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--glass-shadow);
+  scrollbar-width: thin;
+}
+
+.dropdownMenu::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dropdownMenu::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+.optionsList {
+  list-style: none;
+  padding: 4px 0;
+  margin: 0;
+}
+
+.optionItem {
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text-secondary);
+  transition: var(--transition-fast);
+}
+
+.optionItem:hover {
+  background: rgba(15, 118, 118, 0.05);
+  color: var(--accent-primary);
+}
+
+.selectedItem {
+  background: rgba(15, 118, 118, 0.08);
+  color: var(--accent-primary);
+  font-weight: 700;
+}
+
+.checkIcon {
+  color: var(--accent-primary);
+}

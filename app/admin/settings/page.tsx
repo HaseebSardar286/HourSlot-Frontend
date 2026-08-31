@@ -2,13 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '@/lib/api';
+import { fetchCurrencies, type CurrencyView } from '@/lib/geo';
 import PageHeader from '@/components/PageHeader';
 import Skeleton from '@/components/Skeleton';
+import CustomSelect from '@/components/CustomSelect';
 import styles from './settings.module.css';
 
 interface SystemConfig {
   defaultCommissionRate: number;
   supportedCurrencies: string;
+  defaultCurrency?: string;
   registrationOpen: boolean;
 }
 
@@ -20,18 +23,30 @@ export default function AdminSettingsPage() {
   const [success, setSuccess] = useState<string | null>(null);
 
   const [defaultCommissionRate, setDefaultCommissionRate] = useState(10);
-  const [supportedCurrencies, setSupportedCurrencies] = useState('USD,PKR,AED');
+  const [supportedList, setSupportedList] = useState<string[]>(['USD', 'PKR', 'AED', 'EUR', 'GBP']);
+  const [defaultCurrency, setDefaultCurrency] = useState('USD');
   const [registrationOpen, setRegistrationOpen] = useState(true);
+  const [catalog, setCatalog] = useState<CurrencyView[]>([]);
+  const [addCode, setAddCode] = useState('');
 
   const loadSettings = async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiFetch<SystemConfig>('/api/admin/settings');
+      const [data, currencies] = await Promise.all([
+        apiFetch<SystemConfig>('/api/admin/settings'),
+        fetchCurrencies(false),
+      ]);
       setSettings(data);
       setDefaultCommissionRate(data.defaultCommissionRate);
-      setSupportedCurrencies(data.supportedCurrencies);
+      const parsed = (data.supportedCurrencies || 'USD,PKR,AED,EUR,GBP')
+        .split(',')
+        .map((c) => c.trim().toUpperCase())
+        .filter(Boolean);
+      setSupportedList(parsed.length ? parsed : ['USD']);
+      setDefaultCurrency(data.defaultCurrency || parsed[0] || 'USD');
       setRegistrationOpen(data.registrationOpen);
+      setCatalog(currencies);
     } catch (err: any) {
       setError(err.message || 'Failed to retrieve system settings.');
     } finally {
@@ -51,7 +66,8 @@ export default function AdminSettingsPage() {
     try {
       const payload: SystemConfig = {
         defaultCommissionRate,
-        supportedCurrencies,
+        supportedCurrencies: supportedList.join(','),
+        defaultCurrency,
         registrationOpen,
       };
       const updated = await apiFetch<SystemConfig>('/api/admin/settings', {
@@ -67,6 +83,13 @@ export default function AdminSettingsPage() {
     }
   };
 
+  const addCurrency = (code: string) => {
+    const next = code.trim().toUpperCase();
+    if (!next || supportedList.includes(next)) return;
+    setSupportedList((prev) => [...prev, next]);
+    setAddCode('');
+  };
+
   if (loading && !settings) {
     return (
       <div className={styles.settingsWrapper}>
@@ -75,6 +98,13 @@ export default function AdminSettingsPage() {
       </div>
     );
   }
+
+  const catalogOptions = catalog
+    .filter((c) => !supportedList.includes(c.code))
+    .map((c) => ({
+      value: c.code,
+      label: `${c.code}${c.symbol ? ` (${c.symbol})` : ''} — ${c.name}`,
+    }));
 
   return (
     <div className={styles.settingsWrapper}>
@@ -96,8 +126,8 @@ export default function AdminSettingsPage() {
       <form onSubmit={handleSaveSettings} className={`surface ${styles.settingsCard}`}>
         <div className="form-group">
           <label className="form-label" htmlFor="commission">
-            Default commission cut (%)
-          </label>
+              Default commission cut (%)
+            </label>
           <p className={styles.hint}>Applied to new business registrations by default.</p>
           <input
             id="commission"
@@ -113,17 +143,48 @@ export default function AdminSettingsPage() {
         </div>
 
         <div className="form-group">
-          <label className="form-label" htmlFor="currencies">
-            Supported currencies
-          </label>
-          <p className={styles.hint}>Comma-separated list (e.g. USD,PKR,AED,EUR).</p>
-          <input
-            id="currencies"
-            type="text"
-            className="input-field"
-            value={supportedCurrencies}
-            onChange={(e) => setSupportedCurrencies(e.target.value)}
-            required
+          <label className="form-label">
+              Supported currencies
+            </label>
+          <p className={styles.hint}>
+            Businesses pick their operating currency from this list (sourced from REST Countries).
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+            {supportedList.map((code) => (
+              <button
+                key={code}
+                type="button"
+                className="btn btn-sm btn-outline"
+                onClick={() => {
+                  const next = supportedList.filter((c) => c !== code);
+                  setSupportedList(next.length ? next : supportedList);
+                  if (defaultCurrency === code && next[0]) setDefaultCurrency(next[0]);
+                }}
+              >
+                {code} <i className="fa-solid fa-xmark" style={{ marginLeft: 6 }} />
+              </button>
+            ))}
+          </div>
+          <CustomSelect
+            options={catalogOptions}
+            value={addCode}
+            onChange={(val) => {
+              setAddCode(val);
+              addCurrency(val);
+            }}
+            placeholder="Add a currency from the world catalog"
+          />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">
+              Default currency for new organizations
+            </label>
+          <CustomSelect
+            options={supportedList.map((code) => ({ value: code, label: code }))}
+            value={defaultCurrency}
+            onChange={setDefaultCurrency}
+            placeholder="Select default"
           />
         </div>
 

@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import { apiFetch } from '@/lib/api';
 import FormField from '@/components/FormField';
 import Skeleton from '@/components/Skeleton';
+import GeoFields, { type GeoSelection } from '@/components/GeoFields';
 import styles from './register-business.module.css';
 
 const LocationPicker = dynamic(
@@ -30,6 +31,11 @@ export default function RegisterBusinessPage() {
     address: '',
     latitude: 31.5204,
     longitude: 74.3587,
+    countryCode: 'PK',
+    region: 'Punjab',
+    city: 'Lahore',
+    defaultCurrency: 'PKR',
+    timezone: 'Asia/Karachi',
   });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -95,6 +101,12 @@ export default function RegisterBusinessPage() {
           address: formData.address.trim(),
           latitude: formData.latitude,
           longitude: formData.longitude,
+          countryCode: formData.countryCode,
+          region: formData.region,
+          city: formData.city,
+          postalCode: null,
+          defaultCurrency: formData.defaultCurrency,
+          timezone: formData.timezone,
         }),
       });
       setSuccessMessage(res.message || 'Business application submitted.');
@@ -165,8 +177,8 @@ export default function RegisterBusinessPage() {
             <>
               <div className="form-group">
                 <label className="form-label" htmlFor="category">
-                  Primary category
-                </label>
+              Primary category
+            </label>
                 <select
                   id="category"
                   className="select-field"
@@ -204,6 +216,34 @@ export default function RegisterBusinessPage() {
                 value={formData.branchName}
                 onChange={(e) => handleInputChange('branchName', e.target.value)}
               />
+              <GeoFields
+                value={{
+                  countryCode: formData.countryCode,
+                  region: formData.region,
+                  city: formData.city,
+                  currency: formData.defaultCurrency,
+                  timezone: formData.timezone,
+                }}
+                onChange={(geo: GeoSelection) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    countryCode: geo.countryCode,
+                    region: geo.region,
+                    city: geo.city,
+                    defaultCurrency: geo.currency || prev.defaultCurrency,
+                    timezone: geo.timezone || prev.timezone,
+                  }))
+                }
+                geocodeOnCity
+                onGeocoded={({ lat, lon, displayName }) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    latitude: lat,
+                    longitude: lon,
+                    address: prev.address || displayName,
+                  }))
+                }
+              />
               <LocationPicker
                 address={formData.address}
                 latitude={formData.latitude}
@@ -226,6 +266,11 @@ export default function RegisterBusinessPage() {
               <p>{formData.description}</p>
               <p>Category ID: {formData.primaryCategoryId || '—'}</p>
               <p>Location: {formData.address}</p>
+              <p>
+                {formData.city ? `${formData.city}, ` : ''}
+                {formData.region ? `${formData.region}, ` : ''}
+                {formData.countryCode} · {formData.defaultCurrency}
+              </p>
               <p className={styles.hint}>
                 After submit, upload trade license, bank statement, and owner ID so Super Admin can grant a verified
                 badge.

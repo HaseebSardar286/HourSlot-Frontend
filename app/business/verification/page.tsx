@@ -5,6 +5,7 @@ import { apiFetch } from '@/lib/api';
 import PageHeader from '@/components/PageHeader';
 import Skeleton from '@/components/Skeleton';
 import StatusBadge from '@/components/StatusBadge';
+import UploadZone from '@/components/UploadZone';
 import styles from './verification.module.css';
 
 type DocType = { code: string; label: string };
@@ -161,15 +162,16 @@ export default function VerificationPage() {
               ))}
             </select>
           </div>
-          <div className="form-group">
+          <div className="form-group" style={{ marginBottom: '18px' }}>
             <label className="form-label" htmlFor="docFile">
               File (PDF, Word, or image, max 15MB)
             </label>
-            <input
+            <UploadZone
               id="docFile"
-              type="file"
               accept=".pdf,.doc,.docx,image/*"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              selectedFile={file}
+              onFileChange={setFile}
+              maxSizeMB={15}
             />
           </div>
           <button type="submit" className="btn btn-primary" disabled={uploading}>

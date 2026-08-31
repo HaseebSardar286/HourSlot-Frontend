@@ -1,22 +1,28 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { loginHref, registerHref } from '@/lib/auth-redirect';
 
 /**
  * Header navigation — client component that renders auth-aware buttons.
- * Matches the light teal/green HourSlot theme.
  */
 export default function HeaderNav() {
   const { user, isAuthenticated, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const returnUrl =
+    typeof window !== 'undefined'
+      ? `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
+      : pathname;
 
   const handleLogout = () => {
-    // Clear the middleware cookie too
     document.cookie = 'hourslot_user_session=; path=/; max-age=0';
     logout();
-    router.push('/');
+    router.push('/profile/explore');
   };
 
   if (isAuthenticated && user) {
@@ -24,31 +30,25 @@ export default function HeaderNav() {
 
     return (
       <div className="auth-area">
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-        }}>
-          <div style={{
-            width: '34px',
-            height: '34px',
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #1a8a8a, #5bb88c)',
-            color: '#fff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontFamily: 'var(--font-headers)',
-            fontSize: '0.78rem',
-            fontWeight: 700,
-          }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div
+            style={{
+              width: '34px',
+              height: '34px',
+              borderRadius: '50%',
+              background: 'var(--accent-primary)',
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontFamily: 'var(--font-headers)',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+            }}
+          >
             {initials}
           </div>
-          <span style={{
-            color: 'var(--text-secondary)',
-            fontSize: '0.88rem',
-            fontWeight: 600,
-          }}>
+          <span style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', fontWeight: 600 }}>
             {user.firstName}
           </span>
         </div>
@@ -70,12 +70,15 @@ export default function HeaderNav() {
     );
   }
 
+  const loginUrl = loginHref(returnUrl);
+  const registerUrl = registerHref(returnUrl, 'customer');
+
   return (
     <div className="auth-area">
-      <Link href="/auth/login" className="btn btn-secondary">
+      <Link href={loginUrl} className="btn btn-secondary">
         Sign In
       </Link>
-      <Link href="/auth/register" className="btn btn-primary">
+      <Link href={registerUrl} className="btn btn-primary">
         Get Started
       </Link>
     </div>

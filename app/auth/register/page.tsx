@@ -6,7 +6,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { apiFetch } from '@/lib/api';
 import type { Category } from '@/lib/types';
+import { safeReturnUrl } from '@/lib/auth-redirect';
 import Stepper from '@/components/Stepper';
+import shared from '../auth-shared.module.css';
 import styles from './register.module.css';
 
 const FALLBACK_CATEGORY_ICONS: Record<string, string> = {
@@ -42,13 +44,26 @@ function roleFromQuery(raw: string | null): 'CUSTOMER' | 'BUSINESS_OWNER' {
 }
 
 function RegisterForm() {
-  const { register } = useAuth();
+  const { register, login } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get('returnUrl');
-  const loginHref = returnUrl
+  const isBookingReturn = Boolean(returnUrl?.includes('/profile/book/'));
+  const loginHrefPath = returnUrl
     ? `/auth/login?returnUrl=${encodeURIComponent(returnUrl)}`
     : '/auth/login';
+
+  const getDashboardRoute = (role: string): string => {
+    switch (role) {
+      case 'SUPER_ADMIN':
+        return '/admin/dashboard';
+      case 'BUSINESS_OWNER':
+      case 'BUSINESS_STAFF':
+        return '/business/dashboard';
+      default:
+        return '/profile/explore';
+    }
+  };
 
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -206,9 +221,10 @@ function RegisterForm() {
 
     try {
       await register(payload);
-      setLoading(false);
-      setSuccess(true);
-      setTimeout(() => router.push(loginHref), 3000);
+      const session = await login({ email: formData.email, password: formData.password });
+      document.cookie = `hourslot_user_session=${encodeURIComponent(JSON.stringify(session))}; path=/; max-age=86400`;
+      const dest = safeReturnUrl(returnUrl, getDashboardRoute(session.role));
+      router.push(dest);
     } catch (err: unknown) {
       const e = err as { error?: { message?: string } };
       setLoading(false);
@@ -231,37 +247,45 @@ function RegisterForm() {
 
   if (success) {
     return (
-      <div className={`surface ${styles.authCard}`}>
-        <div className={styles.successState}>
-          <span className={styles.successIcon}>
+      <div className={shared.authCard}>
+        <div className={shared.successState}>
+          <div className={shared.successIcon}>
             <i className="fa-solid fa-circle-check" />
-          </span>
-          <h2 className={styles.successTitle}>Account created</h2>
-          <p className={styles.successMessage}>
-            {isBusiness
-              ? 'Your business registration is pending verification. You’ll be notified once approved.'
-              : 'Your account has been created. Redirecting to login…'}
-          </p>
-          <Link href={loginHref} className="btn btn-primary btn-block">
-            Go to login
-          </Link>
+          </div>
+          <h2 className={shared.successTitle}>Account created</h2>
+          <p className={shared.successMessage}>Redirecting you now…</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`surface ${styles.authCard}`}>
-      <div className={styles.authHeader}>
-        <h2 className={styles.authTitle}>Create account</h2>
-        <p className={styles.authSubtitle}>Join HourSlot to book or list services</p>
+    <div className={shared.authCard}>
+      {isBookingReturn && (
+        <div className={shared.contextBanner}>
+          <i className="fa-solid fa-circle-info" />
+          <div>
+            <strong>Complete your booking</strong>
+            Create an account to confirm your appointment. Your selections are saved.
+          </div>
+        </div>
+      )}
+      <div className={shared.authHeader}>
+        <div className={shared.authHeaderIcon}>
+          <i className="fa-solid fa-user-plus" />
+        </div>
+        <h2 className={shared.authTitle}>Create account</h2>
+        <p className={shared.authSubtitle}>Join HourSlot to book services or list your business</p>
       </div>
 
-      <Stepper steps={stepperSteps} current={step - 1} />
+      <div className={styles.stepperWrap}>
+        <Stepper steps={stepperSteps} current={step - 1} />
+      </div>
 
       {errorMessage && (
-        <div className="error-alert">
-          <i className="fa-solid fa-triangle-exclamation" /> {errorMessage}
+        <div className={shared.alertError}>
+          <i className="fa-solid fa-triangle-exclamation" />
+          <span>{errorMessage}</span>
         </div>
       )}
 
@@ -305,7 +329,7 @@ function RegisterForm() {
           <div className={styles.buttonRow}>
             <button
               type="button"
-              className="btn btn-primary btn-block"
+              className={shared.submitBtn}
               onClick={handleNext}
               disabled={!canProceedStep1}
             >
@@ -318,82 +342,72 @@ function RegisterForm() {
       {step === 2 && (
         <div className={styles.stepContent}>
           <p className={styles.stepTitle}>Personal information</p>
-          <div className={styles.authForm}>
-            <div className="form-row">
-              <div className="form-group half-width">
-                <label htmlFor="reg-firstName" className="form-label">
-                  First name
-                </label>
+          <div className={shared.authForm}>
+            <div className={shared.row2}>
+              <div className={shared.fieldGroup}>
+                <label htmlFor="reg-firstName">First name</label>
                 <input
                   id="reg-firstName"
                   type="text"
-                  className={`input-field${errors.firstName ? ' input-error' : ''}`}
+                  className={`${shared.fieldInput}${errors.firstName ? ` ${shared.fieldInputError}` : ''}`}
                   placeholder="John"
                   value={formData.firstName}
                   onChange={(e) => handleChange('firstName', e.target.value)}
                   onBlur={() => handleBlur('firstName')}
                 />
-                {errors.firstName && <span className="validation-error">{errors.firstName}</span>}
+                {errors.firstName && <span className={shared.fieldError}>{errors.firstName}</span>}
               </div>
-              <div className="form-group half-width">
-                <label htmlFor="reg-lastName" className="form-label">
-                  Last name
-                </label>
+              <div className={shared.fieldGroup}>
+                <label htmlFor="reg-lastName">Last name</label>
                 <input
                   id="reg-lastName"
                   type="text"
-                  className={`input-field${errors.lastName ? ' input-error' : ''}`}
+                  className={`${shared.fieldInput}${errors.lastName ? ` ${shared.fieldInputError}` : ''}`}
                   placeholder="Doe"
                   value={formData.lastName}
                   onChange={(e) => handleChange('lastName', e.target.value)}
                   onBlur={() => handleBlur('lastName')}
                 />
-                {errors.lastName && <span className="validation-error">{errors.lastName}</span>}
+                {errors.lastName && <span className={shared.fieldError}>{errors.lastName}</span>}
               </div>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="reg-email" className="form-label">
-                Email address
-              </label>
+            <div className={shared.fieldGroup}>
+              <label htmlFor="reg-email">Email address</label>
               <input
                 id="reg-email"
                 type="email"
-                className={`input-field${errors.email ? ' input-error' : ''}`}
+                className={`${shared.fieldInput}${errors.email ? ` ${shared.fieldInputError}` : ''}`}
                 placeholder="john@company.com"
                 value={formData.email}
                 onChange={(e) => handleChange('email', e.target.value)}
                 onBlur={() => handleBlur('email')}
                 autoComplete="email"
               />
-              {errors.email && <span className="validation-error">{errors.email}</span>}
+              {errors.email && <span className={shared.fieldError}>{errors.email}</span>}
             </div>
 
-            <div className="form-group">
-              <label htmlFor="reg-phone" className="form-label">
-                Phone number
-              </label>
+            <div className={shared.fieldGroup}>
+              <label htmlFor="reg-phone">Phone number</label>
               <input
                 id="reg-phone"
                 type="text"
-                className={`input-field${errors.phoneNumber ? ' input-error' : ''}`}
+                className={`${shared.fieldInput}${errors.phoneNumber ? ` ${shared.fieldInputError}` : ''}`}
                 placeholder="+92 300 1234567"
                 value={formData.phoneNumber}
                 onChange={(e) => handleChange('phoneNumber', e.target.value)}
                 onBlur={() => handleBlur('phoneNumber')}
               />
-              {errors.phoneNumber && <span className="validation-error">{errors.phoneNumber}</span>}
+              {errors.phoneNumber && <span className={shared.fieldError}>{errors.phoneNumber}</span>}
             </div>
 
-            <div className="form-group">
-              <label htmlFor="reg-password" className="form-label">
-                Password
-              </label>
-              <div className={styles.passwordWrapper}>
+            <div className={shared.fieldGroup}>
+              <label htmlFor="reg-password">Password</label>
+              <div className={shared.passwordWrap}>
                 <input
                   id="reg-password"
                   type={showPassword ? 'text' : 'password'}
-                  className={`input-field${errors.password ? ' input-error' : ''}`}
+                  className={`${shared.fieldInput}${errors.password ? ` ${shared.fieldInputError}` : ''}`}
                   placeholder="Min 6 characters"
                   value={formData.password}
                   onChange={(e) => handleChange('password', e.target.value)}
@@ -402,7 +416,7 @@ function RegisterForm() {
                 />
                 <button
                   type="button"
-                  className={styles.passwordToggle}
+                  className={shared.passwordToggle}
                   onClick={() => setShowPassword(!showPassword)}
                   tabIndex={-1}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
@@ -423,31 +437,29 @@ function RegisterForm() {
                   <span className={styles.strengthText}>{passwordStrength.text}</span>
                 </>
               )}
-              {errors.password && <span className="validation-error">{errors.password}</span>}
+              {errors.password && <span className={shared.fieldError}>{errors.password}</span>}
             </div>
 
-            <div className="form-group">
-              <label htmlFor="reg-confirmPassword" className="form-label">
-                Confirm password
-              </label>
+            <div className={shared.fieldGroup}>
+              <label htmlFor="reg-confirmPassword">Confirm password</label>
               <input
                 id="reg-confirmPassword"
                 type="password"
-                className={`input-field${errors.confirmPassword ? ' input-error' : ''}`}
+                className={`${shared.fieldInput}${errors.confirmPassword ? ` ${shared.fieldInputError}` : ''}`}
                 placeholder="Repeat your password"
                 value={formData.confirmPassword}
                 onChange={(e) => handleChange('confirmPassword', e.target.value)}
                 onBlur={() => handleBlur('confirmPassword')}
                 autoComplete="new-password"
               />
-              {errors.confirmPassword && <span className="validation-error">{errors.confirmPassword}</span>}
+              {errors.confirmPassword && <span className={shared.fieldError}>{errors.confirmPassword}</span>}
             </div>
 
             <div className={styles.buttonRow}>
-              <button type="button" className="btn btn-outline" onClick={handleBack}>
+              <button type="button" className={shared.secondaryBtn} onClick={handleBack}>
                 Back
               </button>
-              <button type="button" className="btn btn-primary" onClick={handleNext} disabled={loading}>
+              <button type="button" className={shared.submitBtn} onClick={handleNext} disabled={loading}>
                 {isBusiness ? (
                   'Continue'
                 ) : loading ? (
@@ -466,25 +478,23 @@ function RegisterForm() {
       {step === 3 && isBusiness && (
         <div className={styles.stepContent}>
           <p className={styles.stepTitle}>Business details</p>
-          <div className={styles.authForm}>
-            <div className="form-group">
-              <label htmlFor="reg-bizName" className="form-label">
-                Business name
-              </label>
+          <div className={shared.authForm}>
+            <div className={shared.fieldGroup}>
+              <label htmlFor="reg-bizName">Business name</label>
               <input
                 id="reg-bizName"
                 type="text"
-                className={`input-field${errors.businessName ? ' input-error' : ''}`}
+                className={`${shared.fieldInput}${errors.businessName ? ` ${shared.fieldInputError}` : ''}`}
                 placeholder="e.g., Elite Salon & Spa"
                 value={formData.businessName}
                 onChange={(e) => handleChange('businessName', e.target.value)}
                 onBlur={() => handleBlur('businessName')}
               />
-              {errors.businessName && <span className="validation-error">{errors.businessName}</span>}
+              {errors.businessName && <span className={shared.fieldError}>{errors.businessName}</span>}
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Business category</label>
+            <div className={shared.fieldGroup}>
+              <label>Business category</label>
               <div className={styles.categoryGrid}>
                 {categories.map((cat) => (
                   <button
@@ -502,26 +512,23 @@ function RegisterForm() {
               </div>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="reg-bizDesc" className="form-label">
-                Description (optional)
-              </label>
+            <div className={shared.fieldGroup}>
+              <label htmlFor="reg-bizDesc">Description (optional)</label>
               <textarea
                 id="reg-bizDesc"
-                className="input-field"
+                className={`${shared.fieldInput} ${styles.textarea}`}
                 placeholder="Tell customers about your business…"
                 value={formData.businessDescription}
                 onChange={(e) => handleChange('businessDescription', e.target.value)}
                 rows={3}
-                style={{ resize: 'vertical', minHeight: 80 }}
               />
             </div>
 
             <div className={styles.buttonRow}>
-              <button type="button" className="btn btn-outline" onClick={handleBack}>
+              <button type="button" className={shared.secondaryBtn} onClick={handleBack}>
                 Back
               </button>
-              <button type="button" className="btn btn-primary" onClick={() => handleSubmit()} disabled={loading}>
+              <button type="button" className={shared.submitBtn} onClick={() => handleSubmit()} disabled={loading}>
                 {loading ? (
                   <>
                     <span className="spinner" /> Registering…
@@ -535,9 +542,9 @@ function RegisterForm() {
         </div>
       )}
 
-      <div className={styles.authFooter}>
+      <div className={shared.authFooter}>
         <p>
-          Already have an account? <Link href={loginHref}>Sign in</Link>
+          Already have an account? <Link href={loginHrefPath}>Sign in</Link>
         </p>
       </div>
     </div>
@@ -548,7 +555,7 @@ export default function RegisterPage() {
   return (
     <Suspense
       fallback={
-        <div className="surface" style={{ padding: 24, textAlign: 'center' }}>
+        <div className={shared.authCard} style={{ textAlign: 'center', padding: 40 }}>
           Loading…
         </div>
       }

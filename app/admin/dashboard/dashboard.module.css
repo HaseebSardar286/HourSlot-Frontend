@@ -89,8 +89,8 @@
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  text-transform: none;
+  letter-spacing: 0;
   margin-top: 4px;
 }
 
@@ -316,7 +316,7 @@
   text-align: left;
   padding: 10px 12px;
   font-size: 0.72rem;
-  text-transform: uppercase;
+  text-transform: none;
   font-weight: 700;
   color: var(--text-muted);
   border-bottom: 1.5px solid var(--border-color);

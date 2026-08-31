@@ -2,8 +2,10 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/api';
+import { useOrgLocale } from '@/lib/org-locale-context';
 import PageHeader from '@/components/PageHeader';
 import Skeleton from '@/components/Skeleton';
+import GeoFields, { type GeoSelection } from '@/components/GeoFields';
 import styles from './organization.module.css';
 
 type Org = {
@@ -14,36 +16,43 @@ type Org = {
   status: string;
   defaultCurrency: string;
   countryCode?: string;
+  region?: string;
+  city?: string;
   timezone?: string;
 };
 
 export default function OrganizationPage() {
+  const { refresh } = useOrgLocale();
   const [org, setOrg] = useState<Org | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    name: '',
-    billingEmail: '',
-    defaultCurrency: 'USD',
+  const [name, setName] = useState('');
+  const [billingEmail, setBillingEmail] = useState('');
+  const [geo, setGeo] = useState<GeoSelection>({
     countryCode: '',
-    timezone: '',
+    region: '',
+    city: '',
+    currency: 'USD',
+    timezone: 'UTC',
   });
 
   useEffect(() => {
     apiFetch<Org>('/api/business/organization')
       .then((data) => {
         setOrg(data);
-        setForm({
-          name: data.name || '',
-          billingEmail: data.billingEmail || '',
-          defaultCurrency: data.defaultCurrency || 'USD',
+        setName(data.name || '');
+        setBillingEmail(data.billingEmail || '');
+        setGeo({
           countryCode: data.countryCode || '',
-          timezone: data.timezone || '',
+          region: data.region || '',
+          city: data.city || '',
+          currency: data.defaultCurrency || 'USD',
+          timezone: data.timezone || 'UTC',
         });
       })
-      .catch((err: { message?: string }) => setError(err?.message || 'Could not load organization.'))
+      .catch((err: { message?: string }) => setError(err?.message || 'Could not load organization settings.'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -55,10 +64,26 @@ export default function OrganizationPage() {
     try {
       const updated = await apiFetch<Org>('/api/business/organization', {
         method: 'PUT',
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          name,
+          billingEmail,
+          defaultCurrency: geo.currency,
+          countryCode: geo.countryCode,
+          region: geo.region,
+          city: geo.city,
+          timezone: geo.timezone,
+        }),
       });
       setOrg(updated);
-      setMessage('Organization profile saved.');
+      setGeo({
+        countryCode: updated.countryCode || '',
+        region: updated.region || '',
+        city: updated.city || '',
+        currency: updated.defaultCurrency || 'USD',
+        timezone: updated.timezone || 'UTC',
+      });
+      await refresh();
+      setMessage('Organization settings saved. Catalog prices now use this currency.');
     } catch (err: unknown) {
       const e2 = err as { message?: string };
       setError(e2?.message || 'Save failed.');
@@ -79,9 +104,10 @@ export default function OrganizationPage() {
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Organization"
-        subtitle="Billing and tenant settings for your HourSlot account. SaaS plans attach to this organization."
+        title="Organization Settings"
+        subtitle="Set the country, region, city, and operating currency used across bookings, services, and customer checkout."
       />
+
       {message && (
         <div className="success-alert">
           <i className="fa-solid fa-circle-check" /> {message}
@@ -92,76 +118,104 @@ export default function OrganizationPage() {
           <i className="fa-solid fa-triangle-exclamation" /> {error}
         </div>
       )}
-      <form className={`surface ${styles.form}`} onSubmit={onSubmit}>
-        <div className={styles.meta}>
-          <span>Slug: {org?.slug}</span>
-          <span>Status: {org?.status}</span>
+
+      <div className={styles.organizationGrid}>
+        <div className={`surface ${styles.overviewCard}`}>
+          <div className={styles.overviewHeader}>
+            <div className={styles.orgIcon}>
+              <i className="fa-solid fa-building" />
+            </div>
+            <div>
+              <h3>{org?.name || 'My Organization'}</h3>
+              <span className={styles.orgStatus}>
+                <i className="fa-solid fa-shield-halved" /> Status: {org?.status || 'Active'}
+              </span>
+            </div>
+          </div>
+
+          <div className={styles.infoList}>
+            <div className={styles.infoRow}>
+              <span>Organization Slug</span>
+              <strong className={styles.slugBadge}>{org?.slug || '—'}</strong>
+            </div>
+            <div className={styles.infoRow}>
+              <span>Billing Address</span>
+              <strong>{org?.billingEmail || 'Not configured'}</strong>
+            </div>
+            <div className={styles.infoRow}>
+              <span>Country</span>
+              <strong>{geo.countryCode || '—'}</strong>
+            </div>
+            {geo.region && (
+              <div className={styles.infoRow}>
+                <span>State / Region</span>
+                <strong>{geo.region}</strong>
+              </div>
+            )}
+            {geo.city && (
+              <div className={styles.infoRow}>
+                <span>City</span>
+                <strong>{geo.city}</strong>
+              </div>
+            )}
+            <div className={styles.infoRow}>
+              <span>Currency</span>
+              <strong>{geo.currency}</strong>
+            </div>
+            <div className={styles.infoRow}>
+              <span>Timezone</span>
+              <strong style={{ fontSize: '0.8rem' }}>{geo.timezone}</strong>
+            </div>
+          </div>
+
+          <div className={styles.noteBox}>
+            <h5>Tenant ID Code</h5>
+            <code>ORG-00{org?.id || '00'}-HOURLY</code>
+            <p>
+              Changing currency updates services and packages immediately. Existing bookings keep the currency they
+              were booked in.
+            </p>
+          </div>
         </div>
-        <div className="form-group">
-          <label className="form-label" htmlFor="orgName">
-            Organization name
-          </label>
-          <input
-            id="orgName"
-            className="input-field"
-            value={form.name}
-            onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-            required
-          />
-        </div>
-        <div className="form-group">
-          <label className="form-label" htmlFor="billingEmail">
-            Billing email
-          </label>
-          <input
-            id="billingEmail"
-            type="email"
-            className="input-field"
-            value={form.billingEmail}
-            onChange={(e) => setForm((p) => ({ ...p, billingEmail: e.target.value }))}
-          />
-        </div>
-        <div className={styles.row}>
+
+        <form className={`surface ${styles.formCard}`} onSubmit={onSubmit}>
+          <h4 className={styles.formTitle}>Configure Organization Details</h4>
+
           <div className="form-group">
-            <label className="form-label" htmlFor="currency">
-              Default currency
+            <label className="form-label" htmlFor="orgName">
+              Organization name
             </label>
             <input
-              id="currency"
+              id="orgName"
               className="input-field"
-              value={form.defaultCurrency}
-              onChange={(e) => setForm((p) => ({ ...p, defaultCurrency: e.target.value.toUpperCase() }))}
-              maxLength={3}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
             />
+            <p className={styles.inputHelper}>Your primary company or brand listing title.</p>
           </div>
+
           <div className="form-group">
-            <label className="form-label" htmlFor="country">
-              Country code
+            <label className="form-label" htmlFor="billingEmail">
+              Billing contact email
             </label>
             <input
-              id="country"
+              id="billingEmail"
+              type="email"
               className="input-field"
-              value={form.countryCode}
-              onChange={(e) => setForm((p) => ({ ...p, countryCode: e.target.value.toUpperCase() }))}
-              maxLength={2}
+              value={billingEmail}
+              onChange={(e) => setBillingEmail(e.target.value)}
             />
+            <p className={styles.inputHelper}>Payment invoices and subscription alerts go here.</p>
           </div>
-        </div>
-        <div className="form-group">
-          <label className="form-label" htmlFor="timezone">
-            Timezone
-          </label>
-          <input
-            id="timezone"
-            className="input-field"
-            value={form.timezone}
-            onChange={(e) => setForm((p) => ({ ...p, timezone: e.target.value }))}
-          />
-        </div>
-        <button type="submit" className="btn btn-primary" disabled={saving}>
-          {saving ? 'Saving…' : 'Save organization'}
-        </button>
-      </form>
+
+          <GeoFields value={geo} onChange={setGeo} />
+
+          <button type="submit" className="btn btn-primary" disabled={saving} style={{ marginTop: '8px' }}>
+            <i className="fa-solid fa-circle-check" /> {saving ? 'Saving changes…' : 'Save Organization'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

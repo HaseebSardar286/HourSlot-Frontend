@@ -34,7 +34,7 @@ export default function Modal({ open, title, onClose, children, footer, wide }: 
     >
       <div
         className={styles.modalPanel}
-        style={wide ? { maxWidth: 720 } : undefined}
+        style={wide ? { maxWidth: 960 } : undefined}
         onClick={(e) => e.stopPropagation()}
       >
         <div className={styles.modalHeader}>

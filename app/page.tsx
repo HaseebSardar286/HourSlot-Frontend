@@ -6,33 +6,116 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import styles from './landing.module.css';
 
-const POPULAR = ['Hair Salons', 'Dental Clinics', 'Yoga Studios'];
+const POPULAR = ['Hair Salons', 'Dental Clinics', 'Yoga Studios', 'Spa & Wellness'];
+
+const STATS = [
+  { value: '12K+', label: 'Businesses listed', color: 'teal' },
+  { value: '480K', label: 'Bookings completed', color: 'indigo' },
+  { value: '98%', label: 'Customer satisfaction', color: 'coral' },
+  { value: '24/7', label: 'Live availability', color: 'violet' },
+];
+
+const PARTNERS = ['Stripe', 'Google Maps', 'Twilio', 'SendGrid', 'Cloudflare', 'AWS'];
 
 const CATEGORIES = [
   {
     name: 'Salons & Spas',
-    meta: 'Cut, color, and calm — book the chair you actually want.',
+    meta: 'Cut, color, and calm — book the chair you want.',
     icon: 'fa-scissors',
     href: 'Hair Salons',
-    image:
-      'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=1200&q=80',
+    accent: 'rose',
+    image: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=1200&q=80',
   },
   {
     name: 'Health Clinics',
     meta: 'Clinics and practices with real open slots.',
     icon: 'fa-briefcase-medical',
     href: 'Dental Clinics',
-    image:
-      'https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1200&q=80',
+    accent: 'sky',
+    image: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1200&q=80',
   },
   {
     name: 'Fitness Studios',
     meta: 'Yoga, pilates, and training hours that still have room.',
-    icon: 'fa-spa',
+    icon: 'fa-dumbbell',
     href: 'Yoga Studios',
-    image:
-      'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=1200&q=80',
+    accent: 'coral',
+    image: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=1200&q=80',
   },
+  {
+    name: 'Beauty & Nails',
+    meta: 'Lashes, nails, and glow-ups on your schedule.',
+    icon: 'fa-spa',
+    href: 'Beauty',
+    accent: 'violet',
+    image: 'https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?auto=format&fit=crop&w=1200&q=80',
+  },
+  {
+    name: 'Auto & Repair',
+    meta: 'Service bays and detailing with honest openings.',
+    icon: 'fa-car',
+    href: 'Auto',
+    accent: 'indigo',
+    image: 'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?auto=format&fit=crop&w=1200&q=80',
+  },
+  {
+    name: 'Education & Tutoring',
+    meta: 'Classes, coaching, and sessions that fit your week.',
+    icon: 'fa-graduation-cap',
+    href: 'Education',
+    accent: 'amber',
+    image: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=1200&q=80',
+  },
+];
+
+const FEATURES = [
+  { icon: 'fa-calendar-check', title: 'Live availability', text: 'Real-time slots synced with staff calendars — no phantom bookings.', color: 'teal' },
+  { icon: 'fa-bolt', title: 'Instant confirmation', text: 'Book in seconds with email and in-app confirmations.', color: 'coral' },
+  { icon: 'fa-tags', title: 'Peak pricing', text: 'Transparent surge pricing shown before checkout.', color: 'amber' },
+  { icon: 'fa-credit-card', title: 'Flexible payments', text: 'Pay online with Stripe or at the venue — your choice.', color: 'indigo' },
+  { icon: 'fa-box-open', title: 'Packages & bundles', text: 'Multi-session packages with remaining balance tracking.', color: 'violet' },
+  { icon: 'fa-star', title: 'Reviews & ratings', text: 'Social proof that helps customers choose with confidence.', color: 'rose' },
+  { icon: 'fa-building', title: 'Multi-branch ops', text: 'Manage locations, staff, and services from one dashboard.', color: 'sky' },
+  { icon: 'fa-shield-halved', title: 'Conflict-safe booking', text: 'Double-booking protection built into every reservation.', color: 'emerald' },
+];
+
+const TRENDING = [
+  { name: 'Fade Studio', category: 'Salon', rating: 4.9, slots: '3 open today', color: 'rose' },
+  { name: 'Bright Smile Dental', category: 'Clinic', rating: 4.8, slots: '5 open today', color: 'sky' },
+  { name: 'Core Yoga House', category: 'Fitness', rating: 4.9, slots: '2 open today', color: 'coral' },
+  { name: 'Glow Nail Bar', category: 'Beauty', rating: 4.7, slots: '6 open today', color: 'violet' },
+];
+
+const TESTIMONIALS = [
+  { quote: 'We went from half-empty afternoons to a calendar that fills itself. Peak pricing alone paid for the switch.', name: 'Amina K.', role: 'Owner, Fade Studio', color: 'teal' },
+  { quote: 'I book my dentist, yoga, and nails in one app. Rescheduling takes ten seconds.', name: 'James R.', role: 'Customer', color: 'indigo' },
+  { quote: 'Staff invites, branch hours, and packages — finally in one place instead of five spreadsheets.', name: 'Sara M.', role: 'Ops Manager', color: 'coral' },
+];
+
+const INTEGRATIONS = [
+  { icon: 'fa-credit-card', label: 'Stripe payments', color: 'indigo' },
+  { icon: 'fa-map-location-dot', label: 'Maps & geo search', color: 'sky' },
+  { icon: 'fa-envelope', label: 'Email notifications', color: 'coral' },
+  { icon: 'fa-mobile-screen', label: 'Mobile-ready PWA', color: 'violet' },
+  { icon: 'fa-lock', label: 'Secure auth & roles', color: 'emerald' },
+  { icon: 'fa-chart-line', label: 'Business analytics', color: 'amber' },
+];
+
+const FAQ = [
+  { q: 'Is HourSlot free for customers?', a: 'Yes — browsing, booking, rescheduling, and reviews are free for customers. Businesses can list and start filling slots at no upfront cost.' },
+  { q: 'How does peak pricing work?', a: 'Businesses set peak windows and multipliers. Customers see the adjusted price before confirming — no surprises at checkout.' },
+  { q: 'Can I pay at the venue?', a: 'Absolutely. Many businesses offer pay-at-venue alongside online Stripe checkout.' },
+  { q: 'Do you support multiple branches?', a: 'Yes. Owners manage branches, staff, services, and availability per location from one dashboard.' },
+  { q: 'How do staff invites work?', a: 'Owners send email invites. Staff accept, set a password, and land in the business dashboard with the right permissions.' },
+];
+
+const COMPARE = [
+  { feature: 'Live availability', hourslot: true, manual: false },
+  { feature: 'Conflict-safe booking', hourslot: true, manual: false },
+  { feature: 'Peak pricing', hourslot: true, manual: false },
+  { feature: 'Online + venue pay', hourslot: true, manual: false },
+  { feature: 'Packages & sessions', hourslot: true, manual: false },
+  { feature: 'Customer reviews', hourslot: true, manual: false },
 ];
 
 export default function LandingPage() {
@@ -42,6 +125,8 @@ export default function LandingPage() {
   const [locating, setLocating] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [newsletterEmail, setNewsletterEmail] = useState('');
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -57,7 +142,7 @@ export default function LandingPage() {
         JSON.stringify({ q: query.trim(), location: location.trim() })
       );
     } catch {
-      /* ignore quota */
+      /* ignore */
     }
   };
 
@@ -81,16 +166,15 @@ export default function LandingPage() {
     }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
-      () => {
-        setLocation('Near you');
-        setLocating(false);
-      },
-      () => {
-        setLocation('Near you');
-        setLocating(false);
-      },
+      () => { setLocation('Near you'); setLocating(false); },
+      () => { setLocation('Near you'); setLocating(false); },
       { timeout: 8000 }
     );
+  };
+
+  const handleNewsletter = (e: FormEvent) => {
+    e.preventDefault();
+    setNewsletterEmail('');
   };
 
   return (
@@ -100,262 +184,270 @@ export default function LandingPage() {
           <Link href="/" className={styles.brand}>
             <Image src="/logo-hourslot.png" alt="HourSlot" width={148} height={44} priority className={styles.logo} />
           </Link>
-
           <nav className={styles.navCenter} aria-label="Primary">
             <Link href="/profile/explore">Explore</Link>
+            <a href="#features">Features</a>
             <a href="#businesses">For Businesses</a>
             <a href="#pricing">Pricing</a>
+            <a href="#faq">FAQ</a>
           </nav>
-
           <div className={styles.navActions}>
-            <Link href="/auth/login" className={styles.navLink}>
-              Sign in
-            </Link>
-            <Link href="/auth/register" className={`btn btn-primary btn-sm ${styles.navCta}`}>
-              Get started
-            </Link>
-            <button
-              type="button"
-              className={styles.menuBtn}
-              aria-label={menuOpen ? 'Close menu' : 'Open menu'}
-              aria-expanded={menuOpen}
-              onClick={() => setMenuOpen((v) => !v)}
-            >
+            <Link href="/auth/login" className={styles.navLink}>Sign in</Link>
+            <Link href="/auth/register" className={`btn btn-primary btn-sm ${styles.navCta}`}>Get started</Link>
+            <button type="button" className={styles.menuBtn} aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}>
               <i className={`fa-solid ${menuOpen ? 'fa-xmark' : 'fa-bars'}`} />
             </button>
           </div>
         </div>
-
         {menuOpen && (
           <div className={styles.mobileMenu}>
             <Link href="/profile/explore" onClick={() => setMenuOpen(false)}>Explore</Link>
+            <a href="#features" onClick={() => setMenuOpen(false)}>Features</a>
             <a href="#businesses" onClick={() => setMenuOpen(false)}>For Businesses</a>
             <a href="#pricing" onClick={() => setMenuOpen(false)}>Pricing</a>
+            <a href="#faq" onClick={() => setMenuOpen(false)}>FAQ</a>
             <Link href="/auth/login" onClick={() => setMenuOpen(false)}>Sign in</Link>
-            <Link href="/auth/register" className="btn btn-primary" onClick={() => setMenuOpen(false)}>
-              Get started
-            </Link>
+            <Link href="/auth/register" className="btn btn-primary" onClick={() => setMenuOpen(false)}>Get started</Link>
           </div>
         )}
       </header>
 
+      {/* Hero */}
       <section className={styles.hero}>
-        <div className={styles.heroGlow} aria-hidden />
+        <div className={styles.heroOrbs} aria-hidden>
+          <span className={styles.orbTeal} />
+          <span className={styles.orbIndigo} />
+          <span className={styles.orbCoral} />
+        </div>
         <div className={styles.floatCard} aria-hidden>
           <span className={styles.floatDot} />
-          <div>
-            <strong>Fade Studio</strong>
-            <p>Today · 2:30 PM confirmed</p>
-          </div>
+          <div><strong>Fade Studio</strong><p>Today · 2:30 PM confirmed</p></div>
         </div>
         <div className={`${styles.floatCard} ${styles.floatCardAlt}`} aria-hidden>
           <i className="fa-solid fa-clock" />
-          <div>
-            <strong>Next open slot</strong>
-            <p>45 min from now</p>
-          </div>
+          <div><strong>Next open slot</strong><p>45 min from now</p></div>
         </div>
-
         <div className={styles.heroContent}>
-          <p className={styles.badge}>
-            <span aria-hidden>✦</span> The smart appointment marketplace
-          </p>
+          <p className={styles.badge}><span aria-hidden>✦</span> The smart appointment marketplace</p>
           <h1 className={styles.heroTitle}>
             Turn empty hours into <em>booked ones.</em>
           </h1>
           <p className={styles.heroSub}>
-            Discover nearby businesses and lock a real slot.
-            Owners fill the calendar. You keep the hour.
+            HourSlot is the product home — learn how it works for customers and businesses. When you&apos;re
+            ready to browse live listings, head to Explore.
           </p>
-
           <form className={styles.search} onSubmit={handleSearch}>
             <label className={styles.searchField}>
               <i className="fa-solid fa-magnifying-glass" aria-hidden />
-              <input
-                type="text"
-                placeholder="What are you looking for?"
-                value={service}
-                onChange={(e) => setService(e.target.value)}
-                aria-label="Service or business"
-              />
+              <input type="text" placeholder="What are you looking for?" value={service} onChange={(e) => setService(e.target.value)} aria-label="Service or business" />
             </label>
             <span className={styles.searchDivider} aria-hidden />
             <label className={styles.searchField}>
               <i className="fa-solid fa-location-dot" aria-hidden />
-              <input
-                type="text"
-                placeholder="Location"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                aria-label="Location"
-              />
-              <button
-                type="button"
-                className={styles.gpsBtn}
-                onClick={locateMe}
-                aria-label="Use my location"
-                title="Use my location"
-              >
+              <input type="text" placeholder="Location" value={location} onChange={(e) => setLocation(e.target.value)} aria-label="Location" />
+              <button type="button" className={styles.gpsBtn} onClick={locateMe} aria-label="Use my location" title="Use my location">
                 <i className={`fa-solid ${locating ? 'fa-circle-notch fa-spin' : 'fa-location-crosshairs'}`} />
               </button>
             </label>
-            <button type="submit" className={styles.searchBtn}>
-              Search <i className="fa-solid fa-arrow-right" aria-hidden />
-            </button>
+            <button type="submit" className={styles.searchBtn}>Search <i className="fa-solid fa-arrow-right" aria-hidden /></button>
           </form>
-
+          <p className={styles.searchNote}>
+            <i className="fa-solid fa-arrow-up-right-from-square" />
+            Search opens the <strong>Explore marketplace</strong> — a separate app view with live businesses and maps.
+          </p>
           <div className={styles.popular}>
             <span>Popular:</span>
-            {POPULAR.map((tag) => (
-              <button key={tag} type="button" onClick={() => { setService(tag); goSearch(tag); }}>
-                {tag}
-              </button>
+            {POPULAR.map((tag, i) => (
+              <button key={tag} type="button" className={styles[`popTag${i % 4}`]} onClick={() => { setService(tag); goSearch(tag); }}>{tag}</button>
             ))}
           </div>
         </div>
       </section>
 
-      <section className={styles.trust} aria-label="Why HourSlot">
-        <div className={styles.trustInner}>
-          <p><i className="fa-solid fa-shield-halved" aria-hidden /> Conflict-safe booking</p>
-          <p><i className="fa-solid fa-tag" aria-hidden /> Peak pricing, shown up front</p>
-          <p><i className="fa-solid fa-credit-card" aria-hidden /> Pay online or at the venue</p>
-          <p><i className="fa-solid fa-rotate" aria-hidden /> Reschedule in a few taps</p>
+      {/* Stats */}
+      <section className={styles.stats} aria-label="Platform stats">
+        <div className={styles.statsInner}>
+          {STATS.map((s) => (
+            <div key={s.label} className={`${styles.statCard} ${styles[`stat${s.color.charAt(0).toUpperCase()}${s.color.slice(1)}`]}`}>
+              <strong>{s.value}</strong>
+              <span>{s.label}</span>
+            </div>
+          ))}
         </div>
       </section>
 
+      {/* Explore gateway */}
+      <section className={styles.exploreGateway} aria-label="Open Explore">
+        <div className={styles.exploreGatewayInner}>
+          <div className={styles.exploreGatewayCopy}>
+            <p className={styles.eyebrow}>Live marketplace</p>
+            <h2 className={styles.displayTitle}>Ready to browse real businesses?</h2>
+            <p>
+              Explore is where customers search categories, view maps, compare services, and start booking.
+              This landing page is about the product — Explore is where the directory lives.
+            </p>
+            <div className={styles.exploreGatewayActions}>
+              <Link href="/profile/explore" className="btn btn-primary">
+                Open Explore <i className="fa-solid fa-compass" />
+              </Link>
+              <Link href="/auth/register" className="btn btn-outline">Create free account</Link>
+            </div>
+          </div>
+          <div className={styles.exploreGatewayMock} aria-hidden>
+            <div className={styles.mockToolbar}>
+              <span>Explore</span>
+              <span className={styles.mockPill}>Directory</span>
+            </div>
+            <div className={styles.mockList}>
+              <div className={styles.mockRow}><span /><strong>Salon</strong></div>
+              <div className={styles.mockRow}><span /><strong>Clinic</strong></div>
+              <div className={styles.mockRow}><span /><strong>Fitness</strong></div>
+            </div>
+            <div className={styles.mockMap}>Map + listings</div>
+          </div>
+        </div>
+      </section>
+
+      {/* Partner strip */}
+      <section className={styles.marquee} aria-label="Integrations">
+        <div className={styles.marqueeTrack}>
+          {[...PARTNERS, ...PARTNERS].map((p, i) => (
+            <span key={`${p}-${i}`} className={styles.marqueeItem}>{p}</span>
+          ))}
+        </div>
+      </section>
+
+      {/* Trust */}
+      <section className={styles.trust} aria-label="Why HourSlot">
+        <div className={styles.trustInner}>
+          <p><i className="fa-solid fa-shield-halved" /> Conflict-safe booking</p>
+          <p><i className="fa-solid fa-tag" /> Peak pricing, shown up front</p>
+          <p><i className="fa-solid fa-credit-card" /> Pay online or at the venue</p>
+          <p><i className="fa-solid fa-rotate" /> Reschedule in a few taps</p>
+        </div>
+      </section>
+
+      {/* Categories */}
       <section className={styles.section} id="categories">
         <div className={styles.sectionHead}>
           <div>
-            <h2 className={styles.displayTitle}>Explore by category</h2>
-            <p className={styles.sectionSub}>Start with what you need. Nearby availability comes next.</p>
+            <p className={styles.eyebrow}>Quick start</p>
+            <h2 className={styles.displayTitle}>Popular ways to enter Explore</h2>
+            <p className={styles.sectionSub}>Photo cards for inspiration — each opens the live marketplace with that search.</p>
           </div>
-          <Link href="/profile/explore" className={styles.textLink}>
-            View all categories <i className="fa-solid fa-arrow-right" aria-hidden />
-          </Link>
+          <Link href="/profile/explore" className={styles.textLink}>View all <i className="fa-solid fa-arrow-right" /></Link>
         </div>
         <div className={styles.catGrid}>
           {CATEGORIES.map((cat) => (
-            <button
-              key={cat.name}
-              type="button"
-              className={styles.catCard}
-              onClick={() => { setService(cat.href); goSearch(cat.href); }}
-            >
+            <button key={cat.name} type="button" className={styles.catCard} onClick={() => { setService(cat.href); goSearch(cat.href); }}>
               <Image src={cat.image} alt="" fill sizes="(max-width: 768px) 100vw, 33vw" className={styles.catImg} />
               <span className={styles.catShade} />
-              <span className={styles.catIcon} aria-hidden>
+              <span className={`${styles.catIcon} ${styles[`catAccent${cat.accent.charAt(0).toUpperCase()}${cat.accent.slice(1)}`]}`}>
                 <i className={`fa-solid ${cat.icon}`} />
               </span>
-              <span className={styles.catCopy}>
-                <strong>{cat.name}</strong>
-                <span>{cat.meta}</span>
-              </span>
+              <span className={styles.catCopy}><strong>{cat.name}</strong><span>{cat.meta}</span></span>
             </button>
           ))}
         </div>
       </section>
 
+      {/* Features */}
+      <section className={`${styles.section} ${styles.features}`} id="features">
+        <div className={styles.sectionHeadCenter}>
+          <p className={styles.eyebrow}>Platform</p>
+          <h2 className={styles.displayTitle}>Everything you need to book &amp; run</h2>
+          <p className={styles.sectionSub}>One colorful workspace for customers and business owners.</p>
+        </div>
+        <div className={styles.featureGrid}>
+          {FEATURES.map((f) => (
+            <article key={f.title} className={`${styles.featureCard} ${styles[`feat${f.color.charAt(0).toUpperCase()}${f.color.slice(1)}`]}`}>
+              <span className={styles.featureIcon}><i className={`fa-solid ${f.icon}`} /></span>
+              <h3>{f.title}</h3>
+              <p>{f.text}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      {/* How it works */}
       <section className={`${styles.section} ${styles.how}`} id="how">
         <h2 className={styles.displayTitle}>How HourSlot works</h2>
         <p className={styles.sectionSub}>One marketplace. Two sides. Zero spreadsheet chaos.</p>
         <div className={styles.howGrid}>
           <article className={styles.howCard}>
             <header>
-              <span className={styles.howIcon}><i className="fa-regular fa-user" /></span>
+              <span className={`${styles.howIcon} ${styles.howIconSky}`}><i className="fa-regular fa-user" /></span>
               <h3>For customers</h3>
             </header>
             <ol>
-              <li>
-                <span>1</span>
-                <div>
-                  <strong>Discover</strong>
-                  <p>Search nearby businesses by category, location, and real ratings.</p>
-                </div>
-              </li>
-              <li>
-                <span>2</span>
-                <div>
-                  <strong>Book instantly</strong>
-                  <p>Pick a service, preferred staff, and a slot that actually exists.</p>
-                </div>
-              </li>
-              <li>
-                <span>3</span>
-                <div>
-                  <strong>Manage</strong>
-                  <p>Confirmations, reschedules, packages, and reviews in one place.</p>
-                </div>
-              </li>
+              <li><span>1</span><div><strong>Discover</strong><p>Search nearby businesses by category, location, and real ratings.</p></div></li>
+              <li><span>2</span><div><strong>Book instantly</strong><p>Pick a service, preferred staff, and a slot that actually exists.</p></div></li>
+              <li><span>3</span><div><strong>Manage</strong><p>Confirmations, reschedules, packages, and reviews in one place.</p></div></li>
             </ol>
-            <Link href="/profile/explore" className="btn btn-primary">
-              Book appointments
-            </Link>
+            <Link href="/profile/explore" className="btn btn-cool">Book appointments</Link>
           </article>
-
           <article className={`${styles.howCard} ${styles.howCardDark}`} id="businesses">
             <header>
               <span className={styles.howIcon}><i className="fa-solid fa-store" /></span>
               <h3>For businesses</h3>
             </header>
             <ol>
-              <li>
-                <span>1</span>
-                <div>
-                  <strong>List your services</strong>
-                  <p>Branches, staff, hours, gallery, and peak pricing — set once.</p>
-                </div>
-              </li>
-              <li>
-                <span>2</span>
-                <div>
-                  <strong>Fill empty slots</strong>
-                  <p>Live availability with conflict-safe booking on a real calendar.</p>
-                </div>
-              </li>
-              <li>
-                <span>3</span>
-                <div>
-                  <strong>Grow revenue</strong>
-                  <p>Packages, online pay, and a week that fills itself.</p>
-                </div>
-              </li>
+              <li><span>1</span><div><strong>List your services</strong><p>Branches, staff, hours, gallery, and peak pricing — set once.</p></div></li>
+              <li><span>2</span><div><strong>Fill empty slots</strong><p>Live availability with conflict-safe booking on a real calendar.</p></div></li>
+              <li><span>3</span><div><strong>Grow revenue</strong><p>Packages, online pay, and a week that fills itself.</p></div></li>
             </ol>
-            <Link href="/auth/register?role=business" className={styles.ghostBtn}>
-              List your business
-            </Link>
+            <Link href="/auth/register?role=business" className={styles.ghostBtn}>List your business</Link>
           </article>
         </div>
       </section>
 
+      {/* Trending */}
+      <section className={styles.trending}>
+        <div className={styles.sectionHead}>
+          <div>
+            <p className={styles.eyebrow}>Sample listings</p>
+            <h2 className={styles.displayTitle}>What you&apos;ll find in Explore</h2>
+            <p className={styles.sectionSubTrend}>Illustrative examples — real availability lives in the marketplace.</p>
+          </div>
+          <Link href="/profile/explore" className={styles.textLink}>See all <i className="fa-solid fa-arrow-right" /></Link>
+        </div>
+        <div className={styles.trendGrid}>
+          {TRENDING.map((t) => (
+            <article key={t.name} className={`${styles.trendCard} ${styles[`trend${t.color.charAt(0).toUpperCase()}${t.color.slice(1)}`]}`}>
+              <div className={styles.trendTop}>
+                <span className={styles.trendAvatar}>{t.name.charAt(0)}</span>
+                <div>
+                  <strong>{t.name}</strong>
+                  <span>{t.category}</span>
+                </div>
+              </div>
+              <div className={styles.trendMeta}>
+                <span><i className="fa-solid fa-star" /> {t.rating}</span>
+                <span className={styles.trendSlots}>{t.slots}</span>
+              </div>
+              <button type="button" className={styles.trendBtn} onClick={() => goSearch(t.category)}>View slots</button>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      {/* Calendar preview */}
       <section className={styles.preview}>
         <div className={styles.previewInner}>
           <div className={styles.previewCopy}>
             <p className={styles.eyebrow}>Live calendar</p>
             <h2 className={styles.displayTitle}>See the week fill itself.</h2>
-            <p>
-              Owners get a calm ops board: staff, services, and visits in one view.
-              Customers see honest openings — including peak hours — before they commit.
-            </p>
+            <p>Owners get a calm ops board: staff, services, and visits in one view. Customers see honest openings — including peak hours — before they commit.</p>
             <ul className={styles.previewList}>
               <li><i className="fa-solid fa-check" /> Multi-branch staff &amp; catalogs</li>
               <li><i className="fa-solid fa-check" /> Packages with remaining sessions</li>
               <li><i className="fa-solid fa-check" /> Stripe or pay-at-venue</li>
             </ul>
-            <Link href="/auth/register?role=business" className="btn btn-primary">
-              Start listing
-            </Link>
+            <Link href="/auth/register?role=business" className="btn btn-warm">Start listing</Link>
           </div>
           <div className={styles.calMock} aria-hidden>
-            <div className={styles.calHead}>
-              <span>This week</span>
-              <strong>Studio calendar</strong>
-            </div>
-            <div className={styles.calDays}>
-              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map((d) => (
-                <span key={d}>{d}</span>
-              ))}
-            </div>
+            <div className={styles.calHead}><span>This week</span><strong>Studio calendar</strong></div>
+            <div className={styles.calDays}>{['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map((d) => <span key={d}>{d}</span>)}</div>
             <div className={styles.calGrid}>
               <div className={styles.slotMuted}>9:00</div>
               <div className={styles.slotBooked}>Cut · Amina</div>
@@ -377,6 +469,58 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Testimonials */}
+      <section className={`${styles.section} ${styles.testimonials}`}>
+        <div className={styles.sectionHeadCenter}>
+          <p className={styles.eyebrow}>Loved by teams</p>
+          <h2 className={styles.displayTitle}>Real stories from the marketplace</h2>
+        </div>
+        <div className={styles.testGrid}>
+          {TESTIMONIALS.map((t) => (
+            <blockquote key={t.name} className={`${styles.testCard} ${styles[`test${t.color.charAt(0).toUpperCase()}${t.color.slice(1)}`]}`}>
+              <i className={`fa-solid fa-quote-left ${styles.quoteIcon}`} />
+              <p>{t.quote}</p>
+              <footer><strong>{t.name}</strong><span>{t.role}</span></footer>
+            </blockquote>
+          ))}
+        </div>
+      </section>
+
+      {/* Integrations */}
+      <section className={styles.integrations}>
+        <div className={styles.sectionHeadCenter}>
+          <p className={styles.eyebrow}>Built for scale</p>
+          <h2 className={styles.displayTitle}>Connected to the tools you trust</h2>
+        </div>
+        <div className={styles.intGrid}>
+          {INTEGRATIONS.map((item) => (
+            <div key={item.label} className={`${styles.intCard} ${styles[`int${item.color.charAt(0).toUpperCase()}${item.color.slice(1)}`]}`}>
+              <i className={`fa-solid ${item.icon}`} />
+              <span>{item.label}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Role paths */}
+      <section className={styles.roles}>
+        <div className={styles.rolesInner}>
+          <article className={styles.roleCard}>
+            <span className={styles.roleIconSky}><i className="fa-solid fa-user" /></span>
+            <h3>I&apos;m a customer</h3>
+            <p>Find services, book instantly, manage appointments, and leave reviews.</p>
+            <Link href="/auth/register?role=customer" className="btn btn-cool">Create free account</Link>
+          </article>
+          <article className={`${styles.roleCard} ${styles.roleCardWarm}`}>
+            <span className={styles.roleIconWarm}><i className="fa-solid fa-store" /></span>
+            <h3>I&apos;m a business</h3>
+            <p>List services, manage staff, fill empty slots, and grow with packages.</p>
+            <Link href="/auth/register?role=business" className="btn btn-warm">List your business</Link>
+          </article>
+        </div>
+      </section>
+
+      {/* Pricing */}
       <section className={`${styles.section} ${styles.pricing}`} id="pricing">
         <h2 className={styles.displayTitle}>Simple to start</h2>
         <p className={styles.sectionSub}>Customers book free. Businesses list free while we grow the marketplace.</p>
@@ -390,11 +534,10 @@ export default function LandingPage() {
               <li>Instant booking &amp; reschedule</li>
               <li>Packages and reviews</li>
             </ul>
-            <Link href="/auth/register?role=customer" className="btn btn-secondary">
-              Create a free account
-            </Link>
+            <Link href="/auth/register?role=customer" className="btn btn-cool">Create a free account</Link>
           </article>
           <article className={`${styles.priceCard} ${styles.priceCardAccent}`}>
+            <span className={styles.priceBadge}>Popular</span>
             <p className={styles.priceKicker}>Businesses</p>
             <h3>List &amp; fill slots</h3>
             <p className={styles.priceAmt}>$0<span> to start</span></p>
@@ -403,27 +546,97 @@ export default function LandingPage() {
               <li>Peak pricing &amp; packages</li>
               <li>Online pay or pay at venue</li>
             </ul>
-            <Link href="/auth/register?role=business" className="btn btn-primary">
-              List your business
-            </Link>
+            <Link href="/auth/register?role=business" className="btn btn-warm">List your business</Link>
           </article>
         </div>
       </section>
 
+      {/* Compare */}
+      <section className={styles.compare}>
+        <div className={styles.sectionHeadCenter}>
+          <h2 className={styles.displayTitle}>HourSlot vs. manual booking</h2>
+          <p className={styles.sectionSub}>See why teams switch from phone tags and spreadsheets.</p>
+        </div>
+        <div className={styles.compareTable}>
+          <div className={styles.compareHead}>
+            <span>Feature</span><span>HourSlot</span><span>Manual</span>
+          </div>
+          {COMPARE.map((row) => (
+            <div key={row.feature} className={styles.compareRow}>
+              <span>{row.feature}</span>
+              <span><i className={`fa-solid ${row.hourslot ? 'fa-circle-check' : 'fa-circle-xmark'}`} /></span>
+              <span><i className={`fa-solid ${row.manual ? 'fa-circle-check' : 'fa-circle-xmark'}`} /></span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className={`${styles.section} ${styles.faq}`} id="faq">
+        <div className={styles.faqLayout}>
+          <div>
+            <p className={styles.eyebrow}>Support</p>
+            <h2 className={styles.displayTitle}>Frequently asked questions</h2>
+            <p className={styles.sectionSub}>Quick answers before you book or list.</p>
+          </div>
+          <div className={styles.faqList}>
+            {FAQ.map((item, i) => (
+              <div key={item.q} className={`${styles.faqItem} ${openFaq === i ? styles.faqOpen : ''}`}>
+                <button type="button" className={styles.faqBtn} onClick={() => setOpenFaq(openFaq === i ? null : i)} aria-expanded={openFaq === i}>
+                  {item.q}
+                  <i className={`fa-solid ${openFaq === i ? 'fa-minus' : 'fa-plus'}`} />
+                </button>
+                {openFaq === i && <p className={styles.faqAnswer}>{item.a}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Security */}
+      <section className={styles.security}>
+        <div className={styles.securityInner}>
+          <div className={styles.securityCopy}>
+            <p className={styles.eyebrow}>Trust &amp; security</p>
+            <h2 className={styles.displayTitle}>Built for peace of mind</h2>
+            <p>Role-based access, secure authentication, and conflict-safe scheduling protect every booking.</p>
+          </div>
+          <div className={styles.securityBadges}>
+            <div className={styles.secBadge}><i className="fa-solid fa-lock" /><span>Encrypted auth</span></div>
+            <div className={styles.secBadge}><i className="fa-solid fa-user-shield" /><span>Role permissions</span></div>
+            <div className={styles.secBadge}><i className="fa-solid fa-calendar-xmark" /><span>No double-booking</span></div>
+            <div className={styles.secBadge}><i className="fa-solid fa-receipt" /><span>Audit trail</span></div>
+          </div>
+        </div>
+      </section>
+
+      {/* Newsletter */}
+      <section className={styles.newsletter}>
+        <div className={styles.newsletterInner}>
+          <div>
+            <h2 className={styles.displayTitle}>Stay in the loop</h2>
+            <p>Product updates, marketplace launches, and tips for filling your calendar.</p>
+          </div>
+          <form className={styles.newsletterForm} onSubmit={handleNewsletter}>
+            <input type="email" placeholder="you@email.com" value={newsletterEmail} onChange={(e) => setNewsletterEmail(e.target.value)} required aria-label="Email for newsletter" />
+            <button type="submit" className="btn btn-violet">Subscribe</button>
+          </form>
+        </div>
+      </section>
+
+      {/* Final CTA */}
       <section className={styles.finalCta}>
+        <div className={styles.finalOrbs} aria-hidden><span /><span /><span /></div>
         <p className={styles.badge}>Ready when you are</p>
         <h2 className={styles.displayTitle}>Join HourSlot and turn empty hours into booked ones.</h2>
         <p>One calm workspace for discovery, booking, and the visit that follows.</p>
         <div className={styles.heroCtas}>
-          <Link href="/auth/register" className="btn btn-primary">
-            Get started
-          </Link>
-          <Link href="/auth/login" className={styles.ghostBtn}>
-            Sign in
-          </Link>
+          <Link href="/auth/register" className="btn btn-warm">Get started free</Link>
+          <Link href="/auth/login" className={styles.ghostBtn}>Sign in</Link>
         </div>
       </section>
 
+      {/* Footer */}
       <footer className={styles.footer}>
         <div className={styles.footerGrid}>
           <div className={styles.footerBrand}>
@@ -433,14 +646,14 @@ export default function LandingPage() {
           <div>
             <h4>Product</h4>
             <Link href="/profile/explore">Explore</Link>
-            <a href="#how">Booking system</a>
+            <a href="#features">Features</a>
             <a href="#pricing">Pricing</a>
           </div>
           <div>
             <h4>Resources</h4>
             <Link href="/auth/register">Create account</Link>
             <Link href="/auth/login">Sign in</Link>
-            <a href="#how">How it works</a>
+            <a href="#faq">FAQ</a>
           </div>
           <div>
             <h4>Connect</h4>

@@ -11,6 +11,7 @@ import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import DataTable from '@/components/DataTable';
 import StatusBadge from '@/components/StatusBadge';
+import { useOrgLocale } from '@/lib/org-locale-context';
 import styles from './packages.module.css';
 
 interface Service {
@@ -31,6 +32,7 @@ interface ServicePackage {
 }
 
 export default function PackagesPage() {
+  const { format, currency } = useOrgLocale();
   const { plan, loaded: planLoaded } = useOwnerPlan();
   const canManage = planLoaded && hasFeature(plan, 'packages');
   const [packages, setPackages] = useState<ServicePackage[]>([]);
@@ -43,6 +45,7 @@ export default function PackagesPage() {
   const [editingPackage, setEditingPackage] = useState<ServicePackage | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -181,6 +184,21 @@ export default function PackagesPage() {
     }
   };
 
+  // Calculate statistics
+  const totalBundles = packages.length;
+  const avgBundlePrice =
+    packages.length > 0
+      ? (packages.reduce((acc, curr) => acc + curr.price, 0) / packages.length).toFixed(2)
+      : '0.00';
+  const activeBundles = packages.filter((p) => p.active).length;
+
+  // Filter packages list
+  const filteredPackages = packages.filter(
+    (p) =>
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
   return (
     <div className={styles.page}>
       <PageHeader
@@ -210,6 +228,53 @@ export default function PackagesPage() {
         </div>
       )}
 
+      {packages.length > 0 && (
+        <div className={styles.statsRow}>
+          <div className={styles.statCard}>
+            <div className={styles.statIcon}>
+              <i className="fa-solid fa-box-open" />
+            </div>
+            <div className={styles.statInfo}>
+              <div className={styles.statValue}>{totalBundles}</div>
+              <div className={styles.statLabel}>Bundle Offers</div>
+            </div>
+          </div>
+          <div className={styles.statCard}>
+            <div className={styles.statIcon}>
+              <i className="fa-solid fa-dollar-sign" />
+            </div>
+            <div className={styles.statInfo}>
+              <div className={styles.statValue}>{format(Number(avgBundlePrice))}</div>
+              <div className={styles.statLabel}>Average Price</div>
+            </div>
+          </div>
+          <div className={styles.statCard}>
+            <div className={styles.statIcon}>
+              <i className="fa-solid fa-circle-check" style={{ color: '#059669' }} />
+            </div>
+            <div className={styles.statInfo}>
+              <div className={styles.statValue}>{activeBundles}</div>
+              <div className={styles.statLabel}>Active Bundles</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {packages.length > 0 && (
+        <div className={styles.searchBarContainer}>
+          <div className={styles.searchContainer}>
+            <i className={`fa-solid fa-magnifying-glass ${styles.searchIcon}`} />
+            <input
+              type="text"
+              className={`input-field ${styles.searchInput}`}
+              placeholder="Search bundle name or details..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <Skeleton variant="row" count={4} />
       ) : packages.length === 0 ? (
@@ -225,50 +290,64 @@ export default function PackagesPage() {
           onAction={canManage ? handleAddClick : undefined}
         />
       ) : (
-        <DataTable
-          columns={[
-            {
-              key: 'name',
-              header: 'Package',
-              render: (pkg) => (
-                <div>
-                  <strong>{pkg.name}</strong>
-                  {pkg.description && <div className={styles.desc}>{pkg.description}</div>}
+        <div className={styles.packagesGrid}>
+          {filteredPackages.map((pkg) => (
+            <div key={pkg.id} className={styles.packageCard}>
+              <div className={styles.cardHeader}>
+                <h4 className={styles.packageName}>{pkg.name}</h4>
+                <span className={pkg.active ? styles.badgeActive : styles.badgeSuspended}>
+                  {pkg.active ? 'ACTIVE' : 'SUSPENDED'}
+                </span>
+              </div>
+
+              <p className={styles.descText}>{pkg.description || 'No description provided.'}</p>
+
+              <div className={styles.cardDetails}>
+                <div className={styles.detailItem}>
+                  <i className="fa-solid fa-bolt" />
+                  <span>Sessions: {pkg.sessionsCount} sessions included</span>
                 </div>
-              ),
-            },
-            { key: 'price', header: 'Price', render: (pkg) => `$${pkg.price}` },
-            { key: 'sessions', header: 'Sessions', render: (pkg) => pkg.sessionsCount },
-            {
-              key: 'expiry',
-              header: 'Expiry',
-              render: (pkg) => (pkg.expiryDays > 0 ? `${pkg.expiryDays} days` : 'No expiry'),
-            },
-            {
-              key: 'status',
-              header: 'Status',
-              render: (pkg) => <StatusBadge status={pkg.active ? 'ACTIVE' : 'SUSPENDED'} />,
-            },
-            {
-              key: 'actions',
-              header: 'Actions',
-              render: (pkg) => (
+                <div className={styles.detailItem}>
+                  <i className="fa-regular fa-calendar" />
+                  <span>Validity: {pkg.expiryDays > 0 ? `${pkg.expiryDays} days` : 'Lifetime validity'}</span>
+                </div>
+                {pkg.services && pkg.services.length > 0 && (
+                  <div className={styles.detailItem} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Included services:</span>
+                    <div className={styles.serviceTags}>
+                      {pkg.services.map((svc) => (
+                        <span key={svc.id} className={styles.serviceTag}>
+                          {svc.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className={styles.cardBottom}>
+                <span className={styles.priceBadge}>{format(pkg.price)}</span>
                 <div className={styles.actions}>
                   {canManage && (
                     <button type="button" className="btn btn-sm btn-outline" onClick={() => handleEditClick(pkg)}>
-                      Edit
+                      <i className="fa-regular fa-pen-to-square" style={{ marginRight: 4 }} /> Edit
                     </button>
                   )}
                   <button type="button" className="btn btn-sm btn-danger" onClick={() => setDeleteId(pkg.id)}>
-                    Delete
+                    <i className="fa-regular fa-trash-can" style={{ marginRight: 4 }} /> Delete
                   </button>
                 </div>
-              ),
-            },
-          ]}
-          rows={packages}
-          rowKey={(pkg) => pkg.id}
-        />
+              </div>
+            </div>
+          ))}
+
+          {filteredPackages.length === 0 && (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
+              <i className="fa-solid fa-magnifying-glass" style={{ fontSize: '2rem', marginBottom: 12 }} />
+              <p>No package bundles match your search query.</p>
+            </div>
+          )}
+        </div>
       )}
 
       <Modal
@@ -295,7 +374,7 @@ export default function PackagesPage() {
         <form id="package-form" onSubmit={handleSubmit} className={styles.form}>
           <div className="form-group">
             <label className="form-label" htmlFor="pkgNameInput">
-              Package name
+              Package name:
             </label>
             <input
               id="pkgNameInput"
@@ -308,7 +387,7 @@ export default function PackagesPage() {
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="pkgDescInput">
-              Description
+              Description:
             </label>
             <textarea
               id="pkgDescInput"
@@ -321,7 +400,7 @@ export default function PackagesPage() {
           <div className={styles.twoCol}>
             <div className="form-group">
               <label className="form-label" htmlFor="pkgPriceInput">
-                Bundle price ($)
+                Bundle price ({currency}):
               </label>
               <input
                 id="pkgPriceInput"
@@ -334,8 +413,8 @@ export default function PackagesPage() {
             </div>
             <div className="form-group">
               <label className="form-label" htmlFor="pkgSessionsInput">
-                Sessions count
-              </label>
+              Sessions count:
+            </label>
               <input
                 id="pkgSessionsInput"
                 type="number"
@@ -348,8 +427,8 @@ export default function PackagesPage() {
           <div className={styles.twoCol}>
             <div className="form-group">
               <label className="form-label" htmlFor="pkgExpiryInput">
-                Expiry (days)
-              </label>
+              Expiry (days):
+            </label>
               <input
                 id="pkgExpiryInput"
                 type="number"
@@ -366,12 +445,14 @@ export default function PackagesPage() {
                 onChange={(e) => handleInputChange('active', e.target.checked)}
               />
               <label htmlFor="pkgActiveInput" className="form-label">
-                Active
-              </label>
+              Active catalog bundle
+            </label>
             </div>
           </div>
           <div className="form-group">
-            <label className="form-label">Include services</label>
+            <label className="form-label">
+              Include services:
+            </label>
             {services.length === 0 ? (
               <p className={styles.warn}>Create services first before creating packages.</p>
             ) : (
@@ -384,7 +465,7 @@ export default function PackagesPage() {
                       onChange={() => handleServiceCheckboxChange(svc.id)}
                     />
                     <span>
-                      {svc.name} (${svc.price})
+                      {svc.name} ({format(svc.price)})
                     </span>
                   </label>
                 ))}

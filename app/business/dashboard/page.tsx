@@ -2,17 +2,46 @@
 
 import { useState, useEffect, FormEvent } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import PageHeader from '@/components/PageHeader';
 import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
 import StatusBadge from '@/components/StatusBadge';
 import { StatCard, MetricGrid } from '@/components/StatCard';
+import { useOrgLocale } from '@/lib/org-locale-context';
 import styles from './dashboard.module.css';
 
 interface Category {
   id: number;
   name: string;
+}
+
+interface Customer {
+  id: number;
+  user: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+}
+
+interface Booking {
+  id: number;
+  customer: Customer;
+  branch: {
+    id: number;
+    name: string;
+  };
+  service: {
+    id: number;
+    name: string;
+    durationMinutes: number;
+  };
+  bookingTime: string;
+  endTime: string;
+  status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW' | 'IN_PROGRESS' | 'RESCHEDULED';
+  price: number;
 }
 
 interface BusinessProfile {
@@ -33,12 +62,17 @@ interface BusinessProfile {
 }
 
 export default function BusinessDashboardPage() {
+  const { format } = useOrgLocale();
+  const router = useRouter();
   const [business, setBusiness] = useState<BusinessProfile | null>(null);
   const [availableCategories, setAvailableCategories] = useState<Category[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'profile'>('overview');
+  
   const [setup, setSetup] = useState({
     branches: 0,
     services: 0,
@@ -46,7 +80,11 @@ export default function BusinessDashboardPage() {
     hours: 0,
   });
   const [docsReady, setDocsReady] = useState(false);
-  const [sharing, setSharing] = useState(false);
+
+  // Quote of the day and Weather states
+  const [quote, setQuote] = useState<{ quote: string; author: string } | null>(null);
+  const [weather, setWeather] = useState<{ temp: number; wind: number; code: number; description: string; icon: string } | null>(null);
+  const [loadingWeather, setLoadingWeather] = useState(false);
 
   const [formData, setFormData] = useState<{
     name: string;
@@ -64,6 +102,45 @@ export default function BusinessDashboardPage() {
     secondaryCategoryIds: [],
   });
 
+  const fetchWeather = async (lat: number, lng: number) => {
+    setLoadingWeather(true);
+    try {
+      const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true`);
+      const data = await res.json();
+      if (data?.current_weather) {
+        const temp = data.current_weather.temperature;
+        const wind = data.current_weather.windspeed;
+        const code = data.current_weather.weathercode;
+        
+        // Map WMO weather code to icon and text
+        let description = 'Clear Sky';
+        let icon = 'fa-sun';
+        
+        if (code === 0) { description = 'Clear Sky'; icon = 'fa-sun'; }
+        else if (code >= 1 && code <= 3) { description = 'Partly Cloudy'; icon = 'fa-cloud-sun'; }
+        else if (code === 45 || code === 48) { description = 'Foggy'; icon = 'fa-smog'; }
+        else if (code >= 51 && code <= 55) { description = 'Light Drizzle'; icon = 'fa-cloud-rain'; }
+        else if (code >= 61 && code <= 65) { description = 'Rainy'; icon = 'fa-cloud-showers-heavy'; }
+        else if (code >= 71 && code <= 75) { description = 'Snowy'; icon = 'fa-snowflake'; }
+        else if (code >= 80 && code <= 82) { description = 'Rain Showers'; icon = 'fa-cloud-sun-rain'; }
+        else if (code === 95) { description = 'Thunderstorms'; icon = 'fa-cloud-bolt'; }
+        
+        setWeather({ temp, wind, code, description, icon });
+      }
+    } catch (err) {
+      console.warn('Failed to fetch weather data for branch, using static fallback.', err);
+      setWeather({
+        temp: 24.5,
+        wind: 12.0,
+        code: 1,
+        description: 'Partly Cloudy',
+        icon: 'fa-cloud-sun',
+      });
+    } finally {
+      setLoadingWeather(false);
+    }
+  };
+
   const loadBusinessProfile = async () => {
     setLoading(true);
     setError(null);
@@ -71,19 +148,39 @@ export default function BusinessDashboardPage() {
       const [data, categoriesData, branches, services, staff] = await Promise.all([
         apiFetch<BusinessProfile>('/api/business/profile'),
         apiFetch<any[]>('/api/public/categories'),
-        apiFetch<{ id: number }[]>('/api/business/branches').catch(() => []),
+        apiFetch<{ id: number; latitude?: number; longitude?: number }[]>('/api/business/branches').catch(() => []),
         apiFetch<{ id: number }[]>('/api/business/services').catch(() => []),
         apiFetch<{ id: number }[]>('/api/business/staff').catch(() => []),
       ]);
       setBusiness(data);
 
       let hoursCount = 0;
+      let bookingsData: Booking[] = [];
+      let lat = 37.7749;
+      let lng = -122.4194;
+
       if (branches.length > 0) {
+        const primaryBranch = branches[0];
+        const primaryBranchId = primaryBranch.id;
         const hours = await apiFetch<unknown[]>(
-          `/api/business/branches/${branches[0].id}/working-hours`
+          `/api/business/branches/${primaryBranchId}/working-hours`
         ).catch(() => []);
         hoursCount = hours.length;
+
+        bookingsData = await apiFetch<Booking[]>(
+          `/api/bookings/branch/${primaryBranchId}`
+        ).catch(() => []);
+
+        if (primaryBranch?.latitude && primaryBranch?.longitude) {
+          lat = primaryBranch.latitude;
+          lng = primaryBranch.longitude;
+        }
       }
+      setBookings(bookingsData);
+
+      // Load weather dynamically
+      void fetchWeather(lat, lng);
+
       setSetup({
         branches: branches.length,
         services: services.length,
@@ -118,6 +215,23 @@ export default function BusinessDashboardPage() {
 
   useEffect(() => {
     loadBusinessProfile();
+    
+    // Load daily inspirational business quote dynamically on mount
+    fetch('https://dummyjson.com/quotes/random')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.quote) {
+          setQuote({ quote: data.quote, author: data.author });
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to fetch quote of the day, using static fallback.', err);
+        setQuote({
+          quote: 'Success is not final, failure is not fatal: it is the courage to continue that counts.',
+          author: 'Winston Churchill',
+        });
+      });
+
     apiFetch<{ readiness?: { submittedCount?: number; requiredCount?: number } }>(
       '/api/business/verification-documents'
     )
@@ -176,9 +290,13 @@ export default function BusinessDashboardPage() {
     return (
       <div className={styles.dashboardContainer}>
         <Skeleton variant="title" />
-        <Skeleton variant="card" count={2} />
-        <div className={styles.skeletonGrid}>
+        <Skeleton variant="card" count={1} />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '20px', margin: '20px 0' }}>
           <Skeleton variant="card" count={4} />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
+          <Skeleton variant="card" />
+          <Skeleton variant="card" />
         </div>
       </div>
     );
@@ -201,63 +319,56 @@ export default function BusinessDashboardPage() {
   }
 
   const checklist = [
-    { done: !!business?.name && !!business?.description, label: 'Complete business profile', href: '/business/dashboard' },
-    { done: setup.branches > 0, label: 'Add a branch', href: '/business/branches' },
-    { done: setup.services > 0, label: 'Add a service', href: '/business/services' },
-    { done: setup.staff > 0, label: 'Add staff', href: '/business/staff' },
-    { done: setup.hours > 0, label: 'Set working hours', href: '/business/availability' },
-    { done: docsReady, label: 'Upload verification docs', href: '/business/verification' },
+    { done: !!business?.name && !!business?.description, label: 'Complete profile info', href: '/business/dashboard' },
+    { done: setup.branches > 0, label: 'Add a branch location', href: '/business/branches' },
+    { done: setup.services > 0, label: 'Create offered services', href: '/business/services' },
+    { done: setup.staff > 0, label: 'Assign staff members', href: '/business/staff' },
+    { done: setup.hours > 0, label: 'Set active hours', href: '/business/availability' },
+    { done: docsReady, label: 'Upload verification documents', href: '/business/verification' },
   ];
-  const checklistWithDocs = checklist;
-  const readyForReview = checklistWithDocs.every((c) => c.done);
-  const doneCount = checklistWithDocs.filter((c) => c.done).length;
-  const publicPath = `/profile/business/${business?.id}`;
-  const publicUrl =
-    typeof window !== 'undefined' ? `${window.location.origin}${publicPath}` : publicPath;
+  const readyForReview = checklist.every((c) => c.done);
+  const doneCount = checklist.filter((c) => c.done).length;
+  const setupPercent = Math.round((doneCount / checklist.length) * 100);
 
-  const handleShare = async () => {
-    if (!business) return;
-    setSharing(true);
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: business.name,
-          text: `Book with ${business.name} on HourSlot`,
-          url: publicUrl,
-        });
-      } else {
-        await navigator.clipboard.writeText(publicUrl);
-        setMessage('Booking page link copied.');
-      }
-    } catch {
-      // user cancelled share
-    } finally {
-      setSharing(false);
-    }
+  const previewPath = business?.id ? `/profile/business/${business.id}` : '';
+
+  const handlePreviewListing = () => {
+    if (!previewPath) return;
+    window.open(previewPath, '_blank', 'noopener,noreferrer');
+  };
+
+  // Compute dynamic stats
+  const activeBookingsCount = bookings.filter((b) => b.status === 'CONFIRMED' || b.status === 'PENDING').length;
+  const estimatedRevenue = bookings.reduce((sum, b) => b.status !== 'CANCELLED' ? sum + b.price : sum, 0);
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayBookingsCount = bookings.filter((b) => b.bookingTime.startsWith(todayStr)).length;
+
+  const upcomingAppointments = bookings
+    .filter((b) => b.status !== 'CANCELLED' && b.status !== 'COMPLETED')
+    .sort((a, b) => new Date(a.bookingTime).getTime() - new Date(b.bookingTime).getTime())
+    .slice(0, 5);
+
+  const formatDateTime = (iso: string) => {
+    const d = new Date(iso);
+    const date = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true });
+    return `${date} at ${time}`;
   };
 
   return (
     <div className={styles.dashboardContainer}>
       <PageHeader
         title={business?.name || 'Business dashboard'}
-        subtitle="Track setup progress, status, and keep your public profile up to date."
-        actions={
-          business?.status === 'APPROVED' ? (
-            <button type="button" className="btn btn-primary" onClick={handleShare} disabled={sharing}>
-              <i className="fa-solid fa-share-nodes" /> {sharing ? 'Sharing…' : "You're live — share booking page"}
-            </button>
-          ) : undefined
-        }
+        subtitle="Manage your business operations, listing status, and public bookings page."
       />
 
       {business?.status === 'PENDING' && (
         <div className={styles.statusAlertPending}>
           <i className="fa-solid fa-clock-rotate-left" />
           <div>
-            <strong>Registration pending review</strong>
+            <strong>Listing Pending Super Admin Review</strong>
             <p>
-              Super Admin will review your listing. Upload trade license, bank statement, and owner ID under
-              Verification to qualify for a verified badge.
+              Your listing is being audited. Complete the setup checklist and upload files under the Verification page to qualify for your verified badge.
             </p>
           </div>
         </div>
@@ -267,10 +378,9 @@ export default function BusinessDashboardPage() {
         <div className={styles.statusAlertRejected}>
           <i className="fa-solid fa-circle-xmark" />
           <div>
-            <strong>Registration rejected</strong>
+            <strong>Registration Update Requested</strong>
             <p>
-              Reason: {business.rejectionReason || 'No reason specified'}. Update your details and verification
-              documents, then wait for another review.
+              Reason: {business.rejectionReason || 'Details require revision'}. Update your license details or verification files below, then submit for review.
             </p>
           </div>
         </div>
@@ -280,8 +390,8 @@ export default function BusinessDashboardPage() {
         <div className={styles.statusAlertSuspended}>
           <i className="fa-solid fa-triangle-exclamation" />
           <div>
-            <strong>Account suspended</strong>
-            <p>Customers cannot book right now. Contact HourSlot Support.</p>
+            <strong>Account Temporarily Suspended</strong>
+            <p>Your listing is hidden from search and client booking is locked. Contact support for assistance.</p>
           </div>
         </div>
       )}
@@ -297,96 +407,292 @@ export default function BusinessDashboardPage() {
         </div>
       )}
 
-      <MetricGrid>
-        <StatCard label="Status" value={business?.status?.replace('_', ' ') || '—'} icon="fa-shield-halved" />
-        <StatCard
-          label="Setup progress"
-          value={`${doneCount}/${checklistWithDocs.length}`}
-          hint="Checklist items complete"
-          icon="fa-list-check"
-        />
-        <StatCard
-          label="Rating"
-          value={business?.rating ? business.rating.toFixed(1) : '0.0'}
-          icon="fa-star"
-        />
-        <StatCard
-          label="Verified"
-          value={business?.verified ? 'Yes' : 'No'}
-          hint="Requires approved documents"
-          icon="fa-badge-check"
-        />
-      </MetricGrid>
+      {/* Tabs Selector */}
+      <div className={styles.tabsContainer}>
+        <button
+          type="button"
+          className={`${styles.tabButton} ${activeTab === 'overview' ? styles.tabButtonActive : ''}`}
+          onClick={() => setActiveTab('overview')}
+        >
+          <i className="fa-solid fa-chart-line" /> Overview
+        </button>
+        <button
+          type="button"
+          className={`${styles.tabButton} ${activeTab === 'profile' ? styles.tabButtonActive : ''}`}
+          onClick={() => {
+            setActiveTab('profile');
+            setMessage(null);
+            setError(null);
+          }}
+        >
+          <i className="fa-solid fa-store" /> Profile Settings
+        </button>
+      </div>
 
-      <div className={styles.dashboardLayout}>
-        <aside className={`surface ${styles.checklistRail}`}>
-          <div className={styles.checklistHeader}>
-            <div>
-              <h3>Setup</h3>
-              <p>{doneCount}/{checklistWithDocs.length} complete</p>
-            </div>
-            <StatusBadge status={business?.status || 'PENDING'} />
-          </div>
-          <ul className={styles.checklist}>
-            {checklistWithDocs.map((item) => (
-              <li key={item.label}>
-                <span>
-                  <i
-                    className={`fa-solid ${item.done ? 'fa-circle-check' : 'fa-circle'}`}
-                    style={{ color: item.done ? 'var(--accent-green)' : 'var(--text-muted)', marginRight: 8 }}
-                  />
-                  {item.label}
-                </span>
-                {!item.done && (
-                  <Link href={item.href} className={styles.checklistLink}>
-                    Go
-                  </Link>
+      {activeTab === 'overview' && (
+        <div className={styles.overviewWrapper}>
+          {/* Welcome Banner */}
+          <div className={styles.dashboardHero}>
+            <div className={styles.heroMain}>
+              <div className={styles.heroAvatarContainer}>
+                {business?.logoUrl ? (
+                  <img src={business.logoUrl} alt="Logo" className={styles.heroLogo} />
+                ) : (
+                  <div className={styles.heroLogoPlaceholder}>
+                    <i className="fa-solid fa-store" />
+                  </div>
                 )}
-              </li>
-            ))}
-          </ul>
-          {business?.status === 'APPROVED' ? (
-            <button type="button" className="btn btn-primary btn-sm" style={{ width: '100%' }} onClick={handleShare}>
-              Share booking page
-            </button>
-          ) : readyForReview ? (
-            <p className={styles.railHint}>Setup complete. Waiting for admin approval.</p>
-          ) : (
-            <p className={styles.railHint}>Finish the remaining steps on the left.</p>
-          )}
-        </aside>
+              </div>
+              <div className={styles.heroMeta}>
+                <h3>{business?.name}</h3>
+                <p className={styles.heroSubtitle}>
+                  {business?.primaryCategory?.name || 'Service Provider'} •{' '}
+                  <span className={styles.heroRating}>
+                    <i className="fa-solid fa-star" /> {business?.rating ? business.rating.toFixed(1) : '0.0'}
+                  </span>
+                </p>
+                <div className={styles.heroBadgeRow}>
+                  <StatusBadge status={business?.status || 'PENDING'} />
+                  {business?.verified && (
+                    <span className={styles.verifiedPartnerBadge}>
+                      <i className="fa-solid fa-circle-check" /> Verified Partner
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className={styles.heroPreviewBox}>
+              <span className={styles.linkTitle}>Customer listing</span>
+              <p className={styles.previewHint}>See how clients view your profile and book appointments.</p>
+              {business?.id && (
+                <button type="button" className={`btn btn-primary ${styles.previewBtn}`} onClick={handlePreviewListing}>
+                  <i className="fa-solid fa-eye" /> Preview listing
+                </button>
+              )}
+            </div>
+          </div>
 
-        <div className={styles.dashboardMain}>
-      <div className={styles.dashboardGrid}>
-        <div className="surface">
+          {/* Inspirational Quote Banner */}
+          {quote && (
+            <div className={styles.quoteBanner}>
+              <i className="fa-solid fa-lightbulb" />
+              <div className={styles.quoteContent}>
+                <span className={styles.quoteLabel}>Tip of the day</span>
+                <span className={styles.quoteText}>
+                  "{quote.quote}" — <strong>{quote.author}</strong>
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Metric Grid */}
+          <MetricGrid>
+            <StatCard label="Active Bookings" value={activeBookingsCount} hint="Pending or confirmed slots" icon="fa-calendar-days" />
+            <StatCard label="Today's Bookings" value={todayBookingsCount} hint="Appointments today" icon="fa-clock" />
+            <StatCard label="Est. Revenue" value={format(estimatedRevenue)} hint="Total active slot rates" icon="fa-wallet" />
+            <StatCard label="Rating Score" value={business?.rating ? `${business.rating.toFixed(1)} / 5` : '0.0'} hint="Customer reviews feedback" icon="fa-star" />
+          </MetricGrid>
+
+          <div className={styles.dashboardLayout}>
+            {/* Main Panel */}
+            <div className={styles.dashboardMain}>
+              {/* Setup checklist progress */}
+              {setupPercent < 100 && (
+                <div className={`surface ${styles.setupProgressCard}`}>
+                  <div className={styles.setupCardHeader}>
+                    <div>
+                      <h4>Complete Setup Checklist</h4>
+                      <p>Finish these setup items to launch your scheduling listing successfully.</p>
+                    </div>
+                    <span className={styles.setupPercentage}>{setupPercent}% Complete</span>
+                  </div>
+                  <div className={styles.progressBarOuter}>
+                    <div className={styles.progressBarInner} style={{ width: `${setupPercent}%` }} />
+                  </div>
+                  <ul className={styles.setupList}>
+                    {checklist.map((item) => (
+                      <li key={item.label} className={item.done ? styles.setupDone : ''}>
+                        <div className={styles.setupLabelArea}>
+                          <i className={`fa-solid ${item.done ? 'fa-circle-check' : 'fa-circle'}`} />
+                          <span>{item.label}</span>
+                        </div>
+                        {!item.done && (
+                          <Link href={item.href} className="btn btn-outline btn-sm">
+                            Configure
+                          </Link>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Upcoming Appointments Table */}
+              <div className={`surface ${styles.appointmentsCard}`}>
+                <div className={styles.appointmentsHeader}>
+                  <h4>Upcoming Appointments</h4>
+                  <Link href="/business/bookings" className={styles.viewAllLink}>
+                    View Bookings Calendar <i className="fa-solid fa-chevron-right" />
+                  </Link>
+                </div>
+
+                {upcomingAppointments.length === 0 ? (
+                  <div className={styles.emptyTableState}>
+                    <i className="fa-solid fa-calendar-minus" />
+                    <h5>No upcoming appointments</h5>
+                    <p>When clients schedule bookings, their upcoming slots will be tracked here.</p>
+                    <Link href="/business/availability" className="btn btn-secondary btn-sm">
+                      Check your availability
+                    </Link>
+                  </div>
+                ) : (
+                  <div className={styles.tableResponsive}>
+                    <table className={styles.appointmentsTable}>
+                      <thead>
+                        <tr>
+                          <th>Client</th>
+                          <th>Service</th>
+                          <th>Date & Time</th>
+                          <th>Price</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {upcomingAppointments.map((booking) => (
+                          <tr key={booking.id}>
+                            <td>
+                              <div className={styles.clientCell}>
+                                <strong>
+                                  {booking.customer.user.firstName} {booking.customer.user.lastName}
+                                </strong>
+                                <span>{booking.customer.user.email}</span>
+                              </div>
+                            </td>
+                            <td>{booking.service.name}</td>
+                            <td>{formatDateTime(booking.bookingTime)}</td>
+                            <td>
+                              <strong className={styles.priceText}>{format(booking.price)}</strong>
+                            </td>
+                            <td>
+                              <StatusBadge status={booking.status} />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Sidebar Actions & Info */}
+            <aside className={styles.sideColumn}>
+              {/* Quick Actions Panel */}
+              <div className="surface">
+                <h4 className={styles.sideTitle}>Management Shortcuts</h4>
+                <div className={styles.quickActionsGrid}>
+                  <Link href="/business/services" className={styles.actionCard}>
+                    <div className={`${styles.actionCardIcon} ${styles.actionServices}`}>
+                      <i className="fa-solid fa-plus" />
+                    </div>
+                    <span>Add Service</span>
+                  </Link>
+                  <Link href="/business/availability" className={styles.actionCard}>
+                    <div className={`${styles.actionCardIcon} ${styles.actionHours}`}>
+                      <i className="fa-solid fa-clock" />
+                    </div>
+                    <span>Set Hours</span>
+                  </Link>
+                  <Link href="/business/staff" className={styles.actionCard}>
+                    <div className={`${styles.actionCardIcon} ${styles.actionStaff}`}>
+                      <i className="fa-solid fa-user-plus" />
+                    </div>
+                    <span>Add Staff</span>
+                  </Link>
+                  <Link href="/business/verification" className={styles.actionCard}>
+                    <div className={`${styles.actionCardIcon} ${styles.actionDocs}`}>
+                      <i className="fa-solid fa-file-shield" />
+                    </div>
+                    <span>Verification</span>
+                  </Link>
+                </div>
+              </div>
+
+              {/* Weather Forecast Widget */}
+              {weather ? (
+                <div className={`surface ${styles.weatherCard}`}>
+                  <div className={styles.weatherHeader}>
+                    <i className="fa-solid fa-cloud-sun" />
+                    <h4>Branch Weather Forecast</h4>
+                  </div>
+                  <div className={styles.weatherMain}>
+                    <div className={styles.weatherInfo}>
+                      <i className={`fa-solid ${weather.icon} ${styles.weatherIconAnim}`} />
+                      <div>
+                        <strong className={styles.weatherTemp}>{weather.temp.toFixed(1)}°C</strong>
+                        <span className={styles.weatherDesc}>{weather.description}</span>
+                      </div>
+                    </div>
+                    <div className={styles.weatherMeta}>
+                      <span><i className="fa-solid fa-wind" /> {weather.wind} km/h</span>
+                    </div>
+                  </div>
+                  <p className={styles.weatherNote}>
+                    Current conditions at your primary location. Rain or weather anomalies may impact customer turnout.
+                  </p>
+                </div>
+              ) : loadingWeather ? (
+                <div className={`surface ${styles.weatherCard}`}>
+                  <div className={styles.weatherHeader}>
+                    <i className="fa-solid fa-spinner fa-spin" />
+                    <h4>Loading weather...</h4>
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Verified badge CTA */}
+              {!business?.verified && (
+                <div className={`surface ${styles.tipCard}`}>
+                  <div className={styles.tipIconHeader}>
+                    <i className="fa-solid fa-file-shield" />
+                    <h4>Verification Document Status</h4>
+                  </div>
+                  <p>
+                    Verify your listing to receive a checkmark badge. Simply upload your Trade License and Bank Statements under the Verification section for admin approval.
+                  </p>
+                  <Link href="/business/verification" className="btn btn-secondary btn-sm" style={{ marginTop: '12px', display: 'inline-block' }}>
+                    Open Verification Uploads
+                  </Link>
+                </div>
+              )}
+            </aside>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'profile' && (
+        <div className={`surface ${styles.profileFormContainer}`}>
           <div className={styles.profileHeader}>
             <div className={styles.profileLogoContainer}>
               {formData.logoUrl ? (
                 <img src={formData.logoUrl} alt="Logo" className={styles.profileLogo} />
               ) : (
                 <div className={styles.logoPlaceholder}>
-                  <i className="fa-solid fa-briefcase" />
+                  <i className="fa-solid fa-store" />
                 </div>
               )}
             </div>
             <div className={styles.profileTitleInfo}>
-              <h2>{business?.name}</h2>
-              <div className={styles.badgeRow}>
-                <StatusBadge status={business?.status || 'PENDING'} />
-                {business?.verified && (
-                  <span className={styles.verifiedBadge}>
-                    <i className="fa-solid fa-circle-check" /> Verified Partner
-                  </span>
-                )}
-              </div>
+              <h2>Business Listing Profile Settings</h2>
+              <p>Configure your listing description, registration fields, and categories displayed on the marketplace.</p>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} className={styles.profileForm}>
             <div className="form-group">
               <label className="form-label" htmlFor="name">
-                Business name
-              </label>
+              Business name
+            </label>
               <input
                 id="name"
                 type="text"
@@ -399,8 +705,8 @@ export default function BusinessDashboardPage() {
 
             <div className="form-group">
               <label className="form-label" htmlFor="description">
-                Description
-              </label>
+              Description
+            </label>
               <textarea
                 id="description"
                 className={`input-field ${styles.textarea}`}
@@ -412,8 +718,8 @@ export default function BusinessDashboardPage() {
 
             <div className="form-group">
               <label className="form-label" htmlFor="logoUrl">
-                Logo image URL
-              </label>
+              Logo image URL
+            </label>
               <input
                 id="logoUrl"
                 type="text"
@@ -426,8 +732,8 @@ export default function BusinessDashboardPage() {
 
             <div className="form-group">
               <label className="form-label" htmlFor="registrationNumber">
-                Government registration / license number
-              </label>
+              Government registration / license number
+            </label>
               <input
                 id="registrationNumber"
                 type="text"
@@ -440,8 +746,8 @@ export default function BusinessDashboardPage() {
 
             <div className="form-group">
               <label className="form-label" htmlFor="primaryCategorySelect">
-                Primary category
-              </label>
+              Primary category
+            </label>
               <select
                 id="primaryCategorySelect"
                 className="select-field"
@@ -459,7 +765,9 @@ export default function BusinessDashboardPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Secondary Categories</label>
+              <label className="form-label">
+              Secondary Categories (Optional)
+            </label>
               <div className={styles.categoryGrid}>
                 {availableCategories
                   .filter((c) => c.id.toString() !== formData.primaryCategoryId)
@@ -482,40 +790,11 @@ export default function BusinessDashboardPage() {
               className="btn btn-primary"
               disabled={submitting || business?.status === 'SUSPENDED'}
             >
-              {submitting ? 'Saving changes...' : 'Save Profile'}
+              {submitting ? 'Saving changes...' : 'Save Profile Settings'}
             </button>
           </form>
         </div>
-
-        <div className={styles.sideColumn}>
-          <div className="surface">
-            <h3 className={styles.sideTitle}>Listing</h3>
-            <div className={styles.metricRow}>
-              <span>Average rating</span>
-              <strong className={styles.ratingValue}>
-                <i className="fa-solid fa-star" /> {business?.rating ? business.rating.toFixed(1) : '0.0'}
-              </strong>
-            </div>
-            <div className={styles.metricRow}>
-              <span>Public link</span>
-              <span className={styles.slugLink}>{publicPath}</span>
-            </div>
-          </div>
-
-          <div className={`surface ${styles.tipCard}`}>
-            <h4>Verified badge</h4>
-            <p>
-              Upload your trade license, bank statement, and owner government ID under Verification. Super Admin
-              reviews each file before the verified badge is granted.
-            </p>
-            <Link href="/business/verification" className="btn btn-secondary btn-sm">
-              Open verification
-            </Link>
-          </div>
-        </div>
-      </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

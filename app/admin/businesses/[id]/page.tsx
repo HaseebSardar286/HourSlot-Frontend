@@ -8,6 +8,7 @@ import Skeleton from '@/components/Skeleton';
 import StatusBadge from '@/components/StatusBadge';
 import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { formatMoney } from '@/lib/money';
 import styles from './business-detail.module.css';
 
 interface Owner {
@@ -30,6 +31,7 @@ interface Service {
   description?: string;
   price: number;
   durationMinutes: number;
+  currency?: string;
 }
 
 interface Staff {
@@ -52,6 +54,8 @@ interface Business {
   rejectionReason?: string;
   createdAt: string;
   owner: Owner;
+  currency?: string;
+  countryCode?: string;
 }
 
 interface BusinessDetailResponse {
@@ -244,6 +248,22 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
 
   const { business, branches, services, staff: staffList } = detail;
   const nameInitials = business.name.charAt(0);
+  const publicProfilePath = `/profile/business/${business.id}`;
+  const bookingPath = `/profile/book/${business.id}?step=service`;
+  const publicProfileUrl =
+    typeof window !== 'undefined' ? `${window.location.origin}${publicProfilePath}` : publicProfilePath;
+  const bookingUrl = typeof window !== 'undefined' ? `${window.location.origin}${bookingPath}` : bookingPath;
+
+  const copyAdminUrl = async (url: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setMessage(`${label} copied to clipboard.`);
+      setError(null);
+    } catch {
+      setError(`Could not copy ${label.toLowerCase()}.`);
+    }
+  };
+
   const formatDate = (dateStr: string) => {
     try {
       return new Date(dateStr).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
@@ -290,6 +310,31 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
           </div>
         </div>
         <StatusBadge status={business.status} />
+      </div>
+
+      <div className={`surface ${styles.urlCard}`}>
+        <h3 className={styles.sectionTitle}>Platform URLs</h3>
+        <p className={styles.description}>Super admin only — customer-facing links for this business.</p>
+        <div className={styles.urlList}>
+          <div className={styles.urlRow}>
+            <div>
+              <strong>Public profile</strong>
+              <code className={styles.urlCode}>{publicProfileUrl}</code>
+            </div>
+            <button type="button" className="btn btn-sm btn-outline" onClick={() => copyAdminUrl(publicProfileUrl, 'Profile URL')}>
+              Copy
+            </button>
+          </div>
+          <div className={styles.urlRow}>
+            <div>
+              <strong>Booking entry</strong>
+              <code className={styles.urlCode}>{bookingUrl}</code>
+            </div>
+            <button type="button" className="btn btn-sm btn-outline" onClick={() => copyAdminUrl(bookingUrl, 'Booking URL')}>
+              Copy
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className={styles.detailGrid}>
@@ -445,8 +490,8 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
 
             <form onSubmit={handleUpdateCommission} className={styles.commissionForm}>
               <label className="form-label" htmlFor="commissionRate">
-                Commission percentage
-              </label>
+              Commission percentage
+            </label>
               <div className={styles.commissionRow}>
                 <input
                   id="commissionRate"
@@ -495,7 +540,7 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
                       <div className={styles.itemName}>{sv.name}</div>
                       <div className={styles.itemSub}>{sv.durationMinutes} mins</div>
                     </div>
-                    <strong>${sv.price.toFixed(2)}</strong>
+                    <strong>{formatMoney(sv.price, sv.currency || business.currency)}</strong>
                   </div>
                 ))}
               </div>

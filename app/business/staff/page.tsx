@@ -11,6 +11,7 @@ import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import DataTable from '@/components/DataTable';
 import FilterBar from '@/components/FilterBar';
+import CustomSelect from '@/components/CustomSelect';
 import styles from './staff.module.css';
 
 interface Branch {
@@ -29,6 +30,17 @@ interface Staff {
     name: string;
   };
 }
+
+const getInitials = (name: string) => {
+  if (!name) return '';
+  return name
+    .trim()
+    .split(/\s+/)
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+};
 
 export default function StaffPage() {
   const { plan, loaded: planLoaded, refresh: refreshPlan } = useOwnerPlan();
@@ -62,6 +74,7 @@ export default function StaffPage() {
   >([]);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [inviting, setInviting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const loadInitialData = async () => {
     setLoading(true);
@@ -204,6 +217,21 @@ export default function StaffPage() {
     );
   }
 
+  // Calculate statistics
+  const ratedStaff = staffList.filter((s) => s.rating != null && s.rating > 0);
+  const avgRating =
+    ratedStaff.length > 0
+      ? (ratedStaff.reduce((acc, curr) => acc + (curr.rating || 0), 0) / ratedStaff.length).toFixed(1)
+      : 'N/A';
+  const pendingInvites = invites.filter((inv) => inv.status === 'PENDING').length;
+
+  // Filter staff directory list
+  const filteredStaff = staffList.filter(
+    (s) =>
+      s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (s.designation && s.designation.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
   return (
     <div className={styles.page}>
       <PageHeader
@@ -233,8 +261,40 @@ export default function StaffPage() {
         </div>
       )}
 
+      {branches.length > 0 && (
+        <div className={styles.statsRow}>
+          <div className={styles.statCard}>
+            <div className={styles.statIcon}>
+              <i className="fa-solid fa-users" />
+            </div>
+            <div className={styles.statInfo}>
+              <div className={styles.statValue}>{staffList.length}</div>
+              <div className={styles.statLabel}>Team Specialists</div>
+            </div>
+          </div>
+          <div className={styles.statCard}>
+            <div className={styles.statIcon}>
+              <i className="fa-solid fa-star" style={{ color: '#d97706' }} />
+            </div>
+            <div className={styles.statInfo}>
+              <div className={styles.statValue}>{avgRating}</div>
+              <div className={styles.statLabel}>Average Rating</div>
+            </div>
+          </div>
+          <div className={styles.statCard}>
+            <div className={styles.statIcon}>
+              <i className="fa-solid fa-envelope-open-text" />
+            </div>
+            <div className={styles.statInfo}>
+              <div className={styles.statValue}>{pendingInvites}</div>
+              <div className={styles.statLabel}>Pending Invites</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {branches.length > 0 && canAdd && (
-        <div className={`surface ${styles.inviteCard}`}>
+        <div className={styles.inviteCard}>
           <h3>Invite staff by email</h3>
           <p className={styles.inviteHint}>Sends an accept link. Staff create their own login and join this branch.</p>
           <div className={styles.inviteGrid}>
@@ -256,17 +316,13 @@ export default function StaffPage() {
               value={inviteForm.designation}
               onChange={(e) => setInviteForm((p) => ({ ...p, designation: e.target.value }))}
             />
-            <select
-              className="select-field"
+            <CustomSelect
+              options={branches.map((b) => ({ value: b.id.toString(), label: b.name }))}
               value={inviteForm.branchId}
-              onChange={(e) => setInviteForm((p) => ({ ...p, branchId: e.target.value }))}
-            >
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setInviteForm((p) => ({ ...p, branchId: val }))}
+              searchable={false}
+              placeholder="Branch"
+            />
             <button
               type="button"
               className="btn btn-primary"
@@ -306,18 +362,26 @@ export default function StaffPage() {
           </div>
           {inviteLink && (
             <p className={styles.inviteLink}>
-              Invite link: <code>{inviteLink}</code>
+              <i className="fa-solid fa-link" /> Invite link: <code>{inviteLink}</code>
             </p>
           )}
           {invites.length > 0 && (
-            <ul className={styles.inviteList}>
-              {invites.slice(0, 5).map((inv) => (
-                <li key={inv.id}>
-                  {inv.displayName} · {inv.email} · {inv.status}
-                  {inv.branchName ? ` · ${inv.branchName}` : ''}
-                </li>
+            <div className={styles.inviteList}>
+              {invites.slice(0, 6).map((inv) => (
+                <div
+                  key={inv.id}
+                  className={`${styles.inviteChip} ${
+                    inv.status === 'PENDING' ? styles.statusPending : styles.statusAccepted
+                  }`}
+                >
+                  <i className={inv.status === 'PENDING' ? 'fa-regular fa-clock' : 'fa-solid fa-circle-check'} />
+                  <span>
+                    <strong>{inv.displayName}</strong> ({inv.email}) · {inv.status}
+                    {inv.branchName ? ` @ ${inv.branchName}` : ''}
+                  </span>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </div>
       )}
@@ -334,27 +398,37 @@ export default function StaffPage() {
         />
       ) : (
         <>
-          <FilterBar>
-            <label className="form-label" htmlFor="branchFilter">
-              Branch
+          <div className={styles.searchBarContainer}>
+            <FilterBar>
+              <label className="form-label" htmlFor="branchFilter">
+              Filter Branch:
             </label>
-            <select
-              id="branchFilter"
-              className="select-field"
-              value={selectedBranchId}
-              onChange={(e) => setSelectedBranchId(e.target.value)}
-            >
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          </FilterBar>
+              <div style={{ minWidth: '180px' }}>
+                <CustomSelect
+                  id="branchFilter"
+                  options={branches.map((b) => ({ value: b.id.toString(), label: b.name }))}
+                  value={selectedBranchId}
+                  onChange={setSelectedBranchId}
+                  searchable={false}
+                />
+              </div>
+            </FilterBar>
+
+            <div className={styles.searchContainer}>
+              <i className={`fa-solid fa-magnifying-glass ${styles.searchIcon}`} />
+              <input
+                type="text"
+                className={`input-field ${styles.searchInput}`}
+                placeholder="Search staff name or role..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
 
           {staffLoading ? (
             <Skeleton variant="row" count={4} />
-          ) : staffList.length === 0 ? (
+          ) : filteredStaff.length === 0 ? (
             <EmptyState
               icon={canAdd ? 'fa-users' : 'fa-lock'}
               title={canAdd ? 'No staff at this branch' : 'Staff limit reached'}
@@ -367,46 +441,52 @@ export default function StaffPage() {
               onAction={canAdd ? handleAddClick : undefined}
             />
           ) : (
-            <DataTable
-              columns={[
-                {
-                  key: 'name',
-                  header: 'Name',
-                  render: (s) => (
-                    <div>
-                      <strong>{s.name}</strong>
-                      {s.designation && <div className={styles.desc}>{s.designation}</div>}
+            <div className={styles.staffGrid}>
+              {filteredStaff.map((s) => (
+                <div key={s.id} className={styles.staffCard}>
+                  <div className={styles.cardHeader}>
+                    <div className={styles.avatarCircle}>{getInitials(s.name)}</div>
+                    <div className={styles.headerText}>
+                      <h4 className={styles.staffName}>{s.name}</h4>
+                      <span className={styles.staffDesignation}>{s.designation || 'Specialist'}</span>
                     </div>
-                  ),
-                },
-                {
-                  key: 'rating',
-                  header: 'Rating',
-                  render: (s) => (s.rating ? s.rating.toFixed(1) : 'No reviews'),
-                },
-                {
-                  key: 'user',
-                  header: 'Linked user',
-                  render: (s) => (s.userId ? `ID ${s.userId}` : '—'),
-                },
-                {
-                  key: 'actions',
-                  header: 'Actions',
-                  render: (s) => (
+                  </div>
+
+                  <div className={styles.cardDetails}>
+                    <div className={styles.detailItem}>
+                      <i className="fa-solid fa-location-dot" />
+                      <span>{s.branch.name}</span>
+                    </div>
+                    <div className={styles.detailItem}>
+                      {s.userId ? (
+                        <span className={styles.badgeLinked}>
+                          <i className="fa-solid fa-circle-user" /> Linked Account
+                        </span>
+                      ) : (
+                        <span className={styles.badgeOffline}>
+                          <i className="fa-regular fa-circle" /> Offline Specialist
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className={styles.cardBottom}>
+                    <div className={styles.ratingBadge}>
+                      <i className="fa-solid fa-star" />
+                      <span>{s.rating ? s.rating.toFixed(1) : 'New'}</span>
+                    </div>
                     <div className={styles.actions}>
                       <button type="button" className="btn btn-sm btn-outline" onClick={() => handleEditClick(s)}>
-                        Edit
+                        <i className="fa-regular fa-pen-to-square" style={{ marginRight: 4 }} /> Edit
                       </button>
                       <button type="button" className="btn btn-sm btn-danger" onClick={() => setDeleteId(s.id)}>
-                        Delete
+                        <i className="fa-regular fa-trash-can" style={{ marginRight: 4 }} /> Delete
                       </button>
                     </div>
-                  ),
-                },
-              ]}
-              rows={staffList}
-              rowKey={(s) => s.id}
-            />
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </>
       )}
@@ -429,7 +509,7 @@ export default function StaffPage() {
         <form id="staff-form" onSubmit={handleSubmit} className={styles.form}>
           <div className="form-group">
             <label className="form-label" htmlFor="staffName">
-              Name
+              Name:
             </label>
             <input
               id="staffName"
@@ -442,7 +522,7 @@ export default function StaffPage() {
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="staffDesignation">
-              Designation
+              Designation:
             </label>
             <input
               id="staffDesignation"
@@ -455,24 +535,19 @@ export default function StaffPage() {
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="staffBranch">
-              Assigned branch
+              Assigned branch:
             </label>
-            <select
+            <CustomSelect
               id="staffBranch"
-              className="select-field"
+              options={branches.map((b) => ({ value: b.id.toString(), label: b.name }))}
               value={formData.branchId}
-              onChange={(e) => handleInputChange('branchId', e.target.value)}
-            >
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => handleInputChange('branchId', val)}
+              searchable={false}
+            />
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="staffUserId">
-              Linked user ID (optional)
+              Linked user ID (optional):
             </label>
             <input
               id="staffUserId"

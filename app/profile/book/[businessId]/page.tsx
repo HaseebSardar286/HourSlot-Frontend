@@ -1,207 +1,269 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
-import Link from 'next/link';
-import { useRouter, useParams, useSearchParams } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import type { BookingRequest, CustomerPackage, PublicBusinessProfile, Service, Staff } from '@/lib/types';
-import { parseSlots, type AvailableSlot } from '@/lib/slots';
+import type { PublicBusinessProfile } from '@/lib/types';
+import type { AvailableSlot } from '@/lib/slots';
+import {
+  buildBookingConfirmationHref,
+  buildBookingHref,
+  clearBookingDraft,
+  defaultBookingState,
+  loadBookingDraft,
+  nextStep,
+  parseBookingSearchParams,
+  previousStep,
+  resolveAllowedStep,
+  saveBookingDraft,
+  saveConfirmationSnapshot,
+  syncBookingUrl,
+  validateStep,
+  type BookingFlowState,
+  type BookingStep,
+} from '@/lib/booking-flow';
+import BookingShell from '@/components/booking/BookingShell';
+import ServiceStep from '@/components/booking/ServiceStep';
+import DetailsStep from '@/components/booking/DetailsStep';
+import ScheduleStep from '@/components/booking/ScheduleStep';
+import ConfirmStep, { type PaymentChoice } from '@/components/booking/ConfirmStep';
 import Skeleton from '@/components/Skeleton';
 import EmptyState from '@/components/EmptyState';
-import styles from './book.module.css';
 
-const STEPS = [
-  { id: 'time', label: 'Time' },
-  { id: 'details', label: 'Checkout' },
-];
+const STEP_COPY: Record<BookingStep, { title: string; lead: string }> = {
+  service: {
+    title: 'Choose your service',
+    lead: 'Pick the service you want to book at this business.',
+  },
+  details: {
+    title: 'Location & specialist',
+    lead: 'Select where you will visit and optionally choose a team member.',
+  },
+  schedule: {
+    title: 'Pick date & time',
+    lead: 'Choose an open slot that works for you.',
+  },
+  confirm: {
+    title: 'Review & confirm',
+    lead: 'Sign in if needed, then confirm your appointment.',
+  },
+};
 
-function BookWizardContent() {
-  const { businessId } = useParams();
+function mergeFlowFromParams(
+  searchParams: URLSearchParams,
+  profile: PublicBusinessProfile
+): BookingFlowState {
+  const parsed = parseBookingSearchParams(searchParams);
+  const branchId =
+    parsed.branchId && profile.branches.some((b) => String(b.id) === parsed.branchId)
+      ? parsed.branchId
+      : profile.branches[0]
+        ? String(profile.branches[0].id)
+        : '';
+
+  const serviceId =
+    parsed.serviceId && profile.services.some((s) => String(s.id) === parsed.serviceId)
+      ? parsed.serviceId
+      : '';
+
+  const staffId =
+    parsed.staffId && profile.staff.some((s) => String(s.id) === parsed.staffId) ? parsed.staffId : '';
+
+  const initial: BookingFlowState = {
+    step: parsed.step,
+    serviceId,
+    branchId,
+    staffId,
+    date: parsed.date,
+    slot: parsed.slot,
+    customerPackageId: parsed.customerPackageId || '',
+  };
+  initial.step = resolveAllowedStep(initial.step, initial);
+  return initial;
+}
+
+function BookWizardInner() {
+  const params = useParams();
+  const businessId = Array.isArray(params.businessId) ? params.businessId[0] : params.businessId;
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   const [profile, setProfile] = useState<PublicBusinessProfile | null>(null);
-  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const [selectedBranchId, setSelectedBranchId] = useState('');
-  const [selectedServiceId, setSelectedServiceId] = useState('');
-  const [selectedStaffId, setSelectedStaffId] = useState('');
-  const [selectedDate, setSelectedDate] = useState('');
-  const [availableSlots, setAvailableSlots] = useState<AvailableSlot[]>([]);
-  const [slotsLoading, setSlotsLoading] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState('');
-  const [clientNotes, setClientNotes] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'VENUE' | 'ONLINE' | 'PACKAGE'>('ONLINE');
-  const [eligiblePackages, setEligiblePackages] = useState<CustomerPackage[]>([]);
+  const [flow, setFlow] = useState<BookingFlowState>(defaultBookingState());
+  const [paymentMethod, setPaymentMethod] = useState<PaymentChoice>('ONLINE');
   const [selectedPackageId, setSelectedPackageId] = useState<number | null>(null);
+  const [clientNotes, setClientNotes] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [quotedSlot, setQuotedSlot] = useState<AvailableSlot | null>(null);
+  const [packageLabel, setPackageLabel] = useState<string | null>(null);
 
-  const [weekStartDate, setWeekStartDate] = useState<Date>(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
-  });
-  const [weekDays, setWeekDays] = useState<{ dayNum: number; dateStr: string; label: string; dateObj: Date }[]>([]);
-
-  const toLocalDateStr = (d: Date) => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-  };
-
+  const profileLoaded = useRef(false);
+  const pendingUrlSync = useRef(false);
+  const urlSyncOptionsRef = useRef<{ replace?: boolean } | undefined>(undefined);
   const profileHref = `/profile/business/${businessId}`;
 
-  const loadProfile = async () => {
-    if (!businessId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await apiFetch<PublicBusinessProfile>(`/api/discover/business/${businessId}`, {
-        skipAuth: true,
+  const applyFlow = useCallback(
+    (patch: Partial<BookingFlowState>, options?: { replace?: boolean }) => {
+      urlSyncOptionsRef.current = options;
+      pendingUrlSync.current = true;
+      setFlow((prev) => {
+        const next: BookingFlowState = { ...prev, ...patch };
+        next.step = resolveAllowedStep(next.step, next);
+        return next;
       });
-      setProfile(data);
-
-      const serviceParam = searchParams.get('serviceId');
-      const branchParam = searchParams.get('branchId');
-      const staffParam = searchParams.get('staffId');
-      const dateParam = searchParams.get('date');
-      const slotParam = searchParams.get('slot');
-
-      const validService =
-        serviceParam && data.services.some((s) => s.id.toString() === serviceParam) ? serviceParam : null;
-
-      if (!validService) {
-        router.replace(profileHref);
-        return;
-      }
-
-      setSelectedServiceId(validService);
-
-      if (data.branches.length > 0) setSelectedBranchId(data.branches[0].id.toString());
-      if (branchParam && data.branches.some((b) => b.id.toString() === branchParam)) {
-        setSelectedBranchId(branchParam);
-      }
-      if (staffParam && data.staff.some((s) => s.id.toString() === staffParam)) {
-        setSelectedStaffId(staffParam);
-      }
-      if (dateParam) setSelectedDate(dateParam);
-      if (slotParam) setSelectedSlot(slotParam);
-      if (dateParam && slotParam) setStep(2);
-    } catch (err: unknown) {
-      const e = err as { message?: string };
-      setError(e?.message || 'Failed to load booking configurations.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    []
+  );
 
   useEffect(() => {
-    loadProfile();
+    if (!pendingUrlSync.current || !businessId) return;
+    pendingUrlSync.current = false;
+    syncBookingUrl(router, businessId, flow, urlSyncOptionsRef.current);
+  }, [flow, businessId, router]);
+
+  useEffect(() => {
+    const load = async () => {
+      if (!businessId) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await apiFetch<PublicBusinessProfile>(`/api/discover/business/${businessId}`, {
+          skipAuth: true,
+        });
+        setProfile(data);
+        profileLoaded.current = true;
+
+        const initial = mergeFlowFromParams(searchParams, data);
+        setFlow(initial);
+        const canonicalHref = buildBookingHref(businessId, initial);
+        const currentPath = `${window.location.pathname}${window.location.search}`;
+        if (canonicalHref !== currentPath) {
+          router.replace(canonicalHref, { scroll: false });
+        }
+
+        const draft = loadBookingDraft(businessId);
+        if (draft) {
+          if (draft.paymentMethod) setPaymentMethod(draft.paymentMethod);
+          if (draft.clientNotes) setClientNotes(draft.clientNotes);
+          if (draft.termsAccepted) setTermsAccepted(draft.termsAccepted);
+          if (draft.selectedPackageId != null) setSelectedPackageId(draft.selectedPackageId);
+        }
+
+        if (initial.customerPackageId) {
+          setPaymentMethod('PACKAGE');
+          setSelectedPackageId(Number.parseInt(initial.customerPackageId, 10));
+          if (isAuthenticated) {
+            apiFetch<{ id: number; servicePackage: { name: string } }[]>(`/api/customer/packages`)
+              .then((pkgs) => {
+                const match = pkgs.find((p) => String(p.id) === initial.customerPackageId);
+                if (match) setPackageLabel(match.servicePackage.name);
+              })
+              .catch(() => {});
+          }
+        }
+      } catch (err: unknown) {
+        const e = err as { message?: string };
+        setError(e?.message || 'Failed to load booking.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [businessId]);
 
   useEffect(() => {
-    const days = [];
-    const start = new Date(weekStartDate);
-    for (let i = 0; i < 5; i++) {
-      const current = new Date(start);
-      current.setDate(start.getDate() + i);
-      days.push({
-        dayNum: current.getDate(),
-        dateStr: toLocalDateStr(current),
-        label: current.toLocaleDateString(undefined, { weekday: 'short' }),
-        dateObj: current,
-      });
-    }
-    setWeekDays(days);
-    if (!selectedDate && days.length > 0) setSelectedDate(days[0].dateStr);
-  }, [weekStartDate, selectedDate]);
+    if (!profile || !profileLoaded.current) return;
+    const initial = mergeFlowFromParams(searchParams, profile);
+    setFlow(initial);
+  }, [searchParams, profile]);
 
   useEffect(() => {
-    const fetchSlots = async () => {
-      if (!selectedBranchId || !selectedServiceId || !selectedDate) {
-        setAvailableSlots([]);
-        return;
-      }
-      setSlotsLoading(true);
-      try {
-        let url = `/api/public/branches/${selectedBranchId}/slots?serviceId=${selectedServiceId}&date=${selectedDate}`;
-        if (selectedStaffId) url += `&staffId=${selectedStaffId}`;
-        const slots = await apiFetch<unknown>(url, { skipAuth: true });
-        setAvailableSlots(parseSlots(slots));
-      } catch (err: unknown) {
-        const e = err as { message?: string };
-        setAvailableSlots([]);
-        setError(e?.message || 'Could not load available slots.');
-      } finally {
-        setSlotsLoading(false);
-      }
-    };
-    fetchSlots();
-  }, [selectedBranchId, selectedServiceId, selectedStaffId, selectedDate]);
-
-  useEffect(() => {
-    const loadEligible = async () => {
-      if (!selectedServiceId || step < 2) {
-        setEligiblePackages([]);
-        return;
-      }
-      try {
-        const data = await apiFetch<CustomerPackage[]>(
-          `/api/customer/packages/eligible?serviceId=${selectedServiceId}`
-        );
-        setEligiblePackages(data || []);
-      } catch {
-        setEligiblePackages([]);
-      }
-    };
-    loadEligible();
-  }, [selectedServiceId, step]);
-
-  const handleNextWeek = () => {
-    setWeekStartDate((prev) => {
-      const next = new Date(prev);
-      next.setDate(prev.getDate() + 5);
-      return next;
+    if (!businessId) return;
+    saveBookingDraft(businessId, {
+      paymentMethod,
+      clientNotes,
+      termsAccepted,
+      selectedPackageId,
     });
-  };
+  }, [businessId, paymentMethod, clientNotes, termsAccepted, selectedPackageId]);
 
-  const handlePrevWeek = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const prevWeek = new Date(weekStartDate);
-    prevWeek.setDate(weekStartDate.getDate() - 5);
-    setWeekStartDate(prevWeek < today ? today : prevWeek);
-  };
+  useEffect(() => {
+    const fetchQuoted = async () => {
+      if (!flow.branchId || !flow.serviceId || !flow.date || !flow.slot) {
+        setQuotedSlot(null);
+        return;
+      }
+      try {
+        let url = `/api/public/branches/${flow.branchId}/slots?serviceId=${flow.serviceId}&date=${flow.date}`;
+        if (flow.staffId) url += `&staffId=${flow.staffId}`;
+        const slots = await apiFetch<unknown>(url, { skipAuth: true });
+        const list = Array.isArray(slots)
+          ? slots.map((item) =>
+              typeof item === 'string' ? { startTime: item.slice(0, 5) } : (item as AvailableSlot)
+            )
+          : [];
+        const match = list.find((s) => s.startTime?.slice(0, 5) === flow.slot);
+        setQuotedSlot(match || null);
+      } catch {
+        setQuotedSlot(null);
+      }
+    };
+    fetchQuoted();
+  }, [flow.branchId, flow.serviceId, flow.staffId, flow.date, flow.slot]);
 
-  const handleNextStep = () => {
+  const service = useMemo(
+    () => profile?.services.find((s) => String(s.id) === flow.serviceId) || null,
+    [profile, flow.serviceId]
+  );
+  const branch = useMemo(
+    () => profile?.branches.find((b) => String(b.id) === flow.branchId) || null,
+    [profile, flow.branchId]
+  );
+  const staff = useMemo(
+    () => profile?.staff.find((s) => String(s.id) === flow.staffId) || null,
+    [profile, flow.staffId]
+  );
+
+  const gallery = profile?.business.galleryUrls
+    ?.split(',')
+    .map((u) => u.trim())
+    .filter(Boolean);
+  const thumb = gallery?.[0] || profile?.business.logoUrl || null;
+
+  const quotedPrice = quotedSlot?.price ?? service?.price ?? 0;
+  const returnUrl = buildBookingHref(businessId as string, { ...flow, step: 'confirm' });
+
+  const handleBack = () => {
     setError(null);
-    if (step === 1 && (!selectedDate || !selectedSlot)) {
-      setError('Please select both a date and a time slot.');
-      return;
-    }
-    setStep(2);
-  };
-
-  const handlePrevStep = () => {
-    setError(null);
-    if (step === 2) {
-      setStep(1);
+    const prev = previousStep(flow.step);
+    if (prev) {
+      applyFlow({ step: prev });
       return;
     }
     router.push(profileHref);
   };
 
-  const handleConfirmBooking = async () => {
-    if (!selectedBranchId || !selectedServiceId || !selectedDate || !selectedSlot) return;
+  const handleContinue = () => {
+    setError(null);
+    const validation = validateStep(flow.step, flow);
+    if (!validation.valid) {
+      setError(validation.message || 'Please complete this step.');
+      return;
+    }
+    const nxt = nextStep(flow.step);
+    if (nxt) applyFlow({ step: nxt });
+  };
+
+  const handleConfirm = async () => {
+    if (!profile || !flow.branchId || !flow.serviceId || !flow.date || !flow.slot) return;
+    if (!isAuthenticated) return;
     if (!termsAccepted) {
       setError('Please agree to the terms and cancellation policy.');
       return;
@@ -214,29 +276,37 @@ function BookWizardContent() {
     setSubmitting(true);
     setError(null);
 
-    const bookingTime = `${selectedDate}T${selectedSlot}:00`;
-    const payload: BookingRequest = {
-      branchId: parseInt(selectedBranchId, 10),
-      serviceId: parseInt(selectedServiceId, 10),
-      staffId: selectedStaffId ? parseInt(selectedStaffId, 10) : null,
-      bookingTime,
-      clientNotes: clientNotes || null,
-      paymentMethod: paymentMethod === 'PACKAGE' ? 'VENUE' : paymentMethod,
-      customerPackageId: paymentMethod === 'PACKAGE' ? selectedPackageId : null,
-    };
+    const bookingTime = `${flow.date}T${flow.slot}:00`;
 
     try {
       const created = await apiFetch<{ id: number }>('/api/bookings', {
         method: 'POST',
         body: JSON.stringify({
-          branchId: payload.branchId,
-          serviceId: payload.serviceId,
-          staffId: payload.staffId,
-          bookingTime: payload.bookingTime,
-          clientNotes: payload.clientNotes,
-          customerPackageId: payload.customerPackageId,
+          branchId: Number.parseInt(flow.branchId, 10),
+          serviceId: Number.parseInt(flow.serviceId, 10),
+          staffId: flow.staffId ? Number.parseInt(flow.staffId, 10) : null,
+          bookingTime,
+          clientNotes: clientNotes || null,
+          customerPackageId: paymentMethod === 'PACKAGE' ? selectedPackageId : null,
         }),
       });
+
+      saveConfirmationSnapshot({
+        bookingId: created.id,
+        businessId: Number(businessId),
+        businessName: profile.business.name,
+        serviceName: service?.name || '',
+        branchName: branch?.name || '',
+        branchAddress: branch?.address,
+        staffName: staff?.name,
+        bookingTime,
+        price: quotedPrice,
+        currency: quotedSlot?.currency || service?.currency || profile.business.currency,
+        paymentMethod,
+        durationMinutes: service?.durationMinutes,
+      });
+
+      clearBookingDraft(businessId as string);
 
       if (paymentMethod === 'ONLINE' && created?.id) {
         const checkout = await apiFetch<{ url: string }>(
@@ -247,57 +317,33 @@ function BookWizardContent() {
           window.location.href = checkout.url;
           return;
         }
-        setSuccessMessage('Booking created. Online checkout could not start — you can pay from My bookings.');
-      } else if (paymentMethod === 'PACKAGE') {
-        setSuccessMessage('Appointment booked using your package session.');
-      } else {
-        setSuccessMessage('Appointment scheduled. Pay at the venue.');
       }
 
-      setSuccess(true);
-      setTimeout(() => router.push('/profile/bookings'), 1800);
+      router.push(buildBookingConfirmationHref(businessId as string, created.id, paymentMethod));
     } catch (err: unknown) {
       const e = err as { message?: string };
-      setError(e?.message || 'Booking failed.');
+      setError(e?.message || 'Booking failed. Please try again.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const formatFriendlyDate = (dateStr: string) => {
-    if (!dateStr) return '';
-    return new Date(dateStr + 'T00:00:00').toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
-
-  const formatFriendlyTime = (timeStr: string) => {
-    if (!timeStr) return '';
-    const h = parseInt(timeStr.split(':')[0], 10);
-    const m = timeStr.split(':')[1];
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    const displayH = h % 12 === 0 ? 12 : h % 12;
-    return `${displayH}:${m} ${ampm}`;
-  };
-
-  if (loading && !profile) {
+  if (loading) {
     return (
-      <div className={styles.wizard}>
+      <div style={{ maxWidth: 1080, margin: '0 auto', padding: '24px 8px' }}>
         <Skeleton variant="title" />
-        <Skeleton variant="card" height={320} />
+        <Skeleton variant="card" height={360} />
       </div>
     );
   }
 
-  if (!profile && error) {
+  if (!profile) {
     return (
-      <div className={styles.wizard}>
+      <div style={{ maxWidth: 1080, margin: '0 auto', padding: '24px 8px' }}>
         <EmptyState
           icon="fa-calendar-xmark"
-          title="Unable to load booking"
-          description={error}
+          title="Unable to start booking"
+          description={error || 'Business not found.'}
           actionLabel="Back to explore"
           onAction={() => router.push('/profile/explore')}
         />
@@ -305,450 +351,114 @@ function BookWizardContent() {
     );
   }
 
-  if (!profile || !selectedServiceId) {
+  if (profile.services.length === 0) {
     return (
-      <div className={styles.wizard}>
-        <Skeleton variant="title" />
-        <Skeleton variant="card" height={280} />
+      <div style={{ maxWidth: 1080, margin: '0 auto', padding: '24px 8px' }}>
+        <EmptyState
+          icon="fa-scissors"
+          title="No bookable services"
+          description="This business has not published services yet."
+          actionLabel="Back to profile"
+          onAction={() => router.push(profileHref)}
+        />
       </div>
     );
   }
 
-  if (success) {
-    return (
-      <div className={styles.successWrap}>
-        <div className={styles.successCard}>
-          <div className={styles.successIcon}>
-            <i className="fa-solid fa-circle-check" />
-          </div>
-          <h3>Appointment scheduled</h3>
-          <p>{successMessage} Redirecting to your bookings…</p>
-        </div>
-      </div>
-    );
-  }
-
-  const serviceObj = profile.services.find((s) => s.id.toString() === selectedServiceId) as Service | undefined;
-  const staffObj = profile.staff.find((s) => s.id.toString() === selectedStaffId) as Staff | undefined;
-  const selectedSlotObj = availableSlots.find((slot) => slot.startTime === selectedSlot);
-  const quotedPrice =
-    selectedSlotObj?.price != null
-      ? selectedSlotObj.price
-      : serviceObj
-        ? serviceObj.price
-        : 0;
-  const quotedBase =
-    selectedSlotObj?.basePrice != null ? selectedSlotObj.basePrice : quotedPrice;
-  const pricingKind = selectedSlotObj?.pricingKind;
-  const pricingLabel = selectedSlotObj?.pricingLabel;
-  const branchStaff = (profile.staff || []).filter(
-    (s) => !selectedBranchId || s.branch?.id?.toString() === selectedBranchId
-  );
-  const gallery = profile.business.galleryUrls
-    ?.split(',')
-    .map((u) => u.trim())
-    .filter(Boolean);
-  const thumb = gallery?.[0] || profile.business.logoUrl || null;
-  const displayTotal = paymentMethod === 'PACKAGE' ? 0 : quotedPrice;
-  const taxEstimate = displayTotal * 0.08;
-  const grandTotal = displayTotal + (paymentMethod === 'PACKAGE' ? 0 : taxEstimate);
-
-  const monthLabel =
-    weekDays.length > 0
-      ? weekDays[0].dateObj.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
-      : '';
+  const copy = STEP_COPY[flow.step];
+  const isConfirm = flow.step === 'confirm';
 
   return (
-    <div className={styles.wizard}>
-      {step === 1 && (
-        <header className={styles.head}>
-          <div>
-            <h1>Select Provider &amp; Time</h1>
-            <p>
-              {serviceObj
-                ? `Scheduling ${serviceObj.name}. Pick your preferred team member and an open time slot.`
-                : 'Pick your preferred team member and an open time slot.'}
-            </p>
-          </div>
-          <div className={styles.stepper} aria-label="Progress">
-            {STEPS.map((s, i) => {
-              const n = i + 1;
-              const active = step === n;
-              const done = step > n;
-              return (
-                <div key={s.id} className={styles.stepItem}>
-                  <span className={`${styles.stepDot} ${active || done ? styles.stepDotOn : ''}`}>
-                    {done ? <i className="fa-solid fa-check" /> : n}
-                  </span>
-                  <span className={`${styles.stepLabel} ${active ? styles.stepLabelOn : ''}`}>{s.label}</span>
-                  {i < STEPS.length - 1 && <span className={`${styles.stepLine} ${done ? styles.stepLineOn : ''}`} />}
-                </div>
-              );
-            })}
-          </div>
-        </header>
-      )}
-
-      {step === 2 && (
-        <header className={styles.head}>
-          <div>
-            <h1>Checkout</h1>
-            <p>Review your booking details and select a payment method.</p>
-          </div>
-        </header>
-      )}
-
+    <BookingShell
+      businessId={businessId as string}
+      businessName={profile.business.name}
+      businessThumb={thumb}
+      currentStep={flow.step}
+      stepTitle={copy.title}
+      stepLead={copy.lead}
+      flow={flow}
+      service={service}
+      branch={branch}
+      staff={staff}
+      date={flow.date}
+      slot={flow.slot}
+      price={quotedPrice}
+      currency={quotedSlot?.currency || service?.currency || profile.business.currency}
+      customerPackageLabel={packageLabel}
+      onBack={handleBack}
+      onContinue={isConfirm ? undefined : handleContinue}
+      continueLabel={flow.step === 'schedule' ? 'Review booking' : 'Continue'}
+      continueDisabled={!validateStep(flow.step, flow).valid}
+      showFooter={!isConfirm}
+      showGuestNote={!isAuthenticated}
+    >
       {error && (
-        <div className="error-alert" style={{ marginBottom: 18 }}>
+        <div className="error-alert" style={{ marginBottom: 16 }}>
           <i className="fa-solid fa-triangle-exclamation" /> {error}
         </div>
       )}
 
-      {step === 1 && (
-        <>
-          {profile.branches.length > 1 && (
-            <div className={styles.branchPick}>
-              <label htmlFor="branchSelect">Branch</label>
-              <select
-                id="branchSelect"
-                value={selectedBranchId}
-                onChange={(e) => setSelectedBranchId(e.target.value)}
-              >
-                {profile.branches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div className={styles.stepMeta}>
-            <span>Step 1 of 2</span>
-            <div className={styles.progressTrack}>
-              <div className={styles.progressFill} style={{ width: '50%' }} />
-            </div>
-          </div>
-
-          <div className={styles.timeLayout}>
-            <section className={styles.providerCol}>
-              <h2>Available team</h2>
-              <div className={styles.providerList}>
-                <button
-                  type="button"
-                  className={`${styles.providerCard} ${selectedStaffId === '' ? styles.providerOn : ''}`}
-                  onClick={() => setSelectedStaffId('')}
-                >
-                  <div className={styles.providerAvatar}>
-                    <i className="fa-solid fa-user-group" />
-                  </div>
-                  <div>
-                    <strong>No preference</strong>
-                    <span>First available team member</span>
-                  </div>
-                  {selectedStaffId === '' && <i className={`fa-solid fa-check ${styles.check}`} />}
-                </button>
-                {branchStaff.map((s) => {
-                  const on = selectedStaffId === s.id.toString();
-                  return (
-                    <button
-                      type="button"
-                      key={s.id}
-                      className={`${styles.providerCard} ${on ? styles.providerOn : ''}`}
-                      onClick={() => setSelectedStaffId(s.id.toString())}
-                    >
-                      <div className={styles.providerAvatar}>{s.name.charAt(0)}</div>
-                      <div>
-                        <strong>{s.name}</strong>
-                        <span>{s.specialty || s.designation || 'Team member'}</span>
-                        {typeof s.rating === 'number' && s.rating > 0 && (
-                          <em>
-                            <i className="fa-solid fa-star" /> {s.rating.toFixed(1)}
-                          </em>
-                        )}
-                      </div>
-                      {on && <i className={`fa-solid fa-check ${styles.check}`} />}
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-
-            <section className={styles.calendarCard}>
-              <div className={styles.calHead}>
-                <h2>{monthLabel}</h2>
-                <div className={styles.calArrows}>
-                  <button type="button" onClick={handlePrevWeek} aria-label="Previous">
-                    <i className="fa-solid fa-chevron-left" />
-                  </button>
-                  <button type="button" onClick={handleNextWeek} aria-label="Next">
-                    <i className="fa-solid fa-chevron-right" />
-                  </button>
-                </div>
-              </div>
-
-              <div className={styles.dateStrip}>
-                {weekDays.map((d) => (
-                  <button
-                    type="button"
-                    key={d.dateStr}
-                    className={`${styles.dateCell} ${selectedDate === d.dateStr ? styles.dateCellOn : ''}`}
-                    onClick={() => {
-                      setSelectedDate(d.dateStr);
-                      setSelectedSlot('');
-                    }}
-                  >
-                    <span>{d.label}</span>
-                    <strong>{d.dayNum}</strong>
-                  </button>
-                ))}
-              </div>
-
-              <div className={styles.slotLegend}>
-                <span>
-                  <i className={styles.legendDot} /> Available
-                </span>
-                <span>
-                  <i className={`${styles.legendDot} ${styles.legendPeak}`} /> Peak
-                </span>
-                <span>
-                  <i className={`${styles.legendDot} ${styles.legendOffPeak}`} /> Off-peak
-                </span>
-              </div>
-
-              {slotsLoading ? (
-                <Skeleton variant="row" count={3} />
-              ) : availableSlots.length === 0 ? (
-                <p className={styles.noSlots}>No open slots for this date. Try another day or team member — this day may be outside working hours.</p>
-              ) : (
-                <div className={styles.slotGrid}>
-                  {availableSlots.map((slot) => {
-                    const kind = slot.pricingKind;
-                    return (
-                      <button
-                        key={slot.startTime}
-                        type="button"
-                        className={`${styles.slotBtn} ${selectedSlot === slot.startTime ? styles.slotBtnOn : ''} ${
-                          kind === 'PEAK' ? styles.slotBtnPeak : kind === 'OFF_PEAK' ? styles.slotBtnOffPeak : ''
-                        }`}
-                        onClick={() => setSelectedSlot(slot.startTime)}
-                      >
-                        <span>{formatFriendlyTime(slot.startTime)}</span>
-                        {slot.price != null && (
-                          <em className={styles.slotPrice}>${slot.price.toFixed(2)}</em>
-                        )}
-                        {slot.pricingLabel && kind !== 'STANDARD' && (
-                          <strong className={styles.slotBadge}>{slot.pricingLabel}</strong>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-          </div>
-
-          <div className={styles.footerBar}>
-            <Link href={profileHref} className={styles.backLink}>
-              Back to services
-            </Link>
-            <button
-              type="button"
-              className={`btn btn-primary ${styles.nextBtn}`}
-              onClick={handleNextStep}
-              disabled={!selectedDate || !selectedSlot}
-            >
-              Continue to Checkout <i className="fa-solid fa-arrow-right" />
-            </button>
-          </div>
-        </>
+      {flow.step === 'service' && (
+        <ServiceStep
+          services={profile.services}
+          selectedServiceId={flow.serviceId}
+          currency={profile.business.currency}
+          onSelect={(serviceId) =>
+            applyFlow({
+              serviceId,
+              staffId: '',
+              date: '',
+              slot: '',
+              step: 'service',
+            })
+          }
+        />
       )}
 
-      {step === 2 && (
-        <div className={styles.checkoutGrid}>
-          <section className={styles.payPanel}>
-            <h2>Payment Options</h2>
-            <button
-              type="button"
-              className={`${styles.payOption} ${paymentMethod === 'ONLINE' ? styles.payOptionOn : ''}`}
-              onClick={() => {
-                setPaymentMethod('ONLINE');
-                setSelectedPackageId(null);
-              }}
-            >
-              <span className={styles.payIcon}>
-                <i className="fa-solid fa-credit-card" />
-              </span>
-              <div>
-                <strong>Pay Online (Stripe)</strong>
-                <p>Secure credit card payment</p>
-              </div>
-              <span className={`${styles.radio} ${paymentMethod === 'ONLINE' ? styles.radioOn : ''}`} />
-            </button>
-            <button
-              type="button"
-              className={`${styles.payOption} ${paymentMethod === 'VENUE' ? styles.payOptionOn : ''}`}
-              onClick={() => {
-                setPaymentMethod('VENUE');
-                setSelectedPackageId(null);
-              }}
-            >
-              <span className={styles.payIcon}>
-                <i className="fa-solid fa-store" />
-              </span>
-              <div>
-                <strong>Pay at Venue</strong>
-                <p>Pay via card or cash upon arrival</p>
-              </div>
-              <span className={`${styles.radio} ${paymentMethod === 'VENUE' ? styles.radioOn : ''}`} />
-            </button>
-            {eligiblePackages.length > 0 && (
-              <button
-                type="button"
-                className={`${styles.payOption} ${paymentMethod === 'PACKAGE' ? styles.payOptionOn : ''}`}
-                onClick={() => setPaymentMethod('PACKAGE')}
-              >
-                <span className={styles.payIcon}>
-                  <i className="fa-solid fa-gift" />
-                </span>
-                <div>
-                  <strong>Use Package Session</strong>
-                  <p>Redeem a remaining session</p>
-                </div>
-                <span className={`${styles.radio} ${paymentMethod === 'PACKAGE' ? styles.radioOn : ''}`} />
-              </button>
-            )}
-
-            {paymentMethod === 'PACKAGE' && (
-              <div className={styles.packageList}>
-                {eligiblePackages.map((cp) => (
-                  <button
-                    key={cp.id}
-                    type="button"
-                    className={`${styles.packageChip} ${selectedPackageId === cp.id ? styles.packageChipOn : ''}`}
-                    onClick={() => setSelectedPackageId(cp.id)}
-                  >
-                    <strong>{cp.servicePackage.name}</strong>
-                    <span>{cp.sessionsRemaining} left</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div className={styles.notesBlock}>
-              <label htmlFor="notes">Notes for the business (optional)</label>
-              <textarea
-                id="notes"
-                value={clientNotes}
-                onChange={(e) => setClientNotes(e.target.value)}
-                placeholder="Preferences, accessibility needs, or other details…"
-              />
-            </div>
-          </section>
-
-          <aside className={styles.summaryCard}>
-            <h2>Order Summary</h2>
-            {serviceObj && (
-              <div className={styles.summaryService}>
-                <div className={styles.summaryThumb}>
-                  {thumb ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={thumb} alt="" />
-                  ) : (
-                    <span>{profile.business.name?.charAt(0)}</span>
-                  )}
-                </div>
-                <div>
-                  <strong>{serviceObj.name}</strong>
-                  <p>
-                    <i className="fa-regular fa-clock" /> {serviceObj.durationMinutes} mins
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <div className={styles.summaryMeta}>
-              <div className={styles.metaBox}>
-                <i className="fa-regular fa-calendar" />
-                <div>
-                  <span>{formatFriendlyDate(selectedDate)}</span>
-                  <em>{formatFriendlyTime(selectedSlot)}</em>
-                </div>
-              </div>
-              <div className={styles.metaBox}>
-                <i className="fa-regular fa-user" />
-                <div>
-                  <span>Staff</span>
-                  <em>{staffObj?.name || 'Any available'}</em>
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.priceRows}>
-              <div>
-                <span>Service fee</span>
-                <span>
-                  {pricingKind && pricingKind !== 'STANDARD' && quotedBase !== quotedPrice ? (
-                    <>
-                      <s className={styles.wasPrice}>${quotedBase.toFixed(2)}</s> ${displayTotal.toFixed(2)}
-                    </>
-                  ) : (
-                    `$${displayTotal.toFixed(2)}`
-                  )}
-                </span>
-              </div>
-              {paymentMethod !== 'PACKAGE' && pricingLabel && pricingKind && pricingKind !== 'STANDARD' && (
-                <div className={pricingKind === 'PEAK' ? styles.peakNote : styles.offPeakNote}>
-                  <span>{pricingLabel}</span>
-                  <span>
-                    {quotedPrice >= quotedBase ? '+' : ''}
-                    ${(quotedPrice - quotedBase).toFixed(2)}
-                  </span>
-                </div>
-              )}
-              {paymentMethod !== 'PACKAGE' && (
-                <div>
-                  <span>Est. tax (8%)</span>
-                  <span>${taxEstimate.toFixed(2)}</span>
-                </div>
-              )}
-              <div className={styles.totalRow}>
-                <span>Total</span>
-                <strong>{paymentMethod === 'PACKAGE' ? 'Package' : `$${grandTotal.toFixed(2)}`}</strong>
-              </div>
-            </div>
-
-            <label className={styles.terms}>
-              <input
-                type="checkbox"
-                checked={termsAccepted}
-                onChange={(e) => setTermsAccepted(e.target.checked)}
-              />
-              <span>I agree to the Terms &amp; Conditions and Cancellation Policy.</span>
-            </label>
-
-            <button
-              type="button"
-              className={`btn btn-primary ${styles.confirmBtn}`}
-              onClick={handleConfirmBooking}
-              disabled={submitting || !termsAccepted}
-            >
-              {submitting ? 'Booking…' : 'Confirm Booking'}
-              {!submitting && <i className="fa-solid fa-arrow-right" />}
-            </button>
-
-            <button type="button" className={styles.backLink} onClick={handlePrevStep} style={{ marginTop: 12 }}>
-              Back to schedule
-            </button>
-            {user && (
-              <p className={styles.accountHint}>
-                Booking as {user.firstName} {user.lastName}
-              </p>
-            )}
-          </aside>
-        </div>
+      {flow.step === 'details' && (
+        <DetailsStep
+          branches={profile.branches}
+          staff={profile.staff}
+          selectedBranchId={flow.branchId}
+          selectedStaffId={flow.staffId}
+          onBranchChange={(branchId) =>
+            applyFlow({ branchId, date: '', slot: '', step: 'details' })
+          }
+          onStaffChange={(staffId) => applyFlow({ staffId, date: '', slot: '', step: 'details' })}
+        />
       )}
-    </div>
+
+      {flow.step === 'schedule' && (
+        <ScheduleStep
+          branchId={flow.branchId}
+          serviceId={flow.serviceId}
+          staffId={flow.staffId}
+          selectedDate={flow.date}
+          selectedSlot={flow.slot}
+          currency={quotedSlot?.currency || service?.currency || profile.business.currency}
+          onDateChange={(date) => applyFlow({ date, slot: '', step: 'schedule' })}
+          onSlotChange={(slot) => applyFlow({ slot, step: 'schedule' })}
+        />
+      )}
+
+      {flow.step === 'confirm' && (
+        <ConfirmStep
+          isAuthenticated={isAuthenticated}
+          returnUrl={returnUrl}
+          serviceId={flow.serviceId}
+          paymentMethod={paymentMethod}
+          selectedPackageId={selectedPackageId}
+          clientNotes={clientNotes}
+          termsAccepted={termsAccepted}
+          submitting={submitting}
+          onPaymentChange={setPaymentMethod}
+          onPackageSelect={setSelectedPackageId}
+          onNotesChange={setClientNotes}
+          onTermsChange={setTermsAccepted}
+          onConfirm={handleConfirm}
+        />
+      )}
+    </BookingShell>
   );
 }
 
@@ -756,13 +466,13 @@ export default function BookWizardPage() {
   return (
     <Suspense
       fallback={
-        <div className={styles.wizard}>
+        <div style={{ maxWidth: 1080, margin: '0 auto', padding: '24px 8px' }}>
           <Skeleton variant="title" />
-          <Skeleton variant="card" height={280} />
+          <Skeleton variant="card" height={360} />
         </div>
       }
     >
-      <BookWizardContent />
+      <BookWizardInner />
     </Suspense>
   );
 }

@@ -10,6 +10,9 @@ import Skeleton from '@/components/Skeleton';
 import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import DataTable from '@/components/DataTable';
+import CustomSelect from '@/components/CustomSelect';
+import CustomTimePicker from '@/components/CustomTimePicker';
+import { useOrgLocale } from '@/lib/org-locale-context';
 import styles from './peak-pricing.module.css';
 
 interface Service {
@@ -38,6 +41,7 @@ const DAYS_OF_WEEK = [
 ];
 
 export default function PeakPricingPage() {
+  const { format } = useOrgLocale();
   const { plan, loaded: planLoaded } = useOwnerPlan();
   const canManage = planLoaded && hasFeature(plan, 'peak_pricing');
   const [rules, setRules] = useState<TimeOfDayPricing[]>([]);
@@ -50,6 +54,7 @@ export default function PeakPricingPage() {
   const [editingRule, setEditingRule] = useState<TimeOfDayPricing | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState({
     serviceId: '',
     dayOfWeek: 6,
@@ -168,6 +173,18 @@ export default function PeakPricingPage() {
 
   const getDayName = (dayVal: number) => DAYS_OF_WEEK.find((d) => d.value === dayVal)?.label || 'Everyday';
 
+  // Calculate statistics
+  const totalRules = rules.length;
+  const avgMultiplier =
+    rules.length > 0
+      ? (rules.reduce((acc, curr) => acc + curr.priceMultiplier, 0) / rules.length).toFixed(2)
+      : '1.00';
+
+  // Filter peak pricing overrides
+  const filteredRules = rules.filter((r) =>
+    r.service.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className={styles.page}>
       <PageHeader
@@ -194,6 +211,44 @@ export default function PeakPricingPage() {
       {error && (
         <div className="error-alert">
           <i className="fa-solid fa-triangle-exclamation" /> {error}
+        </div>
+      )}
+
+      {rules.length > 0 && (
+        <div className={styles.statsRow}>
+          <div className={styles.statCard}>
+            <div className={styles.statIcon}>
+              <i className="fa-solid fa-bolt" />
+            </div>
+            <div className={styles.statInfo}>
+              <div className={styles.statValue}>{totalRules}</div>
+              <div className={styles.statLabel}>Demand Rules</div>
+            </div>
+          </div>
+          <div className={styles.statCard}>
+            <div className={styles.statIcon}>
+              <i className="fa-solid fa-chart-line" />
+            </div>
+            <div className={styles.statInfo}>
+              <div className={styles.statValue}>{avgMultiplier}x</div>
+              <div className={styles.statLabel}>Average Multiplier</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {rules.length > 0 && (
+        <div className={styles.searchBarContainer}>
+          <div className={styles.searchContainer}>
+            <i className={`fa-solid fa-magnifying-glass ${styles.searchIcon}`} />
+            <input
+              type="text"
+              className={`input-field ${styles.searchInput}`}
+              placeholder="Search by service name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
         </div>
       )}
 
@@ -224,45 +279,54 @@ export default function PeakPricingPage() {
           onAction={handleAddClick}
         />
       ) : (
-        <DataTable
-          columns={[
-            { key: 'service', header: 'Service', render: (r) => <strong>{r.service.name}</strong> },
-            { key: 'day', header: 'Day', render: (r) => getDayName(r.dayOfWeek) },
-            {
-              key: 'window',
-              header: 'Hours',
-              render: (r) => `${r.startTime.slice(0, 5)} – ${r.endTime.slice(0, 5)}`,
-            },
-            {
-              key: 'mult',
-              header: 'Multiplier',
-              render: (r) => <span className={styles.badge}>{r.priceMultiplier}x</span>,
-            },
-            {
-              key: 'rate',
-              header: 'Effective rate',
-              render: (r) => `$${(r.service.price * r.priceMultiplier).toFixed(2)}`,
-            },
-            {
-              key: 'actions',
-              header: 'Actions',
-              render: (r) => (
+        <div className={styles.rulesGrid}>
+          {filteredRules.map((r) => (
+            <div key={r.id} className={styles.ruleCard}>
+              <div className={styles.cardHeader}>
+                <h4 className={styles.serviceName}>{r.service.name}</h4>
+                <span className={styles.badgeMultiplier}>{r.priceMultiplier}x Rate</span>
+              </div>
+
+              <div className={styles.cardDetails}>
+                <div className={styles.detailItem}>
+                  <i className="fa-regular fa-calendar" />
+                  <span>Day: {getDayName(r.dayOfWeek)}</span>
+                </div>
+                <div className={styles.detailItem}>
+                  <i className="fa-regular fa-clock" />
+                  <span>Window: {r.startTime.slice(0, 5)} – {r.endTime.slice(0, 5)}</span>
+                </div>
+                <div className={styles.detailItem} style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '10px', marginTop: '6px' }}>
+                  <div className={styles.rateComparison}>
+                    <span className={styles.originalRate}>Base: {format(r.service.price)}</span>
+                    <i className="fa-solid fa-arrow-right" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }} />
+                    <span className={styles.peakRate}>Peak: {format(r.service.price * r.priceMultiplier)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.cardBottom}>
                 <div className={styles.actions}>
                   {canManage && (
                     <button type="button" className="btn btn-sm btn-outline" onClick={() => handleEditClick(r)}>
-                      Edit
+                      <i className="fa-regular fa-pen-to-square" style={{ marginRight: 4 }} /> Edit
                     </button>
                   )}
                   <button type="button" className="btn btn-sm btn-danger" onClick={() => setDeleteId(r.id)}>
-                    Delete
+                    <i className="fa-regular fa-trash-can" style={{ marginRight: 4 }} /> Delete
                   </button>
                 </div>
-              ),
-            },
-          ]}
-          rows={rules}
-          rowKey={(r) => r.id}
-        />
+              </div>
+            </div>
+          ))}
+
+          {filteredRules.length === 0 && (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
+              <i className="fa-solid fa-magnifying-glass" style={{ fontSize: '2rem', marginBottom: 12 }} />
+              <p>No peak pricing rules match your search query.</p>
+            </div>
+          )}
+        </div>
       )}
 
       <Modal
@@ -283,67 +347,61 @@ export default function PeakPricingPage() {
         <form id="peak-form" onSubmit={handleSubmit} className={styles.form}>
           <div className="form-group">
             <label className="form-label" htmlFor="peakServiceSelect">
-              Service
+              Service:
             </label>
-            <select
+            <CustomSelect
               id="peakServiceSelect"
-              className="select-field"
+              options={services.map((svc) => ({
+                value: svc.id.toString(),
+                label: `${svc.name} (${format(svc.price)})`,
+              }))}
               value={formData.serviceId}
-              onChange={(e) => handleInputChange('serviceId', e.target.value)}
-            >
-              {services.map((svc) => (
-                <option key={svc.id} value={svc.id}>
-                  {svc.name} (${svc.price})
-                </option>
-              ))}
-            </select>
+              onChange={(val) => handleInputChange('serviceId', val)}
+              searchable={true}
+            />
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="peakDaySelect">
-              Day of week
+              Day of week:
             </label>
-            <select
+            <CustomSelect
               id="peakDaySelect"
-              className="select-field"
-              value={formData.dayOfWeek}
-              onChange={(e) => handleInputChange('dayOfWeek', parseInt(e.target.value))}
-            >
-              {DAYS_OF_WEEK.map((d) => (
-                <option key={d.value} value={d.value}>
-                  {d.label}
-                </option>
-              ))}
-            </select>
+              options={DAYS_OF_WEEK.map((d) => ({
+                value: d.value.toString(),
+                label: d.label,
+              }))}
+              value={formData.dayOfWeek.toString()}
+              onChange={(val) => handleInputChange('dayOfWeek', parseInt(val))}
+              searchable={false}
+            />
           </div>
           <div className={styles.twoCol}>
             <div className="form-group">
               <label className="form-label" htmlFor="peakStartTime">
-                Start time
-              </label>
-              <input
+              Start time:
+            </label>
+              <CustomTimePicker
                 id="peakStartTime"
-                type="time"
-                className="input-field"
                 value={formData.startTime}
-                onChange={(e) => handleInputChange('startTime', e.target.value)}
+                onChange={(val) => handleInputChange('startTime', val)}
+                intervalMinutes={30}
               />
             </div>
             <div className="form-group">
               <label className="form-label" htmlFor="peakEndTime">
-                End time
-              </label>
-              <input
+              End time:
+            </label>
+              <CustomTimePicker
                 id="peakEndTime"
-                type="time"
-                className="input-field"
                 value={formData.endTime}
-                onChange={(e) => handleInputChange('endTime', e.target.value)}
+                onChange={(val) => handleInputChange('endTime', val)}
+                intervalMinutes={30}
               />
             </div>
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="multiplierInput">
-              Price multiplier
+              Price multiplier:
             </label>
             <input
               id="multiplierInput"

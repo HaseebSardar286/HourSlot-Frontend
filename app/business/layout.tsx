@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { OwnerPlanProvider, useOwnerPlan } from '@/lib/owner-plan-context';
+import { OrgLocaleProvider } from '@/lib/org-locale-context';
 import { hasFeature } from '@/lib/plan';
 import NotificationPanel from '@/components/NotificationPanel';
 import styles from './business-layout.module.css';
@@ -76,7 +77,9 @@ const STAFF_LINKS: NavLeaf[] = [
 export default function BusinessLayout({ children }: { children: React.ReactNode }) {
   return (
     <OwnerPlanProvider>
-      <BusinessLayoutInner>{children}</BusinessLayoutInner>
+      <OrgLocaleProvider>
+        <BusinessLayoutInner>{children}</BusinessLayoutInner>
+      </OrgLocaleProvider>
     </OwnerPlanProvider>
   );
 }
@@ -151,7 +154,7 @@ function BusinessLayoutInner({ children }: { children: React.ReactNode }) {
 
   const initials = `${user.firstName?.charAt(0) || ''}${user.lastName?.charAt(0) || ''}`;
 
-  const renderLeaf = (link: NavLeaf) => {
+  const renderLeaf = (link: NavLeaf, forceShowLabel = false) => {
     const locked = !!link.entitlement && planLoaded && !hasFeature(plan, link.entitlement);
     return (
       <Link
@@ -163,8 +166,8 @@ function BusinessLayoutInner({ children }: { children: React.ReactNode }) {
         <span className={styles.navIcon}>
           <i className={`fa-solid ${link.icon}`}></i>
         </span>
-        {!collapsed && <span>{link.label}</span>}
-        {!collapsed && locked && (
+        {(!collapsed || forceShowLabel) && <span>{link.label}</span>}
+        {(!collapsed || forceShowLabel) && locked && (
           <i className={`fa-solid fa-lock ${styles.navLock}`} aria-label="Upgrade required" />
         )}
       </Link>
@@ -224,16 +227,17 @@ function BusinessLayoutInner({ children }: { children: React.ReactNode }) {
 
         <nav className={styles.sidebarNav}>
           {isStaff
-            ? STAFF_LINKS.map(renderLeaf)
+            ? STAFF_LINKS.map((link) => renderLeaf(link))
             : OWNER_NAV.map((group) => {
-                const open = collapsed || openGroups[group.id];
+                const open = !collapsed && openGroups[group.id];
+                const shouldRenderChildren = collapsed || open;
                 return (
                   <div key={group.id} className={styles.navGroup}>
                     <button
                       type="button"
                       className={styles.navGroupBtn}
                       onClick={() =>
-                        setOpenGroups((prev) => ({ ...prev, [group.id]: !prev[group.id] }))
+                        !collapsed && setOpenGroups((prev) => ({ ...prev, [group.id]: !prev[group.id] }))
                       }
                       title={group.label}
                     >
@@ -247,7 +251,11 @@ function BusinessLayoutInner({ children }: { children: React.ReactNode }) {
                         />
                       )}
                     </button>
-                    {open && <div className={styles.navChildren}>{group.children.map(renderLeaf)}</div>}
+                    {shouldRenderChildren && (
+                      <div className={`${styles.navChildren} ${open ? styles.navChildrenOpen : ''}`}>
+                        {group.children.map((child) => renderLeaf(child, collapsed))}
+                      </div>
+                    )}
                   </div>
                 );
               })}

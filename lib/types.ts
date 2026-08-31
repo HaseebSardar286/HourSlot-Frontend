@@ -46,6 +46,8 @@ export interface Business {
   slug?: string;
   registrationNumber?: string;
   galleryUrls?: string;
+  currency?: string;
+  countryCode?: string;
   primaryCategory?: Category | null;
   secondaryCategories?: Category[];
 }
@@ -59,6 +61,9 @@ export interface Branch {
   latitude?: number;
   longitude?: number;
   distanceMeters?: number;
+  countryCode?: string;
+  region?: string;
+  city?: string;
 }
 
 export interface Service {
@@ -68,6 +73,7 @@ export interface Service {
   price: number;
   durationMinutes: number;
   bufferMinutes?: number;
+  currency?: string;
 }
 
 export interface AvailableSlot {
@@ -110,6 +116,7 @@ export interface Booking {
   price: number;
   paymentStatus?: string;
   clientNotes?: string;
+  currency?: string;
 }
 
 export interface WorkingHour {
@@ -118,6 +125,9 @@ export interface WorkingHour {
   startTime?: string;
   endTime?: string;
   closed: boolean;
+  slotStepMinutes?: number;
+  intervals?: { id?: number; startTime: string; endTime: string; sortOrder?: number }[];
+  breaks?: { id: number; startTime: string; endTime: string }[];
 }
 
 export interface Review {
@@ -140,6 +150,7 @@ export interface ServicePackage {
   price: number;
   sessionsCount: number;
   expiryDays: number;
+  currency?: string;
   services?: Service[];
   business?: { id: number; name: string };
 }

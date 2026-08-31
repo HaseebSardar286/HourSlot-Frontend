@@ -1,3 +1,39 @@
+.urlCard {
+  margin-bottom: 4px;
+}
+
+.urlList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.urlRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+}
+
+.urlRow strong {
+  display: block;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+}
+
+.urlCode {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--accent-primary);
+  word-break: break-all;
+  font-family: var(--font-mono, monospace);
+}
+
 .detailWrapper {
   display: flex;
   flex-direction: column;

@@ -1,94 +1,287 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
+  animation: hsFadeUp 0.4s ease both;
 }
 
-.note {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 0.9rem;
+/* USAGE DASHBOARD */
+.usageDashboard {
+  padding: 24px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
 }
 
-.usage {
+.usageHeader {
   display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  padding: 14px 16px;
+  justify-content: space-between;
   align-items: center;
-}
-
-.cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 14px;
 }
 
-.card {
-  padding: 18px;
+.usageHeader h4 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.activePlanBadge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+  background: rgba(26, 138, 138, 0.08);
+  padding: 4px 10px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.metersGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+}
+
+.meterCard {
+  background: rgba(26, 138, 138, 0.01);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.current {
-  border: 1px solid color-mix(in srgb, var(--accent-primary) 45%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-primary) 20%, transparent);
-}
-
-.card header {
+.meterMeta {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: baseline;
+  font-size: 0.9rem;
 }
 
-.card h3 {
-  margin: 0;
-  font-size: 1.15rem;
+.meterMeta span {
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 
-.badge {
-  font-size: 0.72rem;
+.meterMeta strong {
+  color: var(--text-main);
   font-weight: 700;
-  color: var(--accent-primary);
-  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
-  padding: 2px 8px;
-  border-radius: 999px;
 }
 
-.price {
+.progressTrack {
+  width: 100%;
+  height: 6px;
+  background: var(--border-color);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progressBar {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.35s ease;
+}
+
+.unlimitedBar {
+  width: 100%;
+  height: 6px;
+  background: linear-gradient(90deg, var(--accent-primary) 0%, var(--accent-green) 100%);
+  border-radius: 999px;
+  opacity: 0.35;
+}
+
+/* CARDS LIST */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.card {
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
+  transition: var(--transition-smooth);
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.05);
+}
+
+.currentCard {
+  border: 2px solid var(--accent-primary);
+  box-shadow: 0 8px 24px rgba(26, 138, 138, 0.08);
+}
+
+.currentCard:hover {
+  box-shadow: 0 16px 36px rgba(26, 138, 138, 0.12);
+}
+
+.activeRibbon {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: var(--accent-primary);
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 6px;
+  letter-spacing: 0.04em;
+}
+
+.cardHeader h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.02em;
+}
+
+.priceContainer {
   display: flex;
   align-items: baseline;
   gap: 4px;
+  margin-top: 14px;
+  margin-bottom: 8px;
 }
 
-.price strong {
-  font-size: 1.6rem;
+.priceAmount {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.03em;
 }
 
-.price span,
+.priceInterval {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
 .copy {
   color: var(--text-secondary);
   font-size: 0.88rem;
+  line-height: 1.45;
+  margin: 0 0 16px;
+  min-height: 40px;
 }
 
-.card ul {
+.ctaBtn {
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.featuresList {
   list-style: none;
-  margin: 8px 0 0;
+  margin: 0;
   padding: 0;
-  display: grid;
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.card li {
+.featureItem {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  align-items: center;
   font-size: 0.88rem;
+  padding-top: 10px;
   border-top: 1px solid var(--border-color);
-  padding-top: 8px;
+  gap: 12px;
 }
 
-.card li span {
+.featureLabel {
   color: var(--text-secondary);
+}
+
+.featureValue {
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+.checkIcon {
+  color: var(--accent-green);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dashIcon {
+  color: var(--text-muted);
+}
+
+/* BILLING NOTE CARD */
+.billingNoteCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: rgba(26, 138, 138, 0.02);
+}
+
+.billingNoteCard i {
+  font-size: 1.3rem;
+  color: var(--accent-primary);
+}
+
+.billingNoteCard p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* MODAL BODY */
+.modalBody {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 16px 0;
+}
+
+.modalIcon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: rgba(26, 138, 138, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  color: var(--accent-primary);
+  margin-bottom: 16px;
+}
+
+.modalBody h4 {
+  margin: 0 0 10px;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.modalBody p {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  max-width: 440px;
+}
+
+.modalBody p strong {
+  color: var(--text-main);
 }

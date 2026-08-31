@@ -4,7 +4,8 @@ import { Suspense, useState, useEffect, FormEvent } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
-import { parseSlots, slotTimes } from '@/lib/slots';
+import { buildBookingHref } from '@/lib/booking-flow';
+import ScheduleStep from '@/components/booking/ScheduleStep';
 import PageHeader from '@/components/PageHeader';
 import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
@@ -13,12 +14,14 @@ import Tabs from '@/components/Tabs';
 import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import FormField from '@/components/FormField';
+import { formatMoney } from '@/lib/money';
 import styles from './my-bookings.module.css';
 
 interface Branch {
   id: number;
   name: string;
   address: string;
+  business?: { id: number; name?: string };
 }
 
 interface Service {
@@ -26,6 +29,7 @@ interface Service {
   name: string;
   price: number;
   durationMinutes: number;
+  currency?: string;
 }
 
 interface Staff {
@@ -42,6 +46,7 @@ interface Booking {
   status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW' | 'IN_PROGRESS' | 'RESCHEDULED';
   price: number;
   paymentStatus?: string;
+  currency?: string;
 }
 
 function MyBookingsContent() {
@@ -67,8 +72,6 @@ function MyBookingsContent() {
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [reschedulingBooking, setReschedulingBooking] = useState<Booking | null>(null);
   const [rescheduleDate, setRescheduleDate] = useState('');
-  const [rescheduleSlots, setRescheduleSlots] = useState<string[]>([]);
-  const [rescheduleSlotsLoading, setRescheduleSlotsLoading] = useState(false);
   const [selectedRescheduleSlot, setSelectedRescheduleSlot] = useState('');
   const [rescheduleSubmitting, setRescheduleSubmitting] = useState(false);
 
@@ -81,30 +84,6 @@ function MyBookingsContent() {
     if (payment === 'success') setSuccess('Payment completed successfully.');
     if (payment === 'cancelled') setError('Online payment was cancelled.');
   }, [searchParams]);
-
-  useEffect(() => {
-    const fetchRescheduleSlots = async () => {
-      if (!reschedulingBooking || !rescheduleDate) {
-        setRescheduleSlots([]);
-        return;
-      }
-      setRescheduleSlotsLoading(true);
-      setSelectedRescheduleSlot('');
-      try {
-        let url = `/api/public/branches/${reschedulingBooking.branch.id}/slots?serviceId=${reschedulingBooking.service.id}&date=${rescheduleDate}`;
-        if (reschedulingBooking.staff?.id) {
-          url += `&staffId=${reschedulingBooking.staff.id}`;
-        }
-        const slots = await apiFetch<unknown>(url, { skipAuth: true });
-        setRescheduleSlots(slotTimes(parseSlots(slots)));
-      } catch {
-        setRescheduleSlots([]);
-      } finally {
-        setRescheduleSlotsLoading(false);
-      }
-    };
-    fetchRescheduleSlots();
-  }, [reschedulingBooking, rescheduleDate]);
 
   const handleOpenRescheduleModal = (booking: Booking) => {
     setReschedulingBooking(booking);
@@ -226,11 +205,15 @@ function MyBookingsContent() {
     }
   };
 
-  const formatDateTime = (isoStr: string) => {
+
+  const formatDateParts = (isoStr: string) => {
     const d = new Date(isoStr);
-    const date = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-    const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true });
-    return `${date} at ${time}`;
+    return {
+      weekday: d.toLocaleDateString(undefined, { weekday: 'short' }),
+      day: d.getDate(),
+      month: d.toLocaleDateString(undefined, { month: 'short' }),
+      time: d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true }),
+    };
   };
 
   const needsPayment = (b: Booking) => {
@@ -255,12 +238,12 @@ function MyBookingsContent() {
       />
 
       {success && (
-        <div className="success-alert" style={{ marginBottom: 16 }}>
+        <div className={styles.toastSuccess}>
           <i className="fa-solid fa-circle-check" /> {success}
         </div>
       )}
       {error && (
-        <div className="error-alert" style={{ marginBottom: 16 }}>
+        <div className={styles.toastError}>
           <i className="fa-solid fa-triangle-exclamation" /> {error}
         </div>
       )}
@@ -292,32 +275,52 @@ function MyBookingsContent() {
         <div className={styles.bookingsList}>
           {filteredBookings.map((b) => {
             const hasReviewed = reviewedBookingIds.includes(b.id);
+            const parts = formatDateParts(b.bookingTime);
             return (
-              <div key={b.id} className={`surface ${styles.bookingCard}`}>
-                <div className={styles.cardHeader}>
-                  <div>
+              <article key={b.id} className={styles.bookingCard}>
+                <div className={styles.dateHero}>
+                  <div className={styles.dateBlock}>
+                    <span>{parts.weekday}</span>
+                    <strong>{parts.day}</strong>
+                    <em>{parts.month}</em>
+                  </div>
+                  <div className={styles.dateHeroMeta}>
                     <div className={styles.badgeRow}>
                       <StatusBadge status={b.status} />
                       {b.paymentStatus && <StatusBadge status={b.paymentStatus} />}
                     </div>
                     <h4>{b.service.name}</h4>
-                    <p className={styles.branchName}>
-                      <i className="fa-solid fa-shop" /> {b.branch.name}
+                    <p className={styles.timeLine}>
+                      <i className="fa-regular fa-clock" /> {parts.time}
+                      <span>·</span>
+                      {b.service.durationMinutes} min
                     </p>
                   </div>
-                  <span className={styles.price}>${b.price.toFixed(2)}</span>
+                  <span className={styles.price}>{formatMoney(b.price, b.currency || b.service?.currency)}</span>
                 </div>
 
-                <div className={styles.cardBody}>
-                  <p className={styles.timeText}>
-                    <i className="fa-regular fa-calendar" /> {formatDateTime(b.bookingTime)}
+                <div className={styles.cardMeta}>
+                  <p>
+                    <i className="fa-solid fa-shop" /> {b.branch.name}
                   </p>
-                  <p className={styles.specialist}>
-                    <i className="fa-solid fa-user-doctor" /> {b.staff?.name || 'Any available specialist'}
+                  <p>
+                    <i className="fa-solid fa-user" /> {b.staff?.name || 'Any available specialist'}
                   </p>
                 </div>
 
                 <div className={styles.cardFooter}>
+                  {b.branch.business?.id && (
+                    <Link
+                      href={buildBookingHref(b.branch.business.id, {
+                        step: 'service',
+                        serviceId: String(b.service.id),
+                        branchId: String(b.branch.id),
+                      })}
+                      className="btn btn-outline btn-sm"
+                    >
+                      Book again
+                    </Link>
+                  )}
                   {activeTab === 'upcoming' && b.status !== 'IN_PROGRESS' && (
                     <>
                       {needsPayment(b) && (
@@ -362,7 +365,7 @@ function MyBookingsContent() {
                       </button>
                     ))}
                 </div>
-              </div>
+              </article>
             );
           })}
         </div>
@@ -390,7 +393,9 @@ function MyBookingsContent() {
       >
         <form id="review-form" onSubmit={handleReviewSubmit} className={styles.modalForm}>
           <div className="form-group">
-            <label className="form-label">Overall rating</label>
+            <label className="form-label">
+              Overall rating
+            </label>
             <div className={styles.ratingStars}>
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
@@ -442,38 +447,27 @@ function MyBookingsContent() {
         }
       >
         <div className={styles.modalForm}>
-          <FormField
-            label="Select date"
-            htmlFor="reschedule-date"
-            type="date"
-            value={rescheduleDate}
-            min={new Date().toISOString().split('T')[0]}
-            onChange={(e) => setRescheduleDate(e.target.value)}
-          />
-
-          <div className="form-group">
-            <label className="form-label">Available slots</label>
-            {rescheduleSlotsLoading ? (
-              <Skeleton variant="row" count={2} />
-            ) : rescheduleSlots.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', margin: 0 }}>
-                No available slots for this date.
+          {reschedulingBooking && (
+            <>
+              <p className={styles.rescheduleHint}>
+                {reschedulingBooking.service.name} at {reschedulingBooking.branch.name}
               </p>
-            ) : (
-              <div className={styles.slotGrid}>
-                {rescheduleSlots.map((slot) => (
-                  <button
-                    key={slot}
-                    type="button"
-                    className={`${styles.slotBtn} ${selectedRescheduleSlot === slot ? styles.slotBtnSelected : ''}`}
-                    onClick={() => setSelectedRescheduleSlot(slot)}
-                  >
-                    {slot.substring(0, 5)}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+              <ScheduleStep
+                compact
+                branchId={String(reschedulingBooking.branch.id)}
+                serviceId={String(reschedulingBooking.service.id)}
+                staffId={reschedulingBooking.staff?.id ? String(reschedulingBooking.staff.id) : ''}
+                selectedDate={rescheduleDate}
+                selectedSlot={selectedRescheduleSlot}
+                currency={reschedulingBooking.currency || reschedulingBooking.service.currency}
+                onDateChange={(date) => {
+                  setRescheduleDate(date);
+                  setSelectedRescheduleSlot('');
+                }}
+                onSlotChange={setSelectedRescheduleSlot}
+              />
+            </>
+          )}
         </div>
       </Modal>
 

@@ -336,8 +336,8 @@ export function LocationPicker({
     <div className={styles.picker}>
       <div className="form-group">
         <label className="form-label" htmlFor="map-address">
-          Address / location
-        </label>
+              Address / location
+            </label>
         <input
           id="map-address"
           type="text"
@@ -362,8 +362,8 @@ export function LocationPicker({
       <div className={styles.coordsRow}>
         <div className="form-group">
           <label className="form-label" htmlFor="map-lat">
-            Latitude
-          </label>
+              Latitude
+            </label>
           <input
             id="map-lat"
             type="number"
@@ -381,8 +381,8 @@ export function LocationPicker({
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor="map-lng">
-            Longitude
-          </label>
+              Longitude
+            </label>
           <input
             id="map-lng"
             type="number"

@@ -3,7 +3,7 @@
 import { useState, FormEvent } from 'react';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
-import styles from './forgot.module.css';
+import shared from '../auth-shared.module.css';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -36,8 +36,9 @@ export default function ForgotPasswordPage() {
       });
       if (res?.token) setDevToken(res.token);
       setSent(true);
-    } catch (err: any) {
-      setErrorMessage(err?.message || 'Could not start password reset.');
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      setErrorMessage(e?.message || 'Could not start password reset.');
     } finally {
       setLoading(false);
     }
@@ -45,26 +46,22 @@ export default function ForgotPasswordPage() {
 
   if (sent) {
     return (
-      <div className={`surface ${styles.authCard}`}>
-        <div className={styles.successState}>
-          <span className={styles.successIcon}>
+      <div className={shared.authCard}>
+        <div className={shared.successState}>
+          <div className={shared.successIcon}>
             <i className="fa-solid fa-paper-plane" />
-          </span>
-          <h2 className={styles.successTitle}>Check your inbox</h2>
-          <p className={styles.successMessage}>
-            If an account exists for <strong>{email}</strong>, a password reset link was generated. In
-            local development the token is also written to the backend logs.
+          </div>
+          <h2 className={shared.successTitle}>Check your inbox</h2>
+          <p className={shared.successMessage}>
+            If an account exists for <strong>{email}</strong>, a password reset link was generated. In local
+            development the token is also written to the backend logs.
           </p>
           {devToken && (
-            <Link
-              href={`/auth/reset-password?token=${devToken}`}
-              className="btn btn-primary btn-block"
-              style={{ marginBottom: 12 }}
-            >
+            <Link href={`/auth/reset-password?token=${devToken}`} className={shared.submitBtn} style={{ marginBottom: 12 }}>
               Continue with reset token
             </Link>
           )}
-          <Link href="/auth/login" className="btn btn-secondary btn-block">
+          <Link href="/auth/login" className={shared.secondaryBtn}>
             Back to login
           </Link>
         </div>
@@ -73,40 +70,41 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className={`surface ${styles.authCard}`}>
-      <i className={`fa-solid fa-lock ${styles.lockIcon}`} aria-hidden />
-      <div className={styles.authHeader}>
-        <h2 className={styles.authTitle}>Forgot password?</h2>
-        <p className={styles.authSubtitle}>
-          Enter your email and we&apos;ll generate a reset link for your HourSlot account.
+    <div className={shared.authCard}>
+      <div className={shared.authHeader}>
+        <div className={shared.authHeaderIcon}>
+          <i className="fa-solid fa-lock" />
+        </div>
+        <h2 className={shared.authTitle}>Forgot password?</h2>
+        <p className={shared.authSubtitle}>
+          Enter your email and we&apos;ll send instructions to reset your HourSlot password.
         </p>
       </div>
 
       {errorMessage && (
-        <div className="error-alert">
-          <i className="fa-solid fa-triangle-exclamation" /> {errorMessage}
+        <div className={shared.alertError}>
+          <i className="fa-solid fa-triangle-exclamation" />
+          <span>{errorMessage}</span>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className={styles.authForm} noValidate>
-        <div className="form-group">
-          <label htmlFor="forgot-email" className="form-label">
-            Email address
-          </label>
+      <form onSubmit={handleSubmit} className={shared.authForm} noValidate>
+        <div className={shared.fieldGroup}>
+          <label htmlFor="forgot-email">Email address</label>
           <input
             id="forgot-email"
             type="email"
-            className={`input-field${emailError ? ' input-error' : ''}`}
+            className={`${shared.fieldInput}${emailError ? ` ${shared.fieldInputError}` : ''}`}
             placeholder="name@company.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             onBlur={() => setTouched(true)}
             autoComplete="email"
           />
-          {emailError && <span className="validation-error">{emailError}</span>}
+          {emailError && <span className={shared.fieldError}>{emailError}</span>}
         </div>
 
-        <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
+        <button type="submit" className={shared.submitBtn} disabled={loading}>
           {loading ? (
             <>
               <span className="spinner" /> Sending…
@@ -117,8 +115,8 @@ export default function ForgotPasswordPage() {
         </button>
       </form>
 
-      <Link href="/auth/login" className={styles.backLink}>
-        ← Back to login
+      <Link href="/auth/login" className={shared.backLink}>
+        <i className="fa-solid fa-arrow-left" /> Back to login
       </Link>
     </div>
   );

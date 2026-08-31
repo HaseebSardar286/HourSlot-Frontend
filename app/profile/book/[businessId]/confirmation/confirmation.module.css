@@ -1,0 +1,139 @@
+.confirmPage {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 24px 12px 48px;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 24px;
+  padding: 32px 28px;
+  box-shadow: var(--card-shadow);
+  text-align: center;
+}
+
+.icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  display: grid;
+  place-items: center;
+  font-size: 1.8rem;
+  margin: 0 auto 20px;
+}
+
+.card h1 {
+  margin: 0 0 8px;
+  font-size: 1.65rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.lead {
+  margin: 0 0 24px;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.details {
+  text-align: left;
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.88rem;
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.row span:first-child {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.row strong {
+  text-align: right;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--accent-gradient);
+  color: #fff !important;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.textLink {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.textLink:hover {
+  color: var(--accent-primary);
+  text-decoration: underline;
+}
+
+.paymentNote {
+  margin-top: 16px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.secondaryLinks {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 16px;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.secondaryLinks a {
+  color: var(--accent-primary);
+  text-decoration: none;
+}
+
+.secondaryLinks a:hover {
+  text-decoration: underline;
+}
+
+.altLinks {
+  text-align: center;
+  margin-top: 16px;
+  font-size: 0.88rem;
+}
+
+.altLinks a {
+  color: var(--accent-primary);
+  font-weight: 600;
+}

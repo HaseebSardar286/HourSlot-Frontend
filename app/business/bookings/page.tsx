@@ -11,6 +11,9 @@ import FilterBar from '@/components/FilterBar';
 import Tabs from '@/components/Tabs';
 import Modal from '@/components/Modal';
 import CalendarView, { CalendarEvent } from '@/components/CalendarView';
+import CustomSelect from '@/components/CustomSelect';
+import CustomDatePicker from '@/components/CustomDatePicker';
+import { useOrgLocale } from '@/lib/org-locale-context';
 import styles from './bookings.module.css';
 
 interface Branch {
@@ -59,6 +62,7 @@ function bookingTimeLabel(iso: string) {
 }
 
 export default function BookingsPage() {
+  const { format } = useOrgLocale();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -74,6 +78,7 @@ export default function BookingsPage() {
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDateFilter, setSelectedDateFilter] = useState<string>('');
 
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -85,6 +90,32 @@ export default function BookingsPage() {
   const [selectedRescheduleSlot, setSelectedRescheduleSlot] = useState('');
   const [rescheduleSubmitting, setRescheduleSubmitting] = useState(false);
 
+  // Walk-in booking states
+  const [showWalkinModal, setShowWalkinModal] = useState(false);
+  const [walkinSubmitting, setWalkinSubmitting] = useState(false);
+  const [services, setServices] = useState<Service[]>([]);
+  const [staffList, setStaffList] = useState<Staff[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
+
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phoneNumber: ''
+  });
+
+  const [selectedServiceId, setSelectedServiceId] = useState<string>('');
+  const [selectedStaffId, setSelectedStaffId] = useState<string>('');
+  const [walkinDate, setWalkinDate] = useState('');
+  const [walkinSlots, setWalkinSlots] = useState<string[]>([]);
+  const [walkinSlotsLoading, setWalkinSlotsLoading] = useState(false);
+  const [selectedWalkinSlot, setSelectedWalkinSlot] = useState('');
+  const [walkinNotes, setWalkinNotes] = useState('');
+
+  // Fetch slot times for rescheduling
   useEffect(() => {
     const fetchSlots = async () => {
       if (!selectedBooking || !rescheduleDate) {
@@ -110,6 +141,62 @@ export default function BookingsPage() {
       fetchSlots();
     }
   }, [selectedBooking, rescheduleDate, isRescheduling]);
+
+  // Fetch slot times for walk-in booking creation
+  useEffect(() => {
+    const fetchWalkinSlots = async () => {
+      if (!selectedBranchId || !selectedServiceId || !walkinDate) {
+        setWalkinSlots([]);
+        return;
+      }
+      setWalkinSlotsLoading(true);
+      setSelectedWalkinSlot('');
+      try {
+        let url = `/api/public/branches/${selectedBranchId}/slots?serviceId=${selectedServiceId}&date=${walkinDate}`;
+        if (selectedStaffId && selectedStaffId !== 'any') {
+          url += `&staffId=${selectedStaffId}`;
+        }
+        const slots = await apiFetch<unknown>(url, { skipAuth: true });
+        setWalkinSlots(slotTimes(parseSlots(slots)));
+      } catch {
+        setWalkinSlots([]);
+      } finally {
+        setWalkinSlotsLoading(false);
+      }
+    };
+    if (showWalkinModal) {
+      fetchWalkinSlots();
+    }
+  }, [selectedBranchId, selectedServiceId, selectedStaffId, walkinDate, showWalkinModal]);
+
+  const loadWalkinData = async () => {
+    try {
+      const [servicesData, staffData, customersData] = await Promise.all([
+        apiFetch<Service[]>('/api/business/services'),
+        apiFetch<Staff[]>('/api/business/staff'),
+        apiFetch<any[]>('/api/business/customers').catch(() => []),
+      ]);
+      setServices(servicesData);
+      setStaffList(staffData);
+      setCustomers(customersData);
+    } catch (err: any) {
+      console.error('Failed to load walk-in data', err);
+    }
+  };
+
+  const openWalkinModal = () => {
+    loadWalkinData();
+    setSelectedCustomerId('');
+    setCustomerSearch('');
+    setShowNewCustomerForm(false);
+    setNewCustomer({ firstName: '', lastName: '', email: '', phoneNumber: '' });
+    setSelectedServiceId('');
+    setSelectedStaffId('');
+    setWalkinDate(new Date().toISOString().split('T')[0]);
+    setSelectedWalkinSlot('');
+    setWalkinNotes('');
+    setShowWalkinModal(true);
+  };
 
   const openBooking = (id: number) => {
     const booking = bookings.find((b) => b.id === id);
@@ -139,6 +226,59 @@ export default function BookingsPage() {
       setError(err?.message || 'Failed to reschedule appointment.');
     } finally {
       setRescheduleSubmitting(false);
+    }
+  };
+
+  const handleWalkinSubmit = async () => {
+    if (!selectedServiceId || !walkinDate || !selectedWalkinSlot) {
+      setError('Please fill out all required fields.');
+      return;
+    }
+    
+    if (!selectedCustomerId && !showNewCustomerForm) {
+      setError('Please select or register a customer.');
+      return;
+    }
+
+    setWalkinSubmitting(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      let customerId = selectedCustomerId;
+      if (showNewCustomerForm) {
+        if (!newCustomer.firstName || !newCustomer.lastName || !newCustomer.email) {
+          throw new Error('Please fill out all required customer fields.');
+        }
+        const createdUser = await apiFetch<any>('/api/business/customers', {
+          method: 'POST',
+          body: JSON.stringify(newCustomer),
+        });
+        customerId = createdUser.id.toString();
+      }
+
+      const bookingTimeStr = `${walkinDate}T${selectedWalkinSlot}`;
+      await apiFetch('/api/bookings', {
+        method: 'POST',
+        body: JSON.stringify({
+          branchId: Number(selectedBranchId),
+          serviceId: Number(selectedServiceId),
+          staffId: selectedStaffId && selectedStaffId !== 'any' ? Number(selectedStaffId) : null,
+          bookingTime: bookingTimeStr,
+          customerId: Number(customerId),
+          clientNotes: walkinNotes,
+        }),
+      });
+
+      setSuccess('Walk-in booking created successfully.');
+      setShowWalkinModal(false);
+      if (selectedBranchId) {
+        await loadBookings(selectedBranchId);
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Failed to create offline booking.');
+    } finally {
+      setWalkinSubmitting(false);
     }
   };
 
@@ -185,23 +325,29 @@ export default function BookingsPage() {
   useEffect(() => {
     const todayStr = new Date().toISOString().split('T')[0];
 
-    let result = bookings.filter((booking) => {
-      const bookingDateStr = bookingDateKey(booking.bookingTime);
-      const isToday = bookingDateStr === todayStr;
-      const isFuture = bookingDateStr > todayStr;
-      const isPast = bookingDateStr < todayStr;
+    let result = bookings;
 
-      if (listTab === 'today') {
-        return isToday && booking.status !== 'CANCELLED' && booking.status !== 'COMPLETED';
-      }
-      if (listTab === 'upcoming') {
-        return isFuture && booking.status !== 'CANCELLED';
-      }
-      if (listTab === 'past') {
-        return isPast || booking.status === 'CANCELLED' || booking.status === 'COMPLETED' || booking.status === 'NO_SHOW';
-      }
-      return true;
-    });
+    if (selectedDateFilter) {
+      result = result.filter((booking) => bookingDateKey(booking.bookingTime) === selectedDateFilter);
+    } else {
+      result = result.filter((booking) => {
+        const bookingDateStr = bookingDateKey(booking.bookingTime);
+        const isToday = bookingDateStr === todayStr;
+        const isFuture = bookingDateStr > todayStr;
+        const isPast = bookingDateStr < todayStr;
+
+        if (listTab === 'today') {
+          return isToday && booking.status !== 'CANCELLED' && booking.status !== 'COMPLETED';
+        }
+        if (listTab === 'upcoming') {
+          return isFuture && booking.status !== 'CANCELLED';
+        }
+        if (listTab === 'past') {
+          return isPast || booking.status === 'CANCELLED' || booking.status === 'COMPLETED' || booking.status === 'NO_SHOW';
+        }
+        return true;
+      });
+    }
 
     if (statusFilter !== 'ALL') {
       result = result.filter((b) => b.status === statusFilter);
@@ -218,7 +364,7 @@ export default function BookingsPage() {
     }
 
     setFilteredBookings(result);
-  }, [bookings, listTab, searchQuery, statusFilter]);
+  }, [bookings, listTab, searchQuery, statusFilter, selectedDateFilter]);
 
   const calendarEvents: CalendarEvent[] = useMemo(
     () =>
@@ -230,6 +376,44 @@ export default function BookingsPage() {
       })),
     [bookings]
   );
+
+  // Dynamic statistics summary metrics based on date selection
+  const stats = useMemo(() => {
+    const targetDate = selectedDateFilter || new Date().toISOString().split('T')[0];
+    const targetBookings = bookings.filter((b) => bookingDateKey(b.bookingTime) === targetDate);
+    const activeToday = targetBookings.filter((b) => b.status !== 'CANCELLED');
+
+    return {
+      count: activeToday.length,
+      confirmedCount: activeToday.filter((b) => b.status === 'CONFIRMED' || b.status === 'IN_PROGRESS' || b.status === 'COMPLETED').length,
+      revenue: activeToday.reduce((acc, curr) => acc + curr.price, 0),
+      pendingCount: activeToday.filter((b) => b.status === 'PENDING').length
+    };
+  }, [bookings, selectedDateFilter]);
+
+  // Autocomplete customer filters
+  const filteredCustomers = useMemo(() => {
+    if (!customerSearch.trim()) return [];
+    const query = customerSearch.toLowerCase();
+    return customers.filter((c: any) => {
+      const fullName = `${c.firstName || ''} ${c.lastName || ''}`.toLowerCase();
+      const email = (c.email || '').toLowerCase();
+      return fullName.includes(query) || email.includes(query);
+    });
+  }, [customers, customerSearch]);
+
+  const selectedCustomer = useMemo(() => {
+    return customers.find((c) => c.id.toString() === selectedCustomerId);
+  }, [customers, selectedCustomerId]);
+
+  const branchStaff = useMemo(() => {
+    return staffList.filter((s: any) => s.branch?.id === Number(selectedBranchId));
+  }, [staffList, selectedBranchId]);
+
+  const selectCustomer = (c: any) => {
+    setSelectedCustomerId(c.id.toString());
+    setCustomerSearch('');
+  };
 
   const nextStatuses = (status: string): string[] => {
     switch (status) {
@@ -285,20 +469,24 @@ export default function BookingsPage() {
         title="Bookings"
         subtitle="Manage appointments by list or calendar, update status, and reschedule when needed."
         actions={
-          branches.length > 0 ? (
-            <select
-              className="select-field"
-              value={selectedBranchId}
-              onChange={(e) => setSelectedBranchId(e.target.value)}
-              aria-label="Select branch"
-            >
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          ) : undefined
+          <div className={styles.headerActions}>
+            {branches.length > 0 && (
+              <button type="button" className="btn btn-primary" onClick={openWalkinModal}>
+                <i className="fa-solid fa-plus" /> Book Walk-in
+              </button>
+            )}
+            {branches.length > 0 && (
+              <div style={{ minWidth: '180px' }}>
+                <CustomSelect
+                  options={branches.map((b) => ({ value: b.id.toString(), label: b.name }))}
+                  value={selectedBranchId}
+                  onChange={setSelectedBranchId}
+                  searchable={false}
+                  placeholder="Select branch"
+                />
+              </div>
+            )}
+          </div>
         }
       />
 
@@ -325,6 +513,48 @@ export default function BookingsPage() {
         />
       ) : (
         <>
+          {/* Statistics summary metric grid */}
+          <div className={styles.statsGrid}>
+            <div className={styles.statCard}>
+              <div className={styles.statIcon}>
+                <i className="fa-solid fa-calendar-check" />
+              </div>
+              <div className={styles.statInfo}>
+                <span className={styles.statLabel}>
+                  {selectedDateFilter ? 'Selected Day Bookings' : "Today's Bookings"}
+                </span>
+                <span className={styles.statValue}>{stats.count}</span>
+              </div>
+            </div>
+            <div className={styles.statCard}>
+              <div className={styles.statIcon} style={{ background: 'linear-gradient(135deg, #0d9488 0%, #10b981 100%)' }}>
+                <i className="fa-solid fa-circle-check" />
+              </div>
+              <div className={styles.statInfo}>
+                <span className={styles.statLabel}>Confirmed / Active</span>
+                <span className={styles.statValue}>{stats.confirmedCount}</span>
+              </div>
+            </div>
+            <div className={styles.statCard}>
+              <div className={styles.statIcon} style={{ background: 'linear-gradient(135deg, #d97706 0%, #fbbf24 100%)' }}>
+                <i className="fa-solid fa-dollar-sign" />
+              </div>
+              <div className={styles.statInfo}>
+                <span className={styles.statLabel}>Expected Revenue</span>
+                <span className={styles.statValue}>{format(stats.revenue)}</span>
+              </div>
+            </div>
+            <div className={styles.statCard}>
+              <div className={styles.statIcon} style={{ background: 'linear-gradient(135deg, #0f7676 0%, #3b82f6 100%)' }}>
+                <i className="fa-solid fa-clock" />
+              </div>
+              <div className={styles.statInfo}>
+                <span className={styles.statLabel}>Pending Approvals</span>
+                <span className={styles.statValue}>{stats.pendingCount}</span>
+              </div>
+            </div>
+          </div>
+
           <Tabs
             tabs={[
               { id: 'list', label: 'List' },
@@ -336,15 +566,17 @@ export default function BookingsPage() {
 
           {viewMode === 'list' ? (
             <>
-              <Tabs
-                tabs={[
-                  { id: 'today', label: 'Today' },
-                  { id: 'upcoming', label: 'Upcoming' },
-                  { id: 'past', label: 'History' },
-                ]}
-                active={listTab}
-                onChange={(id) => setListTab(id as typeof listTab)}
-              />
+              {!selectedDateFilter && (
+                <Tabs
+                  tabs={[
+                    { id: 'today', label: 'Today' },
+                    { id: 'upcoming', label: 'Upcoming' },
+                    { id: 'past', label: 'History' },
+                  ]}
+                  active={listTab}
+                  onChange={(id) => setListTab(id as typeof listTab)}
+                />
+              )}
               <FilterBar>
                 <input
                   type="text"
@@ -353,20 +585,39 @@ export default function BookingsPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
-                <select
-                  className="select-field"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  aria-label="Filter by status"
-                >
-                  <option value="ALL">All statuses</option>
-                  <option value="PENDING">Pending</option>
-                  <option value="CONFIRMED">Confirmed</option>
-                  <option value="IN_PROGRESS">In progress</option>
-                  <option value="COMPLETED">Completed</option>
-                  <option value="CANCELLED">Cancelled</option>
-                  <option value="NO_SHOW">No show</option>
-                </select>
+                <div className={styles.dateFilterGroup} style={{ minWidth: '160px' }}>
+                  <CustomDatePicker
+                    value={selectedDateFilter}
+                    onChange={setSelectedDateFilter}
+                    placeholder="Filter by date"
+                  />
+                  {selectedDateFilter && (
+                    <button
+                      type="button"
+                      className={styles.resetDateBtn}
+                      onClick={() => setSelectedDateFilter('')}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div style={{ minWidth: '160px' }}>
+                  <CustomSelect
+                    options={[
+                      { value: 'ALL', label: 'All statuses' },
+                      { value: 'PENDING', label: 'Pending' },
+                      { value: 'CONFIRMED', label: 'Confirmed' },
+                      { value: 'IN_PROGRESS', label: 'In progress' },
+                      { value: 'COMPLETED', label: 'Completed' },
+                      { value: 'CANCELLED', label: 'Cancelled' },
+                      { value: 'NO_SHOW', label: 'No show' },
+                    ]}
+                    value={statusFilter}
+                    onChange={setStatusFilter}
+                    searchable={false}
+                    placeholder="Filter by status"
+                  />
+                </div>
               </FilterBar>
 
               {bookingsLoading ? (
@@ -412,7 +663,7 @@ export default function BookingsPage() {
                       </div>
 
                       <div className={styles.metaInfo} onClick={(e) => e.stopPropagation()}>
-                        <div className={styles.priceText}>${b.price.toFixed(2)}</div>
+                        <div className={styles.priceText}>{format(b.price)}</div>
                         <div className={styles.actionArea}>
                           {nextStatuses(b.status).includes('CONFIRMED') && (
                             <button type="button" className="btn btn-sm btn-primary" onClick={() => handleUpdateStatus(b.id, 'CONFIRMED')}>
@@ -459,6 +710,7 @@ export default function BookingsPage() {
         </>
       )}
 
+      {/* Details/Reschedule Modal */}
       <Modal
         open={showDetailsModal && !!selectedBooking}
         title="Booking details"
@@ -502,19 +754,19 @@ export default function BookingsPage() {
             <div className={styles.modalStack}>
               <div className="form-group">
                 <label className="form-label" htmlFor="business-reschedule-date">
-                  Select new date
-                </label>
-                <input
+              Select new date
+            </label>
+                <CustomDatePicker
                   id="business-reschedule-date"
-                  type="date"
-                  className="input-field"
                   value={rescheduleDate}
                   min={new Date().toISOString().split('T')[0]}
-                  onChange={(e) => setRescheduleDate(e.target.value)}
+                  onChange={setRescheduleDate}
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Available slots</label>
+                <label className="form-label">
+              Available slots
+            </label>
                 {rescheduleSlotsLoading ? (
                   <Skeleton variant="row" count={2} />
                 ) : rescheduleSlots.length === 0 ? (
@@ -542,7 +794,7 @@ export default function BookingsPage() {
             <div className={styles.modalStack}>
               <div className={styles.detailTop}>
                 <StatusBadge status={selectedBooking.status} />
-                <span className={styles.priceText}>${selectedBooking.price.toFixed(2)}</span>
+                <span className={styles.priceText}>{format(selectedBooking.price)}</span>
               </div>
               <div>
                 <h3 className={styles.detailTitle}>{selectedBooking.service.name}</h3>
@@ -593,6 +845,272 @@ export default function BookingsPage() {
               </div>
             </div>
           ))}
+      </Modal>
+
+      {/* Walk-in/Offline Booking Creator Modal */}
+      <Modal
+        open={showWalkinModal}
+        title="Book Walk-in / Offline Appointment"
+        onClose={() => setShowWalkinModal(false)}
+        footer={
+          <>
+            <button type="button" className="btn btn-outline" onClick={() => setShowWalkinModal(false)}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleWalkinSubmit}
+              disabled={
+                walkinSubmitting ||
+                !selectedServiceId ||
+                !walkinDate ||
+                !selectedWalkinSlot ||
+                (!selectedCustomerId && !showNewCustomerForm)
+              }
+            >
+              {walkinSubmitting ? 'Creating...' : 'Create Appointment'}
+            </button>
+          </>
+        }
+      >
+        <div className={styles.modalStack}>
+          {/* Customer Selection */}
+          <div className="form-group">
+            <label className="form-label">
+              Client Details
+            </label>
+            {!showNewCustomerForm ? (
+              <>
+                {selectedCustomerId ? (
+                  <div className={styles.selectedClientBadge}>
+                    <span>
+                      <i className="fa-solid fa-user-check" />{' '}
+                      {selectedCustomer
+                        ? `${selectedCustomer.firstName} ${selectedCustomer.lastName} (${selectedCustomer.email})`
+                        : 'Customer Selected'}
+                    </span>
+                    <button
+                      type="button"
+                      className={styles.removeClientBtn}
+                      onClick={() => setSelectedCustomerId('')}
+                      aria-label="Remove selection"
+                    >
+                      <i className="fa-solid fa-circle-xmark" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className={styles.autocompleteContainer}>
+                    <input
+                      type="text"
+                      className="input-field"
+                      placeholder="Search existing customer by name or email..."
+                      value={customerSearch}
+                      onChange={(e) => setCustomerSearch(e.target.value)}
+                    />
+                    {filteredCustomers.length > 0 && (
+                      <div className={styles.autocompleteDropdown}>
+                        {filteredCustomers.map((c) => (
+                          <div
+                            key={c.id}
+                            className={styles.autocompleteItem}
+                            onClick={() => selectCustomer(c)}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') selectCustomer(c);
+                            }}
+                          >
+                            <strong>{c.firstName} {c.lastName}</strong> · <small>{c.email}</small>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className={styles.clientToggle}>
+                  <span className={styles.clientToggleText}>Client not registered yet?</span>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline"
+                    onClick={() => {
+                      setShowNewCustomerForm(true);
+                      setSelectedCustomerId('');
+                    }}
+                  >
+                    <i className="fa-solid fa-user-plus" /> Add New Client
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div>
+                <div className={styles.inlineForm}>
+                  <div className={styles.inlineFormTitle}>Register Walk-in Client</div>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="client-first-name">
+              First name *
+            </label>
+                    <input
+                      id="client-first-name"
+                      type="text"
+                      className="input-field"
+                      required
+                      value={newCustomer.firstName}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, firstName: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="client-last-name">
+              Last name *
+            </label>
+                    <input
+                      id="client-last-name"
+                      type="text"
+                      className="input-field"
+                      required
+                      value={newCustomer.lastName}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, lastName: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                    <label className="form-label" htmlFor="client-email">
+              Email address *
+            </label>
+                    <input
+                      id="client-email"
+                      type="email"
+                      className="input-field"
+                      required
+                      value={newCustomer.email}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                    <label className="form-label" htmlFor="client-phone">
+              Phone number
+            </label>
+                    <input
+                      id="client-phone"
+                      type="tel"
+                      className="input-field"
+                      value={newCustomer.phoneNumber}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, phoneNumber: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className={styles.clientToggle}>
+                  <span className={styles.clientToggleText}>Or search existing client:</span>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline"
+                    onClick={() => setShowNewCustomerForm(false)}
+                  >
+                    <i className="fa-solid fa-magnifying-glass" /> Search Clients
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Service Selector */}
+          <div className="form-group">
+            <label className="form-label" htmlFor="walkin-service">
+              Service *
+            </label>
+            <CustomSelect
+              id="walkin-service"
+              options={services.map((s) => ({
+                value: s.id.toString(),
+                label: s.name,
+                sublabel: `${s.durationMinutes} min`,
+              }))}
+              value={selectedServiceId}
+              onChange={setSelectedServiceId}
+              placeholder="Select service..."
+              searchable={true}
+            />
+          </div>
+
+          {/* Specialist / Staff Selector */}
+          <div className="form-group">
+            <label className="form-label" htmlFor="walkin-staff">
+              Specialist (Optional)
+            </label>
+            <CustomSelect
+              id="walkin-staff"
+              options={[
+                { value: 'any', label: 'Any Available Specialist' },
+                ...branchStaff.map((st: any) => ({
+                  value: st.id.toString(),
+                  label: st.displayName || st.name,
+                  sublabel: st.designation || '',
+                })),
+              ]}
+              value={selectedStaffId || 'any'}
+              onChange={setSelectedStaffId}
+              placeholder="Select specialist..."
+              searchable={true}
+            />
+          </div>
+
+          {/* Date Selector */}
+          <div className="form-group">
+            <label className="form-label" htmlFor="walkin-date">
+              Appointment Date *
+            </label>
+            <CustomDatePicker
+              id="walkin-date"
+              value={walkinDate}
+              min={new Date().toISOString().split('T')[0]}
+              onChange={setWalkinDate}
+            />
+          </div>
+
+          {/* Slots Grid */}
+          <div className="form-group">
+            <label className="form-label">
+              Available Slots *
+            </label>
+            {walkinSlotsLoading ? (
+              <Skeleton variant="row" count={2} />
+            ) : !selectedServiceId ? (
+              <p className={styles.muted}>Please select a service first to check slots.</p>
+            ) : walkinSlots.length === 0 ? (
+              <p className={styles.muted}>No slots available for this service on the selected date.</p>
+            ) : (
+              <div className={styles.slotGrid}>
+                {walkinSlots.map((slot) => {
+                  const isSelected = selectedWalkinSlot === slot;
+                  return (
+                    <button
+                      key={slot}
+                      type="button"
+                      className={`${styles.slotBtn} ${isSelected ? styles.slotSelected : ''}`}
+                      onClick={() => setSelectedWalkinSlot(slot)}
+                    >
+                      {slot.substring(0, 5)}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Notes */}
+          <div className="form-group">
+            <label className="form-label" htmlFor="walkin-notes">
+              Client / Internal Notes
+            </label>
+            <textarea
+              id="walkin-notes"
+              className="input-field"
+              rows={3}
+              placeholder="Add client preferences or notes about this appointment..."
+              value={walkinNotes}
+              onChange={(e) => setWalkinNotes(e.target.value)}
+            />
+          </div>
+        </div>
       </Modal>
     </div>
   );

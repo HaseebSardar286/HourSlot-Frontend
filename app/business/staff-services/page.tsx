@@ -8,6 +8,7 @@ import Skeleton from '@/components/Skeleton';
 import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import DataTable from '@/components/DataTable';
+import { useOrgLocale } from '@/lib/org-locale-context';
 import styles from './staff-services.module.css';
 
 interface Staff {
@@ -30,6 +31,7 @@ interface StaffServiceAssignment {
 }
 
 export default function StaffServicesPage() {
+  const { format } = useOrgLocale();
   const [assignments, setAssignments] = useState<StaffServiceAssignment[]>([]);
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -212,15 +214,15 @@ export default function StaffServicesPage() {
               ),
             },
             { key: 'service', header: 'Service', render: (a) => a.service.name },
-            { key: 'default', header: 'Default rate', render: (a) => `$${a.service.price}` },
+            { key: 'default', header: 'Default rate', render: (a) => format(a.service.price) },
             {
               key: 'override',
               header: 'Assigned price',
               render: (a) =>
                 a.priceOverride != null ? (
-                  <span className={styles.override}>${a.priceOverride} (override)</span>
+                  <span className={styles.override}>{format(a.priceOverride)} (override)</span>
                 ) : (
-                  `Default ($${a.service.price})`
+                  `Default (${format(a.service.price)})`
                 ),
             },
             {
@@ -290,7 +292,7 @@ export default function StaffServicesPage() {
             >
               {services.map((svc) => (
                 <option key={svc.id} value={svc.id}>
-                  {svc.name} (${svc.price})
+                  {svc.name} ({format(svc.price)})
                 </option>
               ))}
             </select>
@@ -309,8 +311,8 @@ export default function StaffServicesPage() {
           {!formData.useDefaultPrice && (
             <div className="form-group">
               <label className="form-label" htmlFor="priceOverrideInput">
-                Custom specialist rate ($)
-              </label>
+              Custom specialist rate ($)
+            </label>
               <input
                 id="priceOverrideInput"
                 type="number"
