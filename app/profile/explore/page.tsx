@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, useRef, type FormEvent } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, type FormEvent, type PointerEvent } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
@@ -53,6 +53,11 @@ export default function ExplorePage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const bootstrapped = useRef(false);
+  const splitRef = useRef<HTMLDivElement>(null);
+  const draggingSplit = useRef(false);
+  const listPctRef = useRef(52);
+  const [listPct, setListPct] = useState(52);
+  const [splitting, setSplitting] = useState(false);
 
   const loadNearby = useCallback(async (lat: number, lon: number, queryVal = '', radius = radiusKm) => {
     setLoading(true);
@@ -182,6 +187,49 @@ export default function ExplorePage() {
 
     loadCategoriesOnly();
   }, [authLoading, isAuthenticated, loadCategoriesOnly, triggerSearchOrNearby]);
+
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem('hourslot_explore_split_pct');
+      if (!stored) return;
+      const n = Number(stored);
+      if (Number.isFinite(n) && n >= 32 && n <= 72) {
+        listPctRef.current = n;
+        setListPct(n);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const onSplitPointerDown = (e: PointerEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    draggingSplit.current = true;
+    setSplitting(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const onSplitPointerMove = (e: PointerEvent<HTMLButtonElement>) => {
+    if (!draggingSplit.current || !splitRef.current) return;
+    const rect = splitRef.current.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const next = Math.min(72, Math.max(32, ((e.clientX - rect.left) / rect.width) * 100));
+    listPctRef.current = next;
+    setListPct(next);
+  };
+
+  const onSplitPointerUp = (e: PointerEvent<HTMLButtonElement>) => {
+    draggingSplit.current = false;
+    setSplitting(false);
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    try {
+      sessionStorage.setItem('hourslot_explore_split_pct', String(listPctRef.current));
+    } catch {
+      /* ignore */
+    }
+  };
 
   const handleSearchSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -411,7 +459,11 @@ export default function ExplorePage() {
   if (isAuthenticated) {
     const firstName = user?.firstName || 'there';
     return (
-      <div className={styles.dashExplore}>
+      <div
+        ref={splitRef}
+        className={`${styles.dashExplore} ${splitting ? styles.dashExploreSplitting : ''}`}
+        style={{ ['--find-pane-width' as string]: `${listPct}%` }}
+      >
         <section className={styles.findPane}>
           <header className={styles.findHead}>
             <div>
@@ -569,6 +621,17 @@ export default function ExplorePage() {
             )}
           </div>
         </section>
+
+        <button
+          type="button"
+          className={`${styles.splitHandle} ${splitting ? styles.splitDragging : ''}`}
+          aria-label="Resize explore list and map"
+          title="Drag to resize"
+          onPointerDown={onSplitPointerDown}
+          onPointerMove={onSplitPointerMove}
+          onPointerUp={onSplitPointerUp}
+          onPointerCancel={onSplitPointerUp}
+        />
 
         <section className={styles.mapPane}>
           <div className={styles.mapPaneHead}>

@@ -63,6 +63,10 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  if (isAuthenticated && userRole === 'SUPER_ADMIN' && pathname.startsWith('/profile')) {
+    return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+  }
+
   if (isProtectedApp(pathname)) {
     if (!isAuthenticated) {
       const loginUrl = new URL('/auth/login', request.url);

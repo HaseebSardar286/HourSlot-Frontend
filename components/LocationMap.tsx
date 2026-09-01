@@ -75,6 +75,7 @@ export default function LocationMap({
   scrollWheelZoom = false,
 }: LocationMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
   const clickRef = useRef(onMarkerClick);
@@ -108,9 +109,16 @@ export default function LocationMap({
     const onResize = () => map.invalidateSize();
     setTimeout(onResize, 50);
     window.addEventListener('resize', onResize);
+    const ro = typeof ResizeObserver !== 'undefined' && wrapRef.current
+      ? new ResizeObserver(onResize)
+      : null;
+    if (ro && wrapRef.current) {
+      ro.observe(wrapRef.current);
+    }
 
     return () => {
       window.removeEventListener('resize', onResize);
+      ro?.disconnect();
       map.remove();
       mapRef.current = null;
       layerRef.current = null;
@@ -166,7 +174,7 @@ export default function LocationMap({
   const heightStyle = typeof height === 'number' ? `${height}px` : height;
 
   return (
-    <div className={`${styles.mapWrap} ${className}`} style={{ height: heightStyle }}>
+    <div ref={wrapRef} className={`${styles.mapWrap} ${className}`} style={{ height: heightStyle }}>
       <div ref={containerRef} className={styles.map} />
       {showControls && (
         <div className={styles.controls}>

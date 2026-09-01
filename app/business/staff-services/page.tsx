@@ -8,12 +8,13 @@ import Skeleton from '@/components/Skeleton';
 import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import DataTable from '@/components/DataTable';
-import { useOrgLocale } from '@/lib/org-locale-context';
+import { formatMoney } from '@/lib/money';
 import styles from './staff-services.module.css';
 
 interface Staff {
   id: number;
-  name: string;
+  name?: string;
+  displayName?: string;
   specialty?: string;
 }
 
@@ -21,6 +22,7 @@ interface Service {
   id: number;
   name: string;
   price: number;
+  currency?: string;
 }
 
 interface StaffServiceAssignment {
@@ -30,8 +32,11 @@ interface StaffServiceAssignment {
   priceOverride?: number | null;
 }
 
+function staffLabel(staff?: Staff | null) {
+  return staff?.name || staff?.displayName || 'Unknown staff';
+}
+
 export default function StaffServicesPage() {
-  const { format } = useOrgLocale();
   const [assignments, setAssignments] = useState<StaffServiceAssignment[]>([]);
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -89,11 +94,13 @@ export default function StaffServicesPage() {
   };
 
   const handleEditClick = (assign: StaffServiceAssignment) => {
+    const staff = resolveStaff(assign);
+    const service = resolveService(assign);
     setEditingAssignment(assign);
     setFormData({
-      staffId: assign.staff.id.toString(),
-      serviceId: assign.service.id.toString(),
-      priceOverride: assign.priceOverride ? assign.priceOverride.toString() : '',
+      staffId: staff?.id?.toString() || '',
+      serviceId: service?.id?.toString() || '',
+      priceOverride: assign.priceOverride != null ? String(assign.priceOverride) : '',
       useDefaultPrice: assign.priceOverride === null || assign.priceOverride === undefined,
     });
     setShowModal(true);
@@ -156,6 +163,25 @@ export default function StaffServicesPage() {
     }
   };
 
+  const resolveStaff = (assign: StaffServiceAssignment) => {
+    const nested = assign.staff;
+    if (nested?.name || nested?.displayName) {
+      return nested;
+    }
+    return staffList.find((s) => s.id === nested?.id) || nested;
+  };
+
+  const resolveService = (assign: StaffServiceAssignment) => {
+    const nested = assign.service;
+    if (nested?.name) {
+      return nested;
+    }
+    return services.find((s) => s.id === nested?.id) || nested;
+  };
+
+  const money = (amount: number | null | undefined, code?: string) =>
+    formatMoney(amount, code);
+
   return (
     <div className={styles.page}>
       <PageHeader
@@ -206,24 +232,43 @@ export default function StaffServicesPage() {
             {
               key: 'staff',
               header: 'Staff',
-              render: (a) => (
-                <div>
-                  <strong>{a.staff.name}</strong>
-                  {a.staff.specialty && <div className={styles.desc}>{a.staff.specialty}</div>}
-                </div>
-              ),
+              render: (a) => {
+                const staff = resolveStaff(a);
+                return (
+                  <div>
+                    <strong>{staffLabel(staff)}</strong>
+                    {staff?.specialty && <div className={styles.desc}>{staff.specialty}</div>}
+                  </div>
+                );
+              },
             },
-            { key: 'service', header: 'Service', render: (a) => a.service.name },
-            { key: 'default', header: 'Default rate', render: (a) => format(a.service.price) },
+            {
+              key: 'service',
+              header: 'Service',
+              render: (a) => resolveService(a)?.name || 'Unknown service',
+            },
+            {
+              key: 'default',
+              header: 'Default rate',
+              render: (a) => {
+                const service = resolveService(a);
+                return money(service?.price, service?.currency);
+              },
+            },
             {
               key: 'override',
-              header: 'Assigned price',
-              render: (a) =>
-                a.priceOverride != null ? (
-                  <span className={styles.override}>{format(a.priceOverride)} (override)</span>
-                ) : (
-                  `Default (${format(a.service.price)})`
-                ),
+              header: 'Assigned rate',
+              render: (a) => {
+                const service = resolveService(a);
+                if (a.priceOverride != null) {
+                  return (
+                    <span className={styles.override}>
+                      {money(a.priceOverride, service?.currency)} (override)
+                    </span>
+                  );
+                }
+                return `Default (${money(service?.price, service?.currency)})`;
+              },
             },
             {
               key: 'actions',
@@ -274,7 +319,7 @@ export default function StaffServicesPage() {
             >
               {staffList.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.name} ({s.specialty || 'Generalist'})
+                  {staffLabel(s)} ({s.specialty || 'Generalist'})
                 </option>
               ))}
             </select>
@@ -292,7 +337,7 @@ export default function StaffServicesPage() {
             >
               {services.map((svc) => (
                 <option key={svc.id} value={svc.id}>
-                  {svc.name} ({format(svc.price)})
+                  {svc.name} ({money(svc.price, svc.currency)})
                 </option>
               ))}
             </select>
@@ -311,7 +356,7 @@ export default function StaffServicesPage() {
           {!formData.useDefaultPrice && (
             <div className="form-group">
               <label className="form-label" htmlFor="priceOverrideInput">
-              Custom specialist rate ($)
+              Custom specialist rate
             </label>
               <input
                 id="priceOverrideInput"

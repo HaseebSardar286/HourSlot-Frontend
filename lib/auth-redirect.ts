@@ -22,3 +22,36 @@ export function safeReturnUrl(raw: string | null, fallback: string): string {
   if (!raw.startsWith('/') || raw.startsWith('//')) return fallback;
   return raw;
 }
+
+export function dashboardRouteForRole(role: string): string {
+  switch (role) {
+    case 'SUPER_ADMIN':
+      return '/admin/dashboard';
+    case 'BUSINESS_OWNER':
+    case 'BUSINESS_STAFF':
+      return '/business/dashboard';
+    default:
+      return '/profile/explore';
+  }
+}
+
+function isBookingReturnUrl(path: string): boolean {
+  return path.startsWith('/profile/book/');
+}
+
+/**
+ * Where to send a user after login/register.
+ * Super Admin always goes to admin. Business accounts go to their dashboard
+ * unless they were in the middle of a booking. Customers keep returnUrl.
+ */
+export function destinationAfterAuth(role: string, rawReturn: string | null): string {
+  const dashboard = dashboardRouteForRole(role);
+  const returnUrl = safeReturnUrl(rawReturn, dashboard);
+  if (role === 'SUPER_ADMIN') {
+    return dashboard;
+  }
+  if (role === 'BUSINESS_OWNER' || role === 'BUSINESS_STAFF') {
+    return isBookingReturnUrl(returnUrl) ? returnUrl : dashboard;
+  }
+  return returnUrl;
+}

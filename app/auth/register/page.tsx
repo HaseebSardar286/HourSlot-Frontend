@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { apiFetch } from '@/lib/api';
 import type { Category } from '@/lib/types';
-import { safeReturnUrl } from '@/lib/auth-redirect';
+import { destinationAfterAuth } from '@/lib/auth-redirect';
 import Stepper from '@/components/Stepper';
 import shared from '../auth-shared.module.css';
 import styles from './register.module.css';
@@ -52,18 +52,6 @@ function RegisterForm() {
   const loginHrefPath = returnUrl
     ? `/auth/login?returnUrl=${encodeURIComponent(returnUrl)}`
     : '/auth/login';
-
-  const getDashboardRoute = (role: string): string => {
-    switch (role) {
-      case 'SUPER_ADMIN':
-        return '/admin/dashboard';
-      case 'BUSINESS_OWNER':
-      case 'BUSINESS_STAFF':
-        return '/business/dashboard';
-      default:
-        return '/profile/explore';
-    }
-  };
 
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -223,7 +211,7 @@ function RegisterForm() {
       await register(payload);
       const session = await login({ email: formData.email, password: formData.password });
       document.cookie = `hourslot_user_session=${encodeURIComponent(JSON.stringify(session))}; path=/; max-age=86400`;
-      const dest = safeReturnUrl(returnUrl, getDashboardRoute(session.role));
+      const dest = destinationAfterAuth(session.role, returnUrl);
       router.push(dest);
     } catch (err: unknown) {
       const e = err as { error?: { message?: string } };

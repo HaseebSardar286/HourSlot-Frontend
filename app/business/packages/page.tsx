@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, useMemo } from 'react';
 import { apiFetch } from '@/lib/api';
 import { useOwnerPlan } from '@/lib/owner-plan-context';
 import { hasFeature, upgradeHint } from '@/lib/plan';
@@ -9,9 +9,10 @@ import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
 import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
-import DataTable from '@/components/DataTable';
-import StatusBadge from '@/components/StatusBadge';
+import CustomSelect from '@/components/CustomSelect';
 import { useOrgLocale } from '@/lib/org-locale-context';
+import { fetchCurrencies, type CurrencyView } from '@/lib/geo';
+import { formatMoney } from '@/lib/money';
 import styles from './packages.module.css';
 
 interface Service {
@@ -25,6 +26,7 @@ interface ServicePackage {
   name: string;
   description?: string;
   price: number;
+  currency?: string;
   sessionsCount: number;
   expiryDays: number;
   active: boolean;
@@ -37,6 +39,7 @@ export default function PackagesPage() {
   const canManage = planLoaded && hasFeature(plan, 'packages');
   const [packages, setPackages] = useState<ServicePackage[]>([]);
   const [services, setServices] = useState<Service[]>([]);
+  const [currencies, setCurrencies] = useState<CurrencyView[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +53,7 @@ export default function PackagesPage() {
     name: '',
     description: '',
     price: '',
+    currency: '',
     sessionsCount: '5',
     expiryDays: '90',
     active: true,
@@ -75,7 +79,22 @@ export default function PackagesPage() {
 
   useEffect(() => {
     loadData();
+    fetchCurrencies(false)
+      .then(setCurrencies)
+      .catch(() => setCurrencies([]));
   }, []);
+
+  const currencyOptions = useMemo(() => {
+    const options = currencies.map((c) => ({
+      value: c.code,
+      label: `${c.code}${c.symbol ? ` (${c.symbol})` : ''} — ${c.name || c.code}`,
+    }));
+    const selected = formData.currency || currency;
+    if (selected && !options.some((o) => o.value === selected)) {
+      options.unshift({ value: selected, label: selected });
+    }
+    return options;
+  }, [currencies, formData.currency, currency]);
 
   const handleInputChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -97,6 +116,7 @@ export default function PackagesPage() {
       name: '',
       description: '',
       price: '',
+      currency,
       sessionsCount: '5',
       expiryDays: '90',
       active: true,
@@ -111,6 +131,7 @@ export default function PackagesPage() {
       name: pkg.name,
       description: pkg.description || '',
       price: pkg.price.toString(),
+      currency: pkg.currency || currency,
       sessionsCount: pkg.sessionsCount.toString(),
       expiryDays: pkg.expiryDays ? pkg.expiryDays.toString() : '0',
       active: pkg.active,
@@ -138,6 +159,7 @@ export default function PackagesPage() {
       name: formData.name,
       description: formData.description,
       price: parseFloat(formData.price),
+      currency: (formData.currency || currency).toUpperCase(),
       sessionsCount: parseInt(formData.sessionsCount),
       expiryDays: parseInt(formData.expiryDays) || 0,
       active: formData.active,
@@ -326,7 +348,7 @@ export default function PackagesPage() {
               </div>
 
               <div className={styles.cardBottom}>
-                <span className={styles.priceBadge}>{format(pkg.price)}</span>
+                <span className={styles.priceBadge}>{formatMoney(pkg.price, pkg.currency || currency)}</span>
                 <div className={styles.actions}>
                   {canManage && (
                     <button type="button" className="btn btn-sm btn-outline" onClick={() => handleEditClick(pkg)}>
@@ -400,7 +422,7 @@ export default function PackagesPage() {
           <div className={styles.twoCol}>
             <div className="form-group">
               <label className="form-label" htmlFor="pkgPriceInput">
-                Bundle price ({currency}):
+                Bundle price:
               </label>
               <input
                 id="pkgPriceInput"
@@ -411,6 +433,20 @@ export default function PackagesPage() {
                 onChange={(e) => handleInputChange('price', e.target.value)}
               />
             </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="pkgCurrency">
+                Currency:
+              </label>
+              <CustomSelect
+                id="pkgCurrency"
+                options={currencyOptions}
+                value={formData.currency || currency}
+                onChange={(value) => handleInputChange('currency', value)}
+                placeholder="Select currency"
+              />
+            </div>
+          </div>
+          <div className={styles.twoCol}>
             <div className="form-group">
               <label className="form-label" htmlFor="pkgSessionsInput">
               Sessions count:
@@ -423,8 +459,6 @@ export default function PackagesPage() {
                 onChange={(e) => handleInputChange('sessionsCount', e.target.value)}
               />
             </div>
-          </div>
-          <div className={styles.twoCol}>
             <div className="form-group">
               <label className="form-label" htmlFor="pkgExpiryInput">
               Expiry (days):
@@ -437,6 +471,8 @@ export default function PackagesPage() {
                 onChange={(e) => handleInputChange('expiryDays', e.target.value)}
               />
             </div>
+          </div>
+          <div className={styles.twoCol}>
             <div className={`form-group ${styles.checkRow}`}>
               <input
                 id="pkgActiveInput"

@@ -4,7 +4,7 @@ import { useState, FormEvent, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { safeReturnUrl } from '@/lib/auth-redirect';
+import { destinationAfterAuth } from '@/lib/auth-redirect';
 import shared from '../auth-shared.module.css';
 
 function LoginForm() {
@@ -35,18 +35,6 @@ function LoginForm() {
         ? 'Password must be at least 6 characters.'
         : null;
 
-  const getDashboardRoute = (role: string): string => {
-    switch (role) {
-      case 'SUPER_ADMIN':
-        return '/admin/dashboard';
-      case 'BUSINESS_OWNER':
-      case 'BUSINESS_STAFF':
-        return '/business/dashboard';
-      default:
-        return '/profile/explore';
-    }
-  };
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setTouched({ email: true, password: true });
@@ -57,8 +45,7 @@ function LoginForm() {
     try {
       const session = await login({ email, password });
       document.cookie = `hourslot_user_session=${encodeURIComponent(JSON.stringify(session))}; path=/; max-age=86400`;
-      const returnUrl = safeReturnUrl(searchParams.get('returnUrl'), getDashboardRoute(session.role));
-      router.push(returnUrl);
+      router.push(destinationAfterAuth(session.role, searchParams.get('returnUrl')));
     } catch (err: unknown) {
       const e = err as { error?: { message?: string }; message?: string };
       setErrorMessage(e?.error?.message || e?.message || 'Login failed. Please check your credentials.');

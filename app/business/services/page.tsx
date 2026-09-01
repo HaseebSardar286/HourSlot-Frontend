@@ -1,15 +1,16 @@
 'use client';
 
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, useMemo } from 'react';
 import { apiFetch } from '@/lib/api';
 import PageHeader from '@/components/PageHeader';
 import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
 import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
-import DataTable from '@/components/DataTable';
-import StatusBadge from '@/components/StatusBadge';
+import CustomSelect from '@/components/CustomSelect';
 import { useOrgLocale } from '@/lib/org-locale-context';
+import { fetchCurrencies, type CurrencyView } from '@/lib/geo';
+import { formatMoney } from '@/lib/money';
 import styles from './services.module.css';
 
 interface Service {
@@ -17,6 +18,7 @@ interface Service {
   name: string;
   description?: string;
   price: number;
+  currency?: string;
   durationMinutes: number;
   bufferMinutes: number;
   maxConcurrent: number;
@@ -28,6 +30,7 @@ interface Service {
 export default function ServicesPage() {
   const { format, currency } = useOrgLocale();
   const [services, setServices] = useState<Service[]>([]);
+  const [currencies, setCurrencies] = useState<CurrencyView[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -42,6 +45,7 @@ export default function ServicesPage() {
     name: '',
     description: '',
     price: 0,
+    currency: '',
     durationMinutes: 30,
     bufferMinutes: 0,
     maxConcurrent: 1,
@@ -65,7 +69,22 @@ export default function ServicesPage() {
 
   useEffect(() => {
     loadServices();
+    fetchCurrencies(false)
+      .then(setCurrencies)
+      .catch(() => setCurrencies([]));
   }, []);
+
+  const currencyOptions = useMemo(() => {
+    const options = currencies.map((c) => ({
+      value: c.code,
+      label: `${c.code}${c.symbol ? ` (${c.symbol})` : ''} — ${c.name || c.code}`,
+    }));
+    const selected = formData.currency || currency;
+    if (selected && !options.some((o) => o.value === selected)) {
+      options.unshift({ value: selected, label: selected });
+    }
+    return options;
+  }, [currencies, formData.currency, currency]);
 
   const handleInputChange = (field: string, value: string | number | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -77,6 +96,7 @@ export default function ServicesPage() {
       name: service.name,
       description: service.description || '',
       price: service.price,
+      currency: service.currency || currency,
       durationMinutes: service.durationMinutes,
       bufferMinutes: service.bufferMinutes || 0,
       maxConcurrent: service.maxConcurrent || 1,
@@ -93,6 +113,7 @@ export default function ServicesPage() {
       name: '',
       description: '',
       price: 0,
+      currency,
       durationMinutes: 30,
       bufferMinutes: 0,
       maxConcurrent: 1,
@@ -118,9 +139,9 @@ export default function ServicesPage() {
     setError(null);
     setMessage(null);
 
-    // If it's not a group service, capacity/maxConcurrent defaults to 1
     const payload = {
       ...formData,
+      currency: (formData.currency || currency).toUpperCase(),
       capacity: formData.groupService ? formData.capacity : 1,
       maxConcurrent: formData.groupService ? formData.maxConcurrent : 1,
     };
@@ -308,7 +329,7 @@ export default function ServicesPage() {
               </div>
 
               <div className={styles.cardBottom}>
-                <span className={styles.priceBadge}>{format(s.price)}</span>
+                <span className={styles.priceBadge}>{formatMoney(s.price, s.currency || currency)}</span>
                 <div className={styles.actions}>
                   <button type="button" className="btn btn-sm btn-outline" onClick={() => handleEditClick(s)}>
                     <i className="fa-regular fa-pen-to-square" style={{ marginRight: 4 }} /> Edit
@@ -347,23 +368,24 @@ export default function ServicesPage() {
         }
       >
         <form id="service-form" onSubmit={handleSubmit} className={styles.form}>
-          <div className={styles.twoCol}>
-            <div className="form-group">
-              <label className="form-label" htmlFor="serviceName">
+          <div className="form-group">
+            <label className="form-label" htmlFor="serviceName">
               Service name:
             </label>
-              <input
-                id="serviceName"
-                type="text"
-                className="input-field"
-                value={formData.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
-                placeholder="e.g. Teeth Whitening"
-              />
-            </div>
+            <input
+              id="serviceName"
+              type="text"
+              className="input-field"
+              value={formData.name}
+              onChange={(e) => handleInputChange('name', e.target.value)}
+              placeholder="e.g. Teeth Whitening"
+            />
+          </div>
+
+          <div className={styles.twoCol}>
             <div className="form-group">
               <label className="form-label" htmlFor="servicePrice">
-                Price ({currency}):
+                Price:
               </label>
               <input
                 id="servicePrice"
@@ -372,7 +394,19 @@ export default function ServicesPage() {
                 step="0.01"
                 className="input-field"
                 value={formData.price}
-                onChange={(e) => handleInputChange('price', parseFloat(e.target.value))}
+                onChange={(e) => handleInputChange('price', parseFloat(e.target.value) || 0)}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="serviceCurrency">
+                Currency:
+              </label>
+              <CustomSelect
+                id="serviceCurrency"
+                options={currencyOptions}
+                value={formData.currency || currency}
+                onChange={(value) => handleInputChange('currency', value)}
+                placeholder="Select currency"
               />
             </div>
           </div>
