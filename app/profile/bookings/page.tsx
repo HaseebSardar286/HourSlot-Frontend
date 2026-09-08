@@ -79,11 +79,11 @@ function MyBookingsContent() {
   const [cancelLoading, setCancelLoading] = useState(false);
   const [payingId, setPayingId] = useState<number | null>(null);
 
+  const paymentStatus = searchParams.get('payment');
   useEffect(() => {
-    const payment = searchParams.get('payment');
-    if (payment === 'success') setSuccess('Payment completed successfully.');
-    if (payment === 'cancelled') setError('Online payment was cancelled.');
-  }, [searchParams]);
+    if (paymentStatus === 'success') setSuccess('Payment completed successfully.');
+    if (paymentStatus === 'cancelled') setError('Online payment was cancelled.');
+  }, [paymentStatus]);
 
   const handleOpenRescheduleModal = (booking: Booking) => {
     setReschedulingBooking(booking);
@@ -457,6 +457,7 @@ function MyBookingsContent() {
                 branchId={String(reschedulingBooking.branch.id)}
                 serviceId={String(reschedulingBooking.service.id)}
                 staffId={reschedulingBooking.staff?.id ? String(reschedulingBooking.staff.id) : ''}
+                staffName={reschedulingBooking.staff?.name}
                 selectedDate={rescheduleDate}
                 selectedSlot={selectedRescheduleSlot}
                 currency={reschedulingBooking.currency || reschedulingBooking.service.currency}

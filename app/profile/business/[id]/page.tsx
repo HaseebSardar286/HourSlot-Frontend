@@ -149,19 +149,18 @@ export default function BusinessProfilePage() {
 
   const [customerPackage, setCustomerPackage] = useState<any | null>(null);
 
+  const pkgId = searchParams.get('customerPackageId') || searchParams.get('packageId');
   useEffect(() => {
-    const pkgId = searchParams.get('customerPackageId') || searchParams.get('packageId');
-    if (pkgId && isAuthenticated) {
-      apiFetch<any[]>('/api/customer/packages')
-        .then((pkgs) => {
-          const match = pkgs.find((p) => String(p.id) === pkgId);
-          if (match) {
-            setCustomerPackage(match);
-          }
-        })
-        .catch(() => {});
-    }
-  }, [searchParams, isAuthenticated]);
+    if (!pkgId || !isAuthenticated) return;
+    apiFetch<any[]>('/api/customer/packages')
+      .then((pkgs) => {
+        const match = pkgs.find((p) => String(p.id) === pkgId);
+        if (match) {
+          setCustomerPackage((prev: any) => (prev?.id === match.id ? prev : match));
+        }
+      })
+      .catch(() => {});
+  }, [pkgId, isAuthenticated]);
 
   const money = (amount: number, code?: string) =>
     formatMoney(amount, code || profile?.business?.currency);
@@ -169,7 +168,7 @@ export default function BusinessProfilePage() {
   const getServiceBookingHref = (serviceId: number) => {
     return profile
       ? buildBookingHref(profile.business.id, {
-          step: 'schedule',
+          step: 'details',
           serviceId: String(serviceId),
           branchId: selectedBranchId || undefined,
           customerPackageId: customerPackage ? String(customerPackage.id) : undefined,

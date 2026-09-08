@@ -417,6 +417,15 @@
   color: var(--text-main);
 }
 
+.summaryHint {
+  display: block;
+  margin-top: 2px;
+  font-style: normal;
+  font-weight: 600;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
 .summaryTotal {
   display: flex;
   justify-content: space-between;
@@ -821,6 +830,10 @@
   background: #059669;
 }
 
+.legendBooked {
+  background: #94a3b8;
+}
+
 .slotGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -883,6 +896,98 @@
 .slotBtnOn .slotPrice,
 .slotBtnOn .slotBadge {
   color: rgba(255, 255, 255, 0.92);
+}
+
+.slotBtnBooked,
+.slotBtnBooked:hover {
+  cursor: not-allowed;
+  opacity: 0.72;
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #64748b;
+  transform: none;
+  box-shadow: none;
+}
+
+.slotBookedLabel {
+  font-style: normal;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.slotStaff {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.slotBtnOn .slotStaff {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.staffChoiceBanner {
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(26, 138, 138, 0.08);
+  border: 1px solid rgba(26, 138, 138, 0.16);
+}
+
+.staffChoiceBanner p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.staffChoiceBanner strong {
+  color: var(--text-main);
+}
+
+.slotChoiceNote {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(15, 118, 118, 0.08);
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.staffHint {
+  margin: -4px 0 12px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.serviceChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.serviceChip {
+  font-style: normal;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(26, 138, 138, 0.1);
+  color: var(--accent-primary);
+}
+
+.staffCardMuted {
+  opacity: 0.72;
+}
+
+.staffWarn {
+  color: var(--accent-coral, #e11d48) !important;
+  font-weight: 700;
 }
 
 .noSlots {

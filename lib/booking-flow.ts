@@ -2,9 +2,11 @@ import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.
 
 export type BookingStep = 'service' | 'details' | 'schedule' | 'confirm';
 
+export const ANY_STAFF_ID = 'none';
+
 export const BOOKING_STEPS: { id: BookingStep; label: string }[] = [
   { id: 'service', label: 'Service' },
-  { id: 'details', label: 'Details' },
+  { id: 'details', label: 'Specialist' },
   { id: 'schedule', label: 'Schedule' },
   { id: 'confirm', label: 'Confirm' },
 ];
@@ -31,6 +33,30 @@ export function defaultBookingState(): BookingFlowState {
   };
 }
 
+export function bookingFlowEqual(a: BookingFlowState, b: BookingFlowState): boolean {
+  return (
+    a.step === b.step &&
+    a.serviceId === b.serviceId &&
+    a.branchId === b.branchId &&
+    a.staffId === b.staffId &&
+    a.date === b.date &&
+    a.slot === b.slot &&
+    (a.customerPackageId || '') === (b.customerPackageId || '')
+  );
+}
+
+export function isAnyStaff(staffId: string): boolean {
+  return staffId === ANY_STAFF_ID;
+}
+
+export function dedicatedStaffId(staffId: string): string | null {
+  return /^\d+$/.test(staffId) ? staffId : null;
+}
+
+export function isStaffChosen(staffId: string): boolean {
+  return isAnyStaff(staffId) || dedicatedStaffId(staffId) != null;
+}
+
 export function parseBookingSearchParams(params: URLSearchParams): BookingFlowState {
   const stepRaw = params.get('step');
   const step: BookingStep =
@@ -41,7 +67,7 @@ export function parseBookingSearchParams(params: URLSearchParams): BookingFlowSt
     step,
     serviceId: params.get('serviceId') || '',
     branchId: params.get('branchId') || '',
-    staffId: staffRaw === 'none' || !staffRaw ? '' : staffRaw,
+    staffId: staffRaw === ANY_STAFF_ID ? ANY_STAFF_ID : staffRaw || '',
     date: params.get('date') || '',
     slot: params.get('slot') || '',
     customerPackageId: params.get('customerPackageId') || '',
@@ -55,7 +81,6 @@ export function buildBookingHref(businessId: string | number, state: Partial<Boo
   if (state.serviceId) params.set('serviceId', state.serviceId);
   if (state.branchId) params.set('branchId', state.branchId);
   if (state.staffId) params.set('staffId', state.staffId);
-  else if (state.staffId === '' && step !== 'service') params.set('staffId', 'none');
   if (state.date) params.set('date', state.date);
   if (state.slot) params.set('slot', state.slot);
   if (state.customerPackageId) params.set('customerPackageId', state.customerPackageId);
@@ -99,10 +124,16 @@ export function validateStep(step: BookingStep, state: BookingFlowState): StepVa
     case 'details':
       if (!state.serviceId) return { valid: false, message: 'Please select a service first.' };
       if (!state.branchId) return { valid: false, message: 'Please select a location.' };
+      if (!isStaffChosen(state.staffId)) {
+        return { valid: false, message: 'Choose Any available, or pick a specialist.' };
+      }
       return { valid: true };
     case 'schedule':
       if (!state.serviceId || !state.branchId) {
         return { valid: false, message: 'Complete service and location first.' };
+      }
+      if (!isStaffChosen(state.staffId)) {
+        return { valid: false, message: 'Choose Any available, or pick a specialist first.' };
       }
       if (!state.date) return { valid: false, message: 'Please select a date.' };
       if (!state.slot) return { valid: false, message: 'Please select a time slot.' };
@@ -120,7 +151,7 @@ export function validateStep(step: BookingStep, state: BookingFlowState): StepVa
 /** Earliest step the user must complete given current selections. */
 export function earliestIncompleteStep(state: BookingFlowState): BookingStep {
   if (!state.serviceId) return 'service';
-  if (!state.branchId) return 'details';
+  if (!state.branchId || !isStaffChosen(state.staffId)) return 'details';
   if (!state.date || !state.slot) return 'schedule';
   return 'confirm';
 }
@@ -140,6 +171,10 @@ export function syncBookingUrl(
   options?: { replace?: boolean }
 ): void {
   const href = buildBookingHref(businessId, state);
+  if (typeof window !== 'undefined') {
+    const current = `${window.location.pathname}${window.location.search}`;
+    if (current === href) return;
+  }
   if (options?.replace !== false) {
     router.replace(href, { scroll: false });
   } else {

@@ -228,7 +228,7 @@ export default function StaffPage() {
   // Filter staff directory list
   const filteredStaff = staffList.filter(
     (s) =>
-      s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (s.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (s.designation && s.designation.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 

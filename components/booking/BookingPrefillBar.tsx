@@ -12,6 +12,7 @@ interface BookingPrefillBarProps {
   service?: Service | null;
   branch?: Branch | null;
   staff?: Staff | null;
+  specialistLabel?: string | null;
   customerPackageLabel?: string | null;
 }
 
@@ -22,6 +23,7 @@ export default function BookingPrefillBar({
   service,
   branch,
   staff,
+  specialistLabel,
   customerPackageLabel,
 }: BookingPrefillBarProps) {
   if (!flow.serviceId || (currentStep !== 'schedule' && currentStep !== 'confirm')) {
@@ -64,11 +66,13 @@ export default function BookingPrefillBar({
             </Link>
           </span>
         )}
-        {staff && (
-          <span className={styles.prefillChip}>{staff.name}</span>
-        )}
-        {!staff && flow.staffId === '' && flow.step !== 'service' && flow.step !== 'details' && (
-          <span className={styles.prefillChip}>Any specialist</span>
+        {(staff || specialistLabel) && (
+          <span className={styles.prefillChip}>
+            {staff?.name || specialistLabel}
+            <Link href={editDetailsHref} className={styles.prefillEdit}>
+              Edit
+            </Link>
+          </span>
         )}
         {customerPackageLabel && (
           <span className={styles.prefillChip}>

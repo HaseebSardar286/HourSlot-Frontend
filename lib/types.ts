@@ -85,6 +85,9 @@ export interface AvailableSlot {
   pricingKind?: 'STANDARD' | 'PEAK' | 'OFF_PEAK';
   pricingLabel?: string | null;
   currency?: string;
+  available?: boolean;
+  availability?: 'AVAILABLE' | 'BOOKED';
+  availableStaff?: { id: number; name: string }[];
 }
 
 export interface Staff {
@@ -94,6 +97,7 @@ export interface Staff {
   specialty?: string;
   branch: { id: number; name: string };
   rating?: number;
+  services?: { id: number; name: string }[];
 }
 
 export interface Booking {

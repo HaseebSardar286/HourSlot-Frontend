@@ -60,6 +60,27 @@ function businessIcon(selected: boolean) {
   });
 }
 
+function isMapAlive(map: L.Map | null | undefined): map is L.Map {
+  if (!map) return false;
+  const pane = (map as unknown as { _mapPane?: HTMLElement | null })._mapPane;
+  if (!pane) return false;
+  try {
+    const el = map.getContainer();
+    return Boolean(el && el.isConnected);
+  } catch {
+    return false;
+  }
+}
+
+function safeInvalidateSize(map: L.Map | null | undefined) {
+  if (!isMapAlive(map)) return;
+  try {
+    map.invalidateSize({ animate: false });
+  } catch {
+    /* Leaflet already torn down */
+  }
+}
+
 /** Read-only Leaflet map showing one or more pins. */
 export default function LocationMap({
   markers,
@@ -106,17 +127,37 @@ export default function LocationMap({
     layerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
 
-    const onResize = () => map.invalidateSize();
-    setTimeout(onResize, 50);
+    let cancelled = false;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const onResize = () => {
+      if (cancelled) return;
+      safeInvalidateSize(map);
+    };
+    timers.push(setTimeout(onResize, 50));
     window.addEventListener('resize', onResize);
-    const ro = typeof ResizeObserver !== 'undefined' && wrapRef.current
-      ? new ResizeObserver(onResize)
-      : null;
+    let lastW = 0;
+    let lastH = 0;
+    const ro =
+      typeof ResizeObserver !== 'undefined' && wrapRef.current
+        ? new ResizeObserver((entries) => {
+            if (cancelled) return;
+            const cr = entries[0]?.contentRect;
+            if (!cr) return;
+            const w = Math.round(cr.width);
+            const h = Math.round(cr.height);
+            if (w === lastW && h === lastH) return;
+            lastW = w;
+            lastH = h;
+            safeInvalidateSize(map);
+          })
+        : null;
     if (ro && wrapRef.current) {
       ro.observe(wrapRef.current);
     }
 
     return () => {
+      cancelled = true;
+      timers.forEach(clearTimeout);
       window.removeEventListener('resize', onResize);
       ro?.disconnect();
       map.remove();
@@ -168,8 +209,9 @@ export default function LocationMap({
       map.fitBounds(L.latLngBounds(latLngs).pad(0.2));
     }
 
-    setTimeout(() => map.invalidateSize(), 80);
-  }, [markers, userLocation, zoom, fitMarkers, selectedId, onMarkerClick]);
+    const t = setTimeout(() => safeInvalidateSize(map), 80);
+    return () => clearTimeout(t);
+  }, [markers, userLocation?.lat, userLocation?.lng, zoom, fitMarkers, selectedId]);
 
   const heightStyle = typeof height === 'number' ? `${height}px` : height;
 
@@ -282,9 +324,14 @@ export function LocationPicker({
 
     mapRef.current = map;
     setMarkerPosition(latitude || 37.7749, longitude || -122.4194, false);
-    setTimeout(() => map.invalidateSize(), 80);
+    let cancelled = false;
+    const t = setTimeout(() => {
+      if (!cancelled) safeInvalidateSize(map);
+    }, 80);
 
     return () => {
+      cancelled = true;
+      clearTimeout(t);
       map.remove();
       mapRef.current = null;
       markerRef.current = null;

@@ -19,6 +19,7 @@ export function parseSlots(raw: unknown): AvailableSlot[] {
       slots.push({
         ...slot,
         startTime: startTime.length >= 5 ? startTime.slice(0, 5) : startTime,
+        available: slot.available !== false && slot.availability !== 'BOOKED',
       });
     }
   }
@@ -26,5 +27,5 @@ export function parseSlots(raw: unknown): AvailableSlot[] {
 }
 
 export function slotTimes(slots: AvailableSlot[]): string[] {
-  return slots.map((slot) => slot.startTime);
+  return slots.filter((slot) => slot.available !== false).map((slot) => slot.startTime);
 }

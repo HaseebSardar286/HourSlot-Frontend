@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, useMemo, FormEvent } from 'react';
 import dynamic from 'next/dynamic';
 import { apiFetch } from '@/lib/api';
 import { useOwnerPlan } from '@/lib/owner-plan-context';
@@ -182,20 +182,28 @@ export default function BranchesPage() {
     }
   };
 
-  const filteredBranches = branches.filter(
-    (b) =>
-      b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      b.address.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredBranches = useMemo(
+    () =>
+      branches.filter(
+        (b) =>
+          b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          b.address.toLowerCase().includes(searchQuery.toLowerCase())
+      ),
+    [branches, searchQuery]
   );
 
-  const mapMarkers = filteredBranches
-    .filter((b) => Number.isFinite(b.latitude) && Number.isFinite(b.longitude))
-    .map((b) => ({
-      id: b.id,
-      lat: b.latitude,
-      lng: b.longitude,
-      label: `<strong>${b.name}</strong><br/>${b.address}`,
-    }));
+  const mapMarkers = useMemo(
+    () =>
+      filteredBranches
+        .filter((b) => Number.isFinite(b.latitude) && Number.isFinite(b.longitude))
+        .map((b) => ({
+          id: b.id,
+          lat: b.latitude,
+          lng: b.longitude,
+          label: `<strong>${b.name}</strong><br/>${b.address}`,
+        })),
+    [filteredBranches]
+  );
 
   return (
     <div className={styles.page}>

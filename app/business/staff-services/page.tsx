@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, useMemo } from 'react';
 import { apiFetch } from '@/lib/api';
 import PageHeader from '@/components/PageHeader';
 import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
 import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
-import DataTable from '@/components/DataTable';
 import { formatMoney } from '@/lib/money';
 import styles from './staff-services.module.css';
 
@@ -16,6 +15,8 @@ interface Staff {
   name?: string;
   displayName?: string;
   specialty?: string;
+  designation?: string;
+  branch?: { id: number; name?: string };
 }
 
 interface Service {
@@ -64,9 +65,9 @@ export default function StaffServicesPage() {
         apiFetch<Staff[]>('/api/business/staff'),
         apiFetch<Service[]>('/api/business/services'),
       ]);
-      setAssignments(assigns);
-      setStaffList(staff);
-      setServices(svcs);
+      setAssignments(Array.isArray(assigns) ? assigns : []);
+      setStaffList(Array.isArray(staff) ? staff : []);
+      setServices(Array.isArray(svcs) ? svcs : []);
     } catch (err: any) {
       setError(err?.message || 'Could not load staff-services mappings.');
     } finally {
@@ -78,20 +79,89 @@ export default function StaffServicesPage() {
     loadInitialData();
   }, []);
 
+  const resolveStaff = (assign: StaffServiceAssignment) => {
+    const nested = assign.staff;
+    if (nested?.name || nested?.displayName) {
+      return nested;
+    }
+    return staffList.find((s) => s.id === nested?.id) || nested;
+  };
+
+  const resolveService = (assign: StaffServiceAssignment) => {
+    const nested = assign.service;
+    if (nested?.name) {
+      return nested;
+    }
+    return services.find((s) => s.id === nested?.id) || nested;
+  };
+
+  const assignedPair = (staffId: number, serviceId: number) =>
+    assignments.some((a) => a.staff?.id === staffId && a.service?.id === serviceId);
+
+  const serviceGroups = useMemo(() => {
+    const map = new Map<number, { service: Service; rows: StaffServiceAssignment[] }>();
+    for (const assign of assignments) {
+      const service = resolveService(assign);
+      if (!service?.id) continue;
+      const current = map.get(service.id) || { service, rows: [] };
+      current.rows.push(assign);
+      map.set(service.id, current);
+    }
+    return Array.from(map.values()).sort((a, b) => a.service.name.localeCompare(b.service.name));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assignments, staffList, services]);
+
+  const unassignedStaff = useMemo(() => {
+    const assignedIds = new Set(assignments.map((a) => a.staff?.id).filter(Boolean));
+    return staffList.filter((s) => !assignedIds.has(s.id));
+  }, [assignments, staffList]);
+
+  const availableStaffForForm = useMemo(() => {
+    if (editingAssignment) return staffList;
+    const serviceId = Number(formData.serviceId);
+    if (!serviceId) return staffList;
+    return staffList.filter((s) => !assignedPair(s.id, serviceId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [staffList, formData.serviceId, assignments, editingAssignment]);
+
   const handleInputChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleAddClick = () => {
+  const staffAlreadyOnService = (staffId: string, serviceId: string) =>
+    assignments.some((a) => String(a.staff?.id) === staffId && String(a.service?.id) === serviceId);
+
+  const firstFreeStaffForService = (serviceId: string, preferredStaffId?: string) => {
+    if (preferredStaffId && !staffAlreadyOnService(preferredStaffId, serviceId)) {
+      return preferredStaffId;
+    }
+    const taken = new Set(
+      assignments.filter((a) => String(a.service?.id) === serviceId).map((a) => String(a.staff?.id))
+    );
+    const firstFree = staffList.find((s) => !taken.has(String(s.id)));
+    return firstFree ? String(firstFree.id) : '';
+  };
+
+  const openAssign = (preset?: { staffId?: string; serviceId?: string }) => {
     setEditingAssignment(null);
+    let serviceId = preset?.serviceId || (services[0] ? String(services[0].id) : '');
+    if (preset?.staffId && !preset?.serviceId) {
+      const already = new Set(
+        assignments.filter((a) => String(a.staff?.id) === preset.staffId).map((a) => String(a.service?.id))
+      );
+      const nextService = services.find((s) => !already.has(String(s.id)));
+      if (nextService) serviceId = String(nextService.id);
+    }
     setFormData({
-      staffId: staffList.length > 0 ? staffList[0].id.toString() : '',
-      serviceId: services.length > 0 ? services[0].id.toString() : '',
+      staffId: firstFreeStaffForService(serviceId, preset?.staffId),
+      serviceId,
       priceOverride: '',
       useDefaultPrice: true,
     });
     setShowModal(true);
   };
+
+  const handleAddClick = () => openAssign();
 
   const handleEditClick = (assign: StaffServiceAssignment) => {
     const staff = resolveStaff(assign);
@@ -118,8 +188,8 @@ export default function StaffServicesPage() {
     setMessage(null);
 
     const payload = {
-      staffId: parseInt(formData.staffId),
-      serviceId: parseInt(formData.serviceId),
+      staffId: parseInt(formData.staffId, 10),
+      serviceId: parseInt(formData.serviceId, 10),
       priceOverride: formData.useDefaultPrice ? null : parseFloat(formData.priceOverride),
     };
 
@@ -163,30 +233,13 @@ export default function StaffServicesPage() {
     }
   };
 
-  const resolveStaff = (assign: StaffServiceAssignment) => {
-    const nested = assign.staff;
-    if (nested?.name || nested?.displayName) {
-      return nested;
-    }
-    return staffList.find((s) => s.id === nested?.id) || nested;
-  };
-
-  const resolveService = (assign: StaffServiceAssignment) => {
-    const nested = assign.service;
-    if (nested?.name) {
-      return nested;
-    }
-    return services.find((s) => s.id === nested?.id) || nested;
-  };
-
-  const money = (amount: number | null | undefined, code?: string) =>
-    formatMoney(amount, code);
+  const money = (amount: number | null | undefined, code?: string) => formatMoney(amount, code);
 
   return (
     <div className={styles.page}>
       <PageHeader
         title="Staff services"
-        subtitle="Map services to staff and configure specialty price overrides."
+        subtitle="Assign the same service to as many specialists as you need. Customers will see who is free at each time."
         actions={
           <button
             type="button"
@@ -194,7 +247,7 @@ export default function StaffServicesPage() {
             onClick={handleAddClick}
             disabled={staffList.length === 0 || services.length === 0}
           >
-            <i className="fa-solid fa-plus" /> Assign Service
+            <i className="fa-solid fa-plus" /> Assign service
           </button>
         }
       />
@@ -218,76 +271,114 @@ export default function StaffServicesPage() {
           title="Requirements missing"
           description="You need at least one staff member and one service to configure assignments."
         />
-      ) : assignments.length === 0 ? (
-        <EmptyState
-          icon="fa-list"
-          title="No assignments created"
-          description="Assign services to staff members to allow customer bookings."
-          actionLabel="Assign service"
-          onAction={handleAddClick}
-        />
       ) : (
-        <DataTable
-          columns={[
-            {
-              key: 'staff',
-              header: 'Staff',
-              render: (a) => {
-                const staff = resolveStaff(a);
+        <>
+          <section className={styles.teamSection}>
+            <h3>Team at this business ({staffList.length})</h3>
+            <div className={styles.teamGrid}>
+              {staffList.map((member) => {
+                const offered = assignments.filter((a) => a.staff?.id === member.id);
                 return (
-                  <div>
-                    <strong>{staffLabel(staff)}</strong>
-                    {staff?.specialty && <div className={styles.desc}>{staff.specialty}</div>}
+                  <div key={member.id} className={styles.teamCard}>
+                    <strong>{staffLabel(member)}</strong>
+                    <span>
+                      {member.specialty || member.designation || 'Team member'}
+                      {member.branch?.name ? ` · ${member.branch.name}` : ''}
+                    </span>
+                    {offered.length === 0 ? (
+                      <em className={styles.unassigned}>No services assigned yet</em>
+                    ) : (
+                      <div className={styles.chipRow}>
+                        {offered.map((a) => (
+                          <em key={a.id} className={styles.chip}>
+                            {resolveService(a)?.name || 'Service'}
+                          </em>
+                        ))}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline"
+                      onClick={() => openAssign({ staffId: String(member.id) })}
+                    >
+                      Assign a service
+                    </button>
                   </div>
                 );
-              },
-            },
-            {
-              key: 'service',
-              header: 'Service',
-              render: (a) => resolveService(a)?.name || 'Unknown service',
-            },
-            {
-              key: 'default',
-              header: 'Default rate',
-              render: (a) => {
-                const service = resolveService(a);
-                return money(service?.price, service?.currency);
-              },
-            },
-            {
-              key: 'override',
-              header: 'Assigned rate',
-              render: (a) => {
-                const service = resolveService(a);
-                if (a.priceOverride != null) {
-                  return (
-                    <span className={styles.override}>
-                      {money(a.priceOverride, service?.currency)} (override)
-                    </span>
-                  );
-                }
-                return `Default (${money(service?.price, service?.currency)})`;
-              },
-            },
-            {
-              key: 'actions',
-              header: 'Actions',
-              render: (a) => (
-                <div className={styles.actions}>
-                  <button type="button" className="btn btn-sm btn-outline" onClick={() => handleEditClick(a)}>
-                    Change rate
-                  </button>
-                  <button type="button" className="btn btn-sm btn-danger" onClick={() => setDeleteId(a.id)}>
-                    Remove
-                  </button>
-                </div>
-              ),
-            },
-          ]}
-          rows={assignments}
-          rowKey={(a) => a.id}
-        />
+              })}
+            </div>
+          </section>
+
+          {serviceGroups.length === 0 ? (
+            <EmptyState
+              icon="fa-list"
+              title="No assignments created"
+              description="Assign a service to each consultant. Several people can offer the same service."
+              actionLabel="Assign service"
+              onAction={handleAddClick}
+            />
+          ) : (
+            <div className={styles.serviceGroups}>
+              {serviceGroups.map((group) => (
+                <section key={group.service.id} className={styles.serviceCard}>
+                  <header className={styles.serviceHead}>
+                    <div>
+                      <h3>{group.service.name}</h3>
+                      <p>
+                        {group.rows.length} {group.rows.length === 1 ? 'specialist' : 'specialists'} · default{' '}
+                        {money(group.service.price, group.service.currency)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline"
+                      onClick={() => openAssign({ serviceId: String(group.service.id) })}
+                    >
+                      Add another specialist
+                    </button>
+                  </header>
+                  <ul className={styles.specialistList}>
+                    {group.rows.map((row) => {
+                      const staff = resolveStaff(row);
+                      const service = resolveService(row);
+                      return (
+                        <li key={row.id} className={styles.specialistRow}>
+                          <div>
+                            <strong>{staffLabel(staff)}</strong>
+                            <span>
+                              {staff?.specialty || staff?.designation || 'Team member'}
+                              {staff?.branch?.name ? ` · ${staff.branch.name}` : ''}
+                            </span>
+                          </div>
+                          <div className={styles.rate}>
+                            {row.priceOverride != null
+                              ? `${money(row.priceOverride, service?.currency)} override`
+                              : `Default (${money(service?.price, service?.currency)})`}
+                          </div>
+                          <div className={styles.actions}>
+                            <button type="button" className="btn btn-sm btn-outline" onClick={() => handleEditClick(row)}>
+                              Change rate
+                            </button>
+                            <button type="button" className="btn btn-sm btn-danger" onClick={() => setDeleteId(row.id)}>
+                              Remove
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              ))}
+            </div>
+          )}
+
+          {unassignedStaff.length > 0 && serviceGroups.length > 0 && (
+            <p className={styles.unassignedNote}>
+              {unassignedStaff.map((s) => staffLabel(s)).join(', ')}{' '}
+              {unassignedStaff.length === 1 ? 'has' : 'have'} no services yet — assign them so they appear in booking.
+            </p>
+          )}
+        </>
       )}
 
       <Modal
@@ -299,13 +390,46 @@ export default function StaffServicesPage() {
             <button type="button" className="btn btn-outline" onClick={() => setShowModal(false)} disabled={submitting}>
               Cancel
             </button>
-            <button type="submit" form="assign-form" className="btn btn-primary" disabled={submitting}>
+            <button
+              type="submit"
+              form="assign-form"
+              className="btn btn-primary"
+              disabled={submitting || (!editingAssignment && !formData.staffId)}
+            >
               {submitting ? 'Saving...' : editingAssignment ? 'Save changes' : 'Confirm assignment'}
             </button>
           </>
         }
       >
         <form id="assign-form" onSubmit={handleSubmit} className={styles.form}>
+          <p className={styles.formHint}>
+            The same service can be assigned to multiple consultants. Each person gets their own row and schedule.
+          </p>
+          <div className="form-group">
+            <label className="form-label" htmlFor="serviceSelect">
+              Service
+            </label>
+            <select
+              id="serviceSelect"
+              className="select-field"
+              value={formData.serviceId}
+              onChange={(e) => {
+                const serviceId = e.target.value;
+                setFormData((prev) => ({
+                  ...prev,
+                  serviceId,
+                  staffId: editingAssignment ? prev.staffId : firstFreeStaffForService(serviceId, prev.staffId),
+                }));
+              }}
+              disabled={!!editingAssignment}
+            >
+              {services.map((svc) => (
+                <option key={svc.id} value={svc.id}>
+                  {svc.name} ({money(svc.price, svc.currency)})
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="form-group">
             <label className="form-label" htmlFor="staffSelect">
               Staff member
@@ -317,29 +441,16 @@ export default function StaffServicesPage() {
               onChange={(e) => handleInputChange('staffId', e.target.value)}
               disabled={!!editingAssignment}
             >
-              {staffList.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {staffLabel(s)} ({s.specialty || 'Generalist'})
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="form-group">
-            <label className="form-label" htmlFor="serviceSelect">
-              Service
-            </label>
-            <select
-              id="serviceSelect"
-              className="select-field"
-              value={formData.serviceId}
-              onChange={(e) => handleInputChange('serviceId', e.target.value)}
-              disabled={!!editingAssignment}
-            >
-              {services.map((svc) => (
-                <option key={svc.id} value={svc.id}>
-                  {svc.name} ({money(svc.price, svc.currency)})
-                </option>
-              ))}
+              {availableStaffForForm.length === 0 ? (
+                <option value="">All specialists already offer this service</option>
+              ) : (
+                availableStaffForForm.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {staffLabel(s)} ({s.specialty || s.designation || 'Generalist'}
+                    {s.branch?.name ? ` · ${s.branch.name}` : ''})
+                  </option>
+                ))
+              )}
             </select>
           </div>
           <div className={styles.checkRow}>
@@ -356,8 +467,8 @@ export default function StaffServicesPage() {
           {!formData.useDefaultPrice && (
             <div className="form-group">
               <label className="form-label" htmlFor="priceOverrideInput">
-              Custom specialist rate
-            </label>
+                Custom specialist rate
+              </label>
               <input
                 id="priceOverrideInput"
                 type="number"
