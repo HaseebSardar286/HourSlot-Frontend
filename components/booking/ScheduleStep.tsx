@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch } from '@/lib/api';
 import { parseSlots, type AvailableSlot } from '@/lib/slots';
-import { buildWeekDays, formatFriendlyTime, startOfWeekMonday, toLocalDateStr } from '@/lib/booking-flow';
+import { buildWeekDays, dedicatedStaffId, formatFriendlyTime, isAnyStaff, startOfWeekMonday, toLocalDateStr } from '@/lib/booking-flow';
 import { formatMoney } from '@/lib/money';
 import Skeleton from '@/components/Skeleton';
 import styles from './booking.module.css';
@@ -12,6 +12,7 @@ interface ScheduleStepProps {
   branchId: string;
   serviceId: string;
   staffId: string;
+  staffName?: string | null;
   selectedDate: string;
   selectedSlot: string;
   currency?: string;
@@ -24,6 +25,7 @@ export default function ScheduleStep({
   branchId,
   serviceId,
   staffId,
+  staffName,
   selectedDate,
   selectedSlot,
   currency,
@@ -32,35 +34,42 @@ export default function ScheduleStep({
   compact = false,
 }: ScheduleStepProps) {
   const [weekStart, setWeekStart] = useState(() => startOfWeekMonday(new Date()));
-  const [weekDays, setWeekDays] = useState(() => buildWeekDays(startOfWeekMonday(new Date())));
   const [availableSlots, setAvailableSlots] = useState<AvailableSlot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotError, setSlotError] = useState<string | null>(null);
+  const autoPickedDate = useRef(false);
 
-  const todayStr = toLocalDateStr(new Date());
-
-  useEffect(() => {
-    setWeekDays(buildWeekDays(weekStart));
-  }, [weekStart]);
+  const todayStr = useMemo(() => toLocalDateStr(new Date()), []);
+  const weekDays = useMemo(() => buildWeekDays(weekStart), [weekStart]);
 
   useEffect(() => {
-    if (selectedDate || weekDays.length === 0) return;
+    autoPickedDate.current = false;
+  }, [branchId, serviceId, staffId]);
+
+  useEffect(() => {
+    if (selectedDate) {
+      autoPickedDate.current = true;
+      return;
+    }
+    if (autoPickedDate.current || weekDays.length === 0) return;
     const firstFuture = weekDays.find((d) => d.dateStr >= todayStr);
-    if (firstFuture) onDateChange(firstFuture.dateStr);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weekDays, selectedDate, todayStr]);
+    if (!firstFuture) return;
+    autoPickedDate.current = true;
+    onDateChange(firstFuture.dateStr);
+  }, [weekDays, selectedDate, todayStr, onDateChange]);
 
   useEffect(() => {
     const fetchSlots = async () => {
       if (!branchId || !serviceId || !selectedDate) {
-        setAvailableSlots([]);
+        setAvailableSlots((prev) => (prev.length === 0 ? prev : []));
         return;
       }
       setSlotsLoading(true);
       setSlotError(null);
       try {
         let url = `/api/public/branches/${branchId}/slots?serviceId=${serviceId}&date=${selectedDate}`;
-        if (staffId) url += `&staffId=${staffId}`;
+        const dedicated = dedicatedStaffId(staffId);
+        if (dedicated) url += `&staffId=${dedicated}`;
         const slots = await apiFetch<unknown>(url, { skipAuth: true });
         setAvailableSlots(parseSlots(slots));
       } catch (err: unknown) {
@@ -74,7 +83,24 @@ export default function ScheduleStep({
     fetchSlots();
   }, [branchId, serviceId, staffId, selectedDate]);
 
+  useEffect(() => {
+    if (!selectedSlot || slotsLoading) return;
+    const match = availableSlots.find((s) => s.startTime === selectedSlot);
+    if (match && match.available === false) {
+      onSlotChange('');
+    }
+  }, [availableSlots, selectedSlot, slotsLoading, onSlotChange]);
+
   const money = (amount: number, code?: string) => formatMoney(amount, code || currency);
+  const dedicated = dedicatedStaffId(staffId);
+  const choseAny = isAnyStaff(staffId) || !dedicated;
+  const selectedSlotStaff = availableSlots.find((s) => s.startTime === selectedSlot && s.available !== false);
+  const selectedSlotNames = (selectedSlotStaff?.availableStaff || []).map((s) => s.name).filter(Boolean);
+  const selectionLabel = choseAny
+    ? selectedSlotNames.length > 0
+      ? `Any available specialist (${selectedSlotNames.join(' · ')} free)`
+      : 'Any available specialist'
+    : staffName || 'Selected specialist';
 
   const monthLabel =
     weekDays.length > 0
@@ -98,6 +124,18 @@ export default function ScheduleStep({
 
   return (
     <div className={compact ? styles.compactMode : undefined}>
+      <div className={styles.staffChoiceBanner}>
+        {choseAny ? (
+          <p>
+            You chose <strong>Any available specialist</strong>. Open times show who is free; we will assign one of
+            them when you confirm.
+          </p>
+        ) : (
+          <p>
+            You chose <strong>{staffName || 'this specialist'}</strong>. Only their open times are listed.
+          </p>
+        )}
+      </div>
       <div className={styles.calendarCard}>
         <div className={styles.calHead}>
           <h3>{monthLabel}</h3>
@@ -136,7 +174,10 @@ export default function ScheduleStep({
 
         <div className={styles.slotLegend}>
           <span>
-            <i className={styles.legendDot} /> Standard
+            <i className={styles.legendDot} /> Open
+          </span>
+          <span>
+            <i className={`${styles.legendDot} ${styles.legendBooked}`} /> Already booked
           </span>
           <span>
             <i className={`${styles.legendDot} ${styles.legendPeak}`} /> Peak
@@ -162,25 +203,51 @@ export default function ScheduleStep({
           <div className={styles.slotGrid}>
             {availableSlots.map((slot) => {
               const kind = slot.pricingKind;
-              const on = selectedSlot === slot.startTime;
+              const booked = slot.available === false;
+              const on = !booked && selectedSlot === slot.startTime;
+              const names = (slot.availableStaff || []).map((s) => s.name).filter(Boolean);
+              const staffLabel = choseAny
+                ? names.length === 0
+                  ? 'Any available'
+                  : names.length <= 3
+                    ? names.join(' · ')
+                    : `${names.length} specialists free`
+                : staffName || names[0] || null;
               return (
                 <button
                   key={slot.startTime}
                   type="button"
+                  disabled={booked}
                   className={`${styles.slotBtn} ${on ? styles.slotBtnOn : ''} ${
-                    kind === 'PEAK' ? styles.slotBtnPeak : kind === 'OFF_PEAK' ? styles.slotBtnOffPeak : ''
-                  }`}
-                  onClick={() => onSlotChange(slot.startTime, slot)}
+                    booked ? styles.slotBtnBooked : ''
+                  } ${kind === 'PEAK' ? styles.slotBtnPeak : kind === 'OFF_PEAK' ? styles.slotBtnOffPeak : ''}`}
+                  onClick={() => {
+                    if (booked) return;
+                    onSlotChange(slot.startTime, slot);
+                  }}
                 >
                   <span>{formatFriendlyTime(slot.startTime)}</span>
-                  {slot.price != null && <em className={styles.slotPrice}>{money(slot.price, slot.currency)}</em>}
-                  {slot.pricingLabel && kind !== 'STANDARD' && (
-                    <strong className={styles.slotBadge}>{slot.pricingLabel}</strong>
+                  {booked ? (
+                    <em className={styles.slotBookedLabel}>Already booked</em>
+                  ) : (
+                    <>
+                      {slot.price != null && <em className={styles.slotPrice}>{money(slot.price, slot.currency)}</em>}
+                      {staffLabel && <strong className={styles.slotStaff}>{staffLabel}</strong>}
+                      {slot.pricingLabel && kind !== 'STANDARD' && (
+                        <strong className={styles.slotBadge}>{slot.pricingLabel}</strong>
+                      )}
+                    </>
                   )}
                 </button>
               );
             })}
           </div>
+        )}
+
+        {selectedSlot && !slotsLoading && (
+          <p className={styles.slotChoiceNote}>
+            Selected {formatFriendlyTime(selectedSlot)} · {selectionLabel}
+          </p>
         )}
       </div>
     </div>

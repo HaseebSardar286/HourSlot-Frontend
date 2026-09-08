@@ -23,6 +23,8 @@ interface BookingShellProps {
   service?: Service | null;
   branch?: Branch | null;
   staff?: Staff | null;
+  specialistLabel?: string | null;
+  specialistHint?: string | null;
   date?: string;
   slot?: string;
   price?: number;
@@ -48,6 +50,8 @@ export default function BookingShell({
   service,
   branch,
   staff,
+  specialistLabel,
+  specialistHint,
   date,
   slot,
   price,
@@ -104,6 +108,7 @@ export default function BookingShell({
             service={service}
             branch={branch}
             staff={staff}
+            specialistLabel={specialistLabel}
             customerPackageLabel={customerPackageLabel}
           />
           {children}
@@ -115,6 +120,8 @@ export default function BookingShell({
             service={service}
             branch={branch}
             staff={staff}
+            specialistLabel={specialistLabel}
+            specialistHint={specialistHint}
             date={date}
             slot={slot}
             price={price}

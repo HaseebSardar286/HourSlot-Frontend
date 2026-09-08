@@ -74,10 +74,11 @@ function RegisterForm() {
   const [success, setSuccess] = useState(false);
   const [categories, setCategories] = useState<{ id: string; icon: string; label: string }[]>([]);
 
+  const roleQuery = searchParams.get('role');
   useEffect(() => {
-    const fromQuery = roleFromQuery(searchParams.get('role'));
-    setFormData((prev) => ({ ...prev, role: fromQuery }));
-  }, [searchParams]);
+    const fromQuery = roleFromQuery(roleQuery);
+    setFormData((prev) => (prev.role === fromQuery ? prev : { ...prev, role: fromQuery }));
+  }, [roleQuery]);
 
   const isBusiness = formData.role === 'BUSINESS_OWNER';
 

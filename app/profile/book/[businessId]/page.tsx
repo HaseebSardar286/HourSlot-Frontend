@@ -7,10 +7,15 @@ import { useAuth } from '@/lib/auth-context';
 import type { PublicBusinessProfile } from '@/lib/types';
 import type { AvailableSlot } from '@/lib/slots';
 import {
+  ANY_STAFF_ID,
   buildBookingConfirmationHref,
   buildBookingHref,
   clearBookingDraft,
+  bookingFlowEqual,
+  dedicatedStaffId,
   defaultBookingState,
+  isAnyStaff,
+  isStaffChosen,
   loadBookingDraft,
   nextStep,
   parseBookingSearchParams,
@@ -37,12 +42,12 @@ const STEP_COPY: Record<BookingStep, { title: string; lead: string }> = {
     lead: 'Pick the service you want to book at this business.',
   },
   details: {
-    title: 'Location & specialist',
-    lead: 'Select where you will visit and optionally choose a team member.',
+    title: 'Who should we book?',
+    lead: 'Pick Any available to see everyone’s times, or choose one specialist to see only their calendar.',
   },
   schedule: {
     title: 'Pick date & time',
-    lead: 'Choose an open slot that works for you.',
+    lead: 'These times match the specialist option you chose.',
   },
   confirm: {
     title: 'Review & confirm',
@@ -68,7 +73,11 @@ function mergeFlowFromParams(
       : '';
 
   const staffId =
-    parsed.staffId && profile.staff.some((s) => String(s.id) === parsed.staffId) ? parsed.staffId : '';
+    parsed.staffId === ANY_STAFF_ID
+      ? ANY_STAFF_ID
+      : parsed.staffId && profile.staff.some((s) => String(s.id) === parsed.staffId)
+        ? parsed.staffId
+        : '';
 
   const initial: BookingFlowState = {
     step: parsed.step,
@@ -111,21 +120,34 @@ function BookWizardInner() {
   const applyFlow = useCallback(
     (patch: Partial<BookingFlowState>, options?: { replace?: boolean }) => {
       urlSyncOptionsRef.current = options;
-      pendingUrlSync.current = true;
       setFlow((prev) => {
         const next: BookingFlowState = { ...prev, ...patch };
         next.step = resolveAllowedStep(next.step, next);
+        if (bookingFlowEqual(prev, next)) return prev;
+        pendingUrlSync.current = true;
         return next;
       });
     },
     []
   );
 
+  const queryString = searchParams.toString();
+  const lastWrittenHref = useRef('');
+
   useEffect(() => {
-    if (!pendingUrlSync.current || !businessId) return;
-    pendingUrlSync.current = false;
+    if (!businessId) return;
+    const href = buildBookingHref(businessId, flow);
+    const current =
+      typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search}` : '';
+    if (current === href || lastWrittenHref.current === href) {
+      pendingUrlSync.current = false;
+      lastWrittenHref.current = href;
+      return;
+    }
+    if (!pendingUrlSync.current) return;
+    lastWrittenHref.current = href;
     syncBookingUrl(router, businessId, flow, urlSyncOptionsRef.current);
-  }, [flow, businessId, router]);
+  }, [flow, businessId, router, queryString]);
 
   useEffect(() => {
     const load = async () => {
@@ -180,22 +202,10 @@ function BookWizardInner() {
 
   useEffect(() => {
     if (!profile || !profileLoaded.current) return;
-    const next = mergeFlowFromParams(searchParams, profile);
-    setFlow((prev) => {
-      if (
-        prev.step === next.step &&
-        prev.serviceId === next.serviceId &&
-        prev.branchId === next.branchId &&
-        prev.staffId === next.staffId &&
-        prev.date === next.date &&
-        prev.slot === next.slot &&
-        prev.customerPackageId === next.customerPackageId
-      ) {
-        return prev;
-      }
-      return next;
-    });
-  }, [searchParams, profile]);
+    if (pendingUrlSync.current) return;
+    const next = mergeFlowFromParams(new URLSearchParams(queryString), profile);
+    setFlow((prev) => (bookingFlowEqual(prev, next) ? prev : next));
+  }, [queryString, profile]);
 
   useEffect(() => {
     if (!businessId) return;
@@ -216,7 +226,8 @@ function BookWizardInner() {
       }
       try {
         let url = `/api/public/branches/${flow.branchId}/slots?serviceId=${flow.serviceId}&date=${flow.date}`;
-        if (flow.staffId) url += `&staffId=${flow.staffId}`;
+        const dedicated = dedicatedStaffId(flow.staffId);
+        if (dedicated) url += `&staffId=${dedicated}`;
         const slots = await apiFetch<unknown>(url, { skipAuth: true });
         const list = Array.isArray(slots)
           ? slots.map((item) =>
@@ -253,6 +264,14 @@ function BookWizardInner() {
 
   const quotedPrice = quotedSlot?.price ?? service?.price ?? 0;
   const returnUrl = buildBookingHref(businessId as string, { ...flow, step: 'confirm' });
+  const specialistLabel = isStaffChosen(flow.staffId)
+    ? staff?.name || (isAnyStaff(flow.staffId) ? 'Any available specialist' : null)
+    : null;
+  const specialistHint = !specialistLabel
+    ? null
+    : staff
+      ? 'Only this person’s open times'
+      : 'Combined times for everyone who offers this service';
 
   const handleBack = () => {
     setError(null);
@@ -274,6 +293,16 @@ function BookWizardInner() {
     const nxt = nextStep(flow.step);
     if (nxt) applyFlow({ step: nxt });
   };
+
+  const handleDateChange = useCallback(
+    (date: string) => applyFlow({ date, slot: '', step: 'schedule' }),
+    [applyFlow]
+  );
+
+  const handleSlotChange = useCallback((slot: string, quoted?: AvailableSlot) => {
+    applyFlow({ slot, step: 'schedule' });
+    setQuotedSlot(quoted || null);
+  }, [applyFlow]);
 
   const handleConfirm = async () => {
     if (!profile || !flow.branchId || !flow.serviceId || !flow.date || !flow.slot) return;
@@ -298,7 +327,9 @@ function BookWizardInner() {
         body: JSON.stringify({
           branchId: Number.parseInt(flow.branchId, 10),
           serviceId: Number.parseInt(flow.serviceId, 10),
-          staffId: flow.staffId ? Number.parseInt(flow.staffId, 10) : null,
+          staffId: dedicatedStaffId(flow.staffId)
+            ? Number.parseInt(flow.staffId, 10)
+            : quotedSlot?.availableStaff?.[0]?.id ?? null,
           bookingTime,
           clientNotes: clientNotes || null,
           customerPackageId: paymentMethod === 'PACKAGE' ? selectedPackageId : null,
@@ -312,7 +343,7 @@ function BookWizardInner() {
         serviceName: service?.name || '',
         branchName: branch?.name || '',
         branchAddress: branch?.address,
-        staffName: staff?.name,
+        staffName: staff?.name || 'Any available specialist',
         bookingTime,
         price: quotedPrice,
         currency: quotedSlot?.currency || service?.currency || profile.business.currency,
@@ -394,6 +425,8 @@ function BookWizardInner() {
       service={service}
       branch={branch}
       staff={staff}
+      specialistLabel={specialistLabel}
+      specialistHint={specialistHint}
       date={flow.date}
       slot={flow.slot}
       price={quotedPrice}
@@ -401,7 +434,9 @@ function BookWizardInner() {
       customerPackageLabel={packageLabel}
       onBack={handleBack}
       onContinue={isConfirm ? undefined : handleContinue}
-      continueLabel={flow.step === 'schedule' ? 'Review booking' : 'Continue'}
+      continueLabel={
+        flow.step === 'schedule' ? 'Review booking' : flow.step === 'details' ? 'See available times' : 'Continue'
+      }
       continueDisabled={!validateStep(flow.step, flow).valid}
       showFooter={!isConfirm}
       showGuestNote={!isAuthenticated}
@@ -435,8 +470,9 @@ function BookWizardInner() {
           staff={profile.staff}
           selectedBranchId={flow.branchId}
           selectedStaffId={flow.staffId}
+          selectedServiceId={flow.serviceId}
           onBranchChange={(branchId) =>
-            applyFlow({ branchId, date: '', slot: '', step: 'details' })
+            applyFlow({ branchId, staffId: '', date: '', slot: '', step: 'details' })
           }
           onStaffChange={(staffId) => applyFlow({ staffId, date: '', slot: '', step: 'details' })}
         />
@@ -447,14 +483,12 @@ function BookWizardInner() {
           branchId={flow.branchId}
           serviceId={flow.serviceId}
           staffId={flow.staffId}
+          staffName={staff?.name}
           selectedDate={flow.date}
           selectedSlot={flow.slot}
           currency={quotedSlot?.currency || service?.currency || profile.business.currency}
-          onDateChange={(date) => applyFlow({ date, slot: '', step: 'schedule' })}
-          onSlotChange={(slot, quoted) => {
-            applyFlow({ slot, step: 'schedule' });
-            setQuotedSlot(quoted || null);
-          }}
+          onDateChange={handleDateChange}
+          onSlotChange={handleSlotChange}
         />
       )}
 

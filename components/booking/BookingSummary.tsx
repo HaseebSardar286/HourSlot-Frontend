@@ -11,6 +11,8 @@ interface BookingSummaryProps {
   service?: Service | null;
   branch?: Branch | null;
   staff?: Staff | null;
+  specialistLabel?: string | null;
+  specialistHint?: string | null;
   date?: string;
   slot?: string;
   price?: number;
@@ -23,12 +25,15 @@ export default function BookingSummary({
   service,
   branch,
   staff,
+  specialistLabel,
+  specialistHint,
   date,
   slot,
   price,
   currency,
 }: BookingSummaryProps) {
   const money = (amount: number) => formatMoney(amount, currency || service?.currency);
+  const specialist = specialistLabel || staff?.name || null;
 
   return (
     <div className={styles.summary}>
@@ -68,12 +73,15 @@ export default function BookingSummary({
             </span>
             <strong>{service.durationMinutes} min</strong>
           </div>
-          {staff && (
+          {specialist && (
             <div className={styles.summaryRow}>
               <span className={styles.summaryRowLabel}>
                 <i className="fa-solid fa-user" /> Specialist
               </span>
-              <strong>{staff.name}</strong>
+              <strong>
+                {specialist}
+                {specialistHint ? <em className={styles.summaryHint}>{specialistHint}</em> : null}
+              </strong>
             </div>
           )}
           {date && (

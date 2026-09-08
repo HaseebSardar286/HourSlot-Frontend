@@ -1,6 +1,7 @@
 'use client';
 
-import type { Branch, Staff } from '@/lib/types';
+import type { Branch, Service, Staff } from '@/lib/types';
+import { ANY_STAFF_ID } from '@/lib/booking-flow';
 import EmptyState from '@/components/EmptyState';
 import CustomSelect from '@/components/CustomSelect';
 import styles from './booking.module.css';
@@ -8,10 +9,20 @@ import styles from './booking.module.css';
 interface DetailsStepProps {
   branches: Branch[];
   staff: Staff[];
+  services?: Service[];
   selectedBranchId: string;
   selectedStaffId: string;
+  selectedServiceId?: string;
   onBranchChange: (branchId: string) => void;
   onStaffChange: (staffId: string) => void;
+}
+
+function staffOffersService(member: Staff, serviceId: string | undefined, roster: Staff[]) {
+  if (!serviceId) return true;
+  const anyoneMapped = roster.some((s) => (s.services || []).length > 0);
+  const allocated = member.services || [];
+  if (!anyoneMapped) return true;
+  return allocated.some((svc) => String(svc.id) === serviceId);
 }
 
 export default function DetailsStep({
@@ -19,12 +30,20 @@ export default function DetailsStep({
   staff,
   selectedBranchId,
   selectedStaffId,
+  selectedServiceId,
   onBranchChange,
   onStaffChange,
 }: DetailsStepProps) {
-  const branchStaff = staff.filter(
-    (s) => !selectedBranchId || s.branch?.id?.toString() === selectedBranchId
-  );
+  const branchStaff = staff
+    .filter((s) => !selectedBranchId || s.branch?.id?.toString() === selectedBranchId)
+    .slice()
+    .sort((a, b) => {
+      const aFits = staffOffersService(a, selectedServiceId, staff) ? 0 : 1;
+      const bFits = staffOffersService(b, selectedServiceId, staff) ? 0 : 1;
+      if (aFits !== bFits) return aFits - bFits;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  const offeringCount = branchStaff.filter((s) => staffOffersService(s, selectedServiceId, staff)).length;
 
   return (
     <>
@@ -57,21 +76,27 @@ export default function DetailsStep({
       )}
 
       <div className={styles.fieldBlock}>
-        <label>Specialist (optional)</label>
+        <label>Specialist</label>
+        <p className={styles.staffHint}>
+          Choose <strong>Any available</strong> to see every free specialist, or pick one person to see only their times.
+          {selectedServiceId && offeringCount > 0
+            ? ` ${offeringCount} ${offeringCount === 1 ? 'person offers' : 'people offer'} this service.`
+            : ''}
+        </p>
         <div className={styles.staffList}>
           <button
             type="button"
-            className={`${styles.staffCard} ${selectedStaffId === '' ? styles.staffCardOn : ''}`}
-            onClick={() => onStaffChange('')}
+            className={`${styles.staffCard} ${selectedStaffId === ANY_STAFF_ID ? styles.staffCardOn : ''}`}
+            onClick={() => onStaffChange(ANY_STAFF_ID)}
           >
             <div className={styles.staffAvatar}>
               <i className="fa-solid fa-user-group" />
             </div>
             <div>
-              <strong>No preference</strong>
-              <span>First available team member</span>
+              <strong>Any available specialist</strong>
+              <span>Show combined open times for everyone who offers this service</span>
             </div>
-            {selectedStaffId === '' && <i className={`fa-solid fa-check ${styles.staffCheck}`} />}
+            {selectedStaffId === ANY_STAFF_ID && <i className={`fa-solid fa-check ${styles.staffCheck}`} />}
           </button>
           {branchStaff.length === 0 ? (
             <EmptyState
@@ -82,17 +107,30 @@ export default function DetailsStep({
           ) : (
             branchStaff.map((s) => {
               const on = selectedStaffId === String(s.id);
+              const offers = staffOffersService(s, selectedServiceId, staff);
+              const serviceNames = (s.services || []).map((svc) => svc.name).filter(Boolean);
               return (
                 <button
                   key={s.id}
                   type="button"
-                  className={`${styles.staffCard} ${on ? styles.staffCardOn : ''}`}
-                  onClick={() => onStaffChange(String(s.id))}
+                  className={`${styles.staffCard} ${on ? styles.staffCardOn : ''} ${offers ? '' : styles.staffCardMuted}`}
+                  disabled={!offers}
+                  onClick={() => offers && onStaffChange(String(s.id))}
                 >
-                  <div className={styles.staffAvatar}>{s.name.charAt(0)}</div>
+                  <div className={styles.staffAvatar}>{(s.name || '?').charAt(0)}</div>
                   <div>
-                    <strong>{s.name}</strong>
+                    <strong>{s.name || 'Team member'}</strong>
                     <span>{s.specialty || s.designation || 'Team member'}</span>
+                    {serviceNames.length > 0 && (
+                      <div className={styles.serviceChips}>
+                        {serviceNames.map((name) => (
+                          <em key={name} className={styles.serviceChip}>
+                            {name}
+                          </em>
+                        ))}
+                      </div>
+                    )}
+                    {!offers && <span className={styles.staffWarn}>Does not offer this service</span>}
                   </div>
                   {on && <i className={`fa-solid fa-check ${styles.staffCheck}`} />}
                 </button>
