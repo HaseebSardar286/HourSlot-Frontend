@@ -8,6 +8,7 @@ import PageHeader from '@/components/PageHeader';
 import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
 import StatusBadge from '@/components/StatusBadge';
+import CustomSelect from '@/components/CustomSelect';
 import { StatCard, MetricGrid } from '@/components/StatCard';
 import { useOrgLocale } from '@/lib/org-locale-context';
 import styles from './dashboard.module.css';
@@ -232,12 +233,15 @@ export default function BusinessDashboardPage() {
         });
       });
 
-    apiFetch<{ readiness?: { submittedCount?: number; requiredCount?: number } }>(
-      '/api/business/verification-documents'
-    )
+    apiFetch<{
+      readiness?: {
+        tier1SubmittedCount?: number;
+        tier1RequiredCount?: number;
+      };
+    }>('/api/business/verification-documents')
       .then((data) => {
-        const submitted = data.readiness?.submittedCount ?? 0;
-        const required = data.readiness?.requiredCount ?? 3;
+        const submitted = data.readiness?.tier1SubmittedCount ?? 0;
+        const required = data.readiness?.tier1RequiredCount ?? 3;
         setDocsReady(submitted >= required);
       })
       .catch(() => setDocsReady(false));
@@ -324,7 +328,7 @@ export default function BusinessDashboardPage() {
     { done: setup.services > 0, label: 'Create offered services', href: '/business/services' },
     { done: setup.staff > 0, label: 'Assign staff members', href: '/business/staff' },
     { done: setup.hours > 0, label: 'Set active hours', href: '/business/availability' },
-    { done: docsReady, label: 'Upload verification documents', href: '/business/verification' },
+    { done: docsReady, label: 'Upload Tier 1 verification documents', href: '/business/verification' },
   ];
   const readyForReview = checklist.every((c) => c.done);
   const doneCount = checklist.filter((c) => c.done).length;
@@ -368,7 +372,7 @@ export default function BusinessDashboardPage() {
           <div>
             <strong>Listing Pending Super Admin Review</strong>
             <p>
-              Your listing is being audited. Complete the setup checklist and upload files under the Verification page to qualify for your verified badge.
+              Your listing is being audited. Complete setup and upload Tier 1 documents under Verification so Super Admin can approve your listing.
             </p>
           </div>
         </div>
@@ -546,6 +550,7 @@ export default function BusinessDashboardPage() {
                     </Link>
                   </div>
                 ) : (
+                  <>
                   <div className={styles.tableResponsive}>
                     <table className={styles.appointmentsTable}>
                       <thead>
@@ -581,6 +586,22 @@ export default function BusinessDashboardPage() {
                       </tbody>
                     </table>
                   </div>
+                  <div className={styles.appointmentsCards} aria-label="Upcoming appointments">
+                    {upcomingAppointments.map((booking) => (
+                      <article key={booking.id} className={styles.appointmentCard}>
+                        <div className={styles.appointmentCardTop}>
+                          <strong>
+                            {booking.customer.user.firstName} {booking.customer.user.lastName}
+                          </strong>
+                          <StatusBadge status={booking.status} />
+                        </div>
+                        <p className={styles.appointmentCardMeta}>{booking.service.name}</p>
+                        <p className={styles.appointmentCardMeta}>{formatDateTime(booking.bookingTime)}</p>
+                        <p className={styles.appointmentCardPrice}>{format(booking.price)}</p>
+                      </article>
+                    ))}
+                  </div>
+                  </>
                 )}
               </div>
             </div>
@@ -658,7 +679,8 @@ export default function BusinessDashboardPage() {
                     <h4>Verification Document Status</h4>
                   </div>
                   <p>
-                    Verify your listing to receive a checkmark badge. Simply upload your Trade License and Bank Statements under the Verification section for admin approval.
+                    Upload Tier 1 documents (Owner ID, trade license, address proof) to get listed. Upload Tax ID and a
+                    bank statement (amounts can be redacted) for a Verified Partner badge.
                   </p>
                   <Link href="/business/verification" className="btn btn-secondary btn-sm" style={{ marginTop: '12px', display: 'inline-block' }}>
                     Open Verification Uploads
@@ -748,20 +770,20 @@ export default function BusinessDashboardPage() {
               <label className="form-label" htmlFor="primaryCategorySelect">
               Primary category
             </label>
-              <select
+              <CustomSelect
                 id="primaryCategorySelect"
-                className="select-field"
-                value={formData.primaryCategoryId}
-                onChange={(e) => handleInputChange('primaryCategoryId', e.target.value)}
+                options={[
+                  { value: '', label: 'Select primary category' },
+                  ...availableCategories.map((c) => ({
+                    value: String(c.id),
+                    label: c.name,
+                  })),
+                ]}
+                value={String(formData.primaryCategoryId || '')}
+                onChange={(value) => handleInputChange('primaryCategoryId', value)}
+                placeholder="Select primary category"
                 disabled={business?.status === 'SUSPENDED'}
-              >
-                <option value="">-- Select Primary Category --</option>
-                {availableCategories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
 
             <div className="form-group">

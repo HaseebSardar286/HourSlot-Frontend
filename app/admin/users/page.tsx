@@ -9,6 +9,7 @@ import FilterBar from '@/components/FilterBar';
 import DataTable from '@/components/DataTable';
 import StatusBadge from '@/components/StatusBadge';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import CustomSelect from '@/components/CustomSelect';
 import styles from './users.module.css';
 
 interface User {
@@ -127,13 +128,20 @@ export default function AdminUsersPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <select className="select-field" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
-            <option value="">All roles</option>
-            <option value="SUPER_ADMIN">Super Admins</option>
-            <option value="BUSINESS_OWNER">Business Owners</option>
-            <option value="BUSINESS_STAFF">Business Staff</option>
-            <option value="CUSTOMER">Customers</option>
-          </select>
+          <CustomSelect
+            variant="compact"
+            searchable={false}
+            value={roleFilter}
+            onChange={setRoleFilter}
+            placeholder="All roles"
+            options={[
+              { value: '', label: 'All roles' },
+              { value: 'SUPER_ADMIN', label: 'Super Admins' },
+              { value: 'BUSINESS_OWNER', label: 'Business Owners' },
+              { value: 'BUSINESS_STAFF', label: 'Business Staff' },
+              { value: 'CUSTOMER', label: 'Customers' },
+            ]}
+          />
           <button type="submit" className="btn btn-primary btn-sm">
             Filter
           </button>

@@ -4,18 +4,44 @@ import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { apiFetch } from '@/lib/api';
 import styles from './landing.module.css';
 
 const POPULAR = ['Hair Salons', 'Dental Clinics', 'Yoga Studios', 'Spa & Wellness'];
 
-const STATS = [
-  { value: '12K+', label: 'Businesses listed', color: 'teal' },
-  { value: '480K', label: 'Bookings completed', color: 'indigo' },
-  { value: '98%', label: 'Customer satisfaction', color: 'coral' },
-  { value: '24/7', label: 'Live availability', color: 'violet' },
+/** Product capabilities — not fabricated usage metrics */
+const CAPABILITIES = [
+  { value: 'Live', label: 'Real-time slot availability', color: 'teal' },
+  { value: 'Safe', label: 'Conflict-safe booking', color: 'indigo' },
+  { value: 'Flexible', label: 'Pay online or at venue', color: 'coral' },
+  { value: 'Multi', label: 'Branches, staff & packages', color: 'violet' },
 ];
 
-const PARTNERS = ['Stripe', 'Google Maps', 'Twilio', 'SendGrid', 'Cloudflare', 'AWS'];
+const STACK = ['Stripe', 'Leaflet', 'OpenStreetMap', 'PostgreSQL', 'Redis'];
+const TREND_COLORS = ['rose', 'sky', 'coral', 'violet'] as const;
+
+interface DiscoverBranch {
+  id: number;
+  name: string;
+  city?: string;
+  business?: {
+    id: number;
+    name: string;
+    rating?: number;
+    verified?: boolean;
+    primaryCategory?: { name?: string; slug?: string };
+  };
+}
+
+interface LiveListing {
+  businessId: number;
+  name: string;
+  category: string;
+  rating: number;
+  location: string;
+  verified: boolean;
+  color: (typeof TREND_COLORS)[number];
+}
 
 const CATEGORIES = [
   {
@@ -79,26 +105,19 @@ const FEATURES = [
   { icon: 'fa-shield-halved', title: 'Conflict-safe booking', text: 'Double-booking protection built into every reservation.', color: 'emerald' },
 ];
 
-const TRENDING = [
-  { name: 'Fade Studio', category: 'Salon', rating: 4.9, slots: '3 open today', color: 'rose' },
-  { name: 'Bright Smile Dental', category: 'Clinic', rating: 4.8, slots: '5 open today', color: 'sky' },
-  { name: 'Core Yoga House', category: 'Fitness', rating: 4.9, slots: '2 open today', color: 'coral' },
-  { name: 'Glow Nail Bar', category: 'Beauty', rating: 4.7, slots: '6 open today', color: 'violet' },
-];
-
-const TESTIMONIALS = [
-  { quote: 'We went from half-empty afternoons to a calendar that fills itself. Peak pricing alone paid for the switch.', name: 'Amina K.', role: 'Owner, Fade Studio', color: 'teal' },
-  { quote: 'I book my dentist, yoga, and nails in one app. Rescheduling takes ten seconds.', name: 'James R.', role: 'Customer', color: 'indigo' },
-  { quote: 'Staff invites, branch hours, and packages — finally in one place instead of five spreadsheets.', name: 'Sara M.', role: 'Ops Manager', color: 'coral' },
+const EXAMPLE_STORIES = [
+  { quote: 'Peak pricing and live calendars helped us fill quiet afternoons without extra admin.', name: 'Salon owner', role: 'Business use case', color: 'teal' },
+  { quote: 'Customers browse services, pick a slot, and sign in only when they confirm — less friction.', name: 'Marketplace flow', role: 'Customer experience', color: 'indigo' },
+  { quote: 'Staff invites, branch hours, and packages live in one dashboard instead of spreadsheets.', name: 'Operations', role: 'Owner workflow', color: 'coral' },
 ];
 
 const INTEGRATIONS = [
-  { icon: 'fa-credit-card', label: 'Stripe payments', color: 'indigo' },
-  { icon: 'fa-map-location-dot', label: 'Maps & geo search', color: 'sky' },
-  { icon: 'fa-envelope', label: 'Email notifications', color: 'coral' },
-  { icon: 'fa-mobile-screen', label: 'Mobile-ready PWA', color: 'violet' },
-  { icon: 'fa-lock', label: 'Secure auth & roles', color: 'emerald' },
-  { icon: 'fa-chart-line', label: 'Business analytics', color: 'amber' },
+  { icon: 'fa-credit-card', label: 'Stripe Checkout (optional)', color: 'indigo' },
+  { icon: 'fa-map-location-dot', label: 'Leaflet + OpenStreetMap', color: 'sky' },
+  { icon: 'fa-envelope', label: 'SMTP email when configured', color: 'coral' },
+  { icon: 'fa-mobile-screen', label: 'Mobile-ready web app', color: 'violet' },
+  { icon: 'fa-lock', label: 'JWT auth & role gates', color: 'emerald' },
+  { icon: 'fa-bell', label: 'In-app notifications', color: 'amber' },
 ];
 
 const FAQ = [
@@ -126,7 +145,9 @@ export default function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-  const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [newsletterNote, setNewsletterNote] = useState<string | null>(null);
+  const [liveListings, setLiveListings] = useState<LiveListing[]>([]);
+  const [listingsLoading, setListingsLoading] = useState(true);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -135,21 +156,66 @@ export default function LandingPage() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const persistSearch = (query: string) => {
+  useEffect(() => {
+    let cancelled = false;
+    setListingsLoading(true);
+    apiFetch<DiscoverBranch[]>('/api/discover/search?q=', { skipAuth: true })
+      .then((rows) => {
+        if (cancelled) return;
+        const seen = new Set<number>();
+        const listings: LiveListing[] = [];
+        for (const row of rows || []) {
+          const businessId = row.business?.id;
+          const name = row.business?.name;
+          if (!businessId || !name || seen.has(businessId)) continue;
+          seen.add(businessId);
+          listings.push({
+            businessId,
+            name,
+            category: row.business?.primaryCategory?.name || 'Service',
+            rating: typeof row.business?.rating === 'number' ? row.business.rating : 0,
+            location: row.city || row.name || 'Local',
+            verified: Boolean(row.business?.verified),
+            color: TREND_COLORS[listings.length % TREND_COLORS.length],
+          });
+          if (listings.length >= 4) break;
+        }
+        listings.sort((a, b) => b.rating - a.rating);
+        setLiveListings(listings);
+      })
+      .catch(() => {
+        if (!cancelled) setLiveListings([]);
+      })
+      .finally(() => {
+        if (!cancelled) setListingsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const persistSearch = (query: string, geo?: { lat: number; lon: number }) => {
     try {
       sessionStorage.setItem(
         'hourslot_explore_q',
         JSON.stringify({ q: query.trim(), location: location.trim() })
       );
+      if (geo) {
+        sessionStorage.setItem('hourslot_explore_coords', JSON.stringify(geo));
+      }
     } catch {
       /* ignore */
     }
   };
 
-  const goSearch = (query = service) => {
-    persistSearch(query);
+  const goSearch = (query = service, geo?: { lat: number; lon: number }) => {
+    persistSearch(query, geo);
     const params = new URLSearchParams();
     if (query.trim()) params.set('q', query.trim());
+    if (geo) {
+      params.set('lat', String(geo.lat));
+      params.set('lon', String(geo.lon));
+    }
     const qs = params.toString();
     router.push(qs ? `/profile/explore?${qs}` : '/profile/explore');
   };
@@ -162,19 +228,29 @@ export default function LandingPage() {
   const locateMe = () => {
     if (!navigator.geolocation) {
       setLocation('Near you');
+      goSearch(service);
       return;
     }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
-      () => { setLocation('Near you'); setLocating(false); },
-      () => { setLocation('Near you'); setLocating(false); },
+      (pos) => {
+        const geo = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+        setLocation('Near you');
+        setLocating(false);
+        goSearch(service, geo);
+      },
+      () => {
+        setLocation('Near you');
+        setLocating(false);
+        goSearch(service);
+      },
       { timeout: 8000 }
     );
   };
 
   const handleNewsletter = (e: FormEvent) => {
     e.preventDefault();
-    setNewsletterEmail('');
+    setNewsletterNote('Newsletter signup is not live yet — follow product updates via Explore and your account notifications.');
   };
 
   return (
@@ -182,7 +258,7 @@ export default function LandingPage() {
       <header className={`${styles.nav} ${scrolled ? styles.navScrolled : ''}`}>
         <div className={styles.navInner}>
           <Link href="/" className={styles.brand}>
-            <Image src="/logo-hourslot.png" alt="HourSlot" width={148} height={44} priority className={styles.logo} />
+            <Image src="/logo-hourslot.png" alt="HourSlot" width={192} height={57} priority className={styles.logo} />
           </Link>
           <nav className={styles.navCenter} aria-label="Primary">
             <Link href="/profile/explore">Explore</Link>
@@ -264,10 +340,10 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Stats */}
-      <section className={styles.stats} aria-label="Platform stats">
+      {/* Capabilities */}
+      <section className={styles.stats} aria-label="Platform capabilities">
         <div className={styles.statsInner}>
-          {STATS.map((s) => (
+          {CAPABILITIES.map((s) => (
             <div key={s.label} className={`${styles.statCard} ${styles[`stat${s.color.charAt(0).toUpperCase()}${s.color.slice(1)}`]}`}>
               <strong>{s.value}</strong>
               <span>{s.label}</span>
@@ -308,10 +384,10 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Partner strip */}
-      <section className={styles.marquee} aria-label="Integrations">
+      {/* Stack strip */}
+      <section className={styles.marquee} aria-label="Technology stack">
         <div className={styles.marqueeTrack}>
-          {[...PARTNERS, ...PARTNERS].map((p, i) => (
+          {[...STACK, ...STACK].map((p, i) => (
             <span key={`${p}-${i}`} className={styles.marqueeItem}>{p}</span>
           ))}
         </div>
@@ -401,34 +477,71 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Trending */}
+      {/* Live listings from Discover */}
       <section className={styles.trending}>
         <div className={styles.sectionHead}>
           <div>
-            <p className={styles.eyebrow}>Sample listings</p>
-            <h2 className={styles.displayTitle}>What you&apos;ll find in Explore</h2>
-            <p className={styles.sectionSubTrend}>Illustrative examples — real availability lives in the marketplace.</p>
+            <p className={styles.eyebrow}>Live marketplace</p>
+            <h2 className={styles.displayTitle}>Businesses on HourSlot</h2>
+            <p className={styles.sectionSubTrend}>Pulled from Explore — approved listings customers can book.</p>
           </div>
           <Link href="/profile/explore" className={styles.textLink}>See all <i className="fa-solid fa-arrow-right" /></Link>
         </div>
-        <div className={styles.trendGrid}>
-          {TRENDING.map((t) => (
-            <article key={t.name} className={`${styles.trendCard} ${styles[`trend${t.color.charAt(0).toUpperCase()}${t.color.slice(1)}`]}`}>
-              <div className={styles.trendTop}>
-                <span className={styles.trendAvatar}>{t.name.charAt(0)}</span>
-                <div>
-                  <strong>{t.name}</strong>
-                  <span>{t.category}</span>
+        {listingsLoading ? (
+          <div className={styles.trendGrid}>
+            {[0, 1, 2, 3].map((n) => (
+              <article key={n} className={`${styles.trendCard} ${styles.trendSky}`} aria-hidden>
+                <div className={styles.trendTop}>
+                  <span className={styles.trendAvatar}>…</span>
+                  <div>
+                    <strong>Loading…</strong>
+                    <span>Marketplace</span>
+                  </div>
                 </div>
-              </div>
-              <div className={styles.trendMeta}>
-                <span><i className="fa-solid fa-star" /> {t.rating}</span>
-                <span className={styles.trendSlots}>{t.slots}</span>
-              </div>
-              <button type="button" className={styles.trendBtn} onClick={() => goSearch(t.category)}>View slots</button>
-            </article>
-          ))}
-        </div>
+              </article>
+            ))}
+          </div>
+        ) : liveListings.length === 0 ? (
+          <div className={styles.trendEmpty}>
+            <p>No listings yet. Explore categories or list your business to get started.</p>
+            <div className={styles.trendEmptyActions}>
+              <Link href="/profile/explore" className="btn btn-primary btn-sm">Open Explore</Link>
+              <Link href="/auth/register?role=business" className="btn btn-outline btn-sm">List your business</Link>
+            </div>
+          </div>
+        ) : (
+          <div className={styles.trendGrid}>
+            {liveListings.map((t) => (
+              <article key={t.businessId} className={`${styles.trendCard} ${styles[`trend${t.color.charAt(0).toUpperCase()}${t.color.slice(1)}`]}`}>
+                <div className={styles.trendTop}>
+                  <span className={styles.trendAvatar}>{t.name.charAt(0)}</span>
+                  <div>
+                    <strong>
+                      {t.name}
+                      {t.verified ? (
+                        <>
+                          {' '}
+                          <i className="fa-solid fa-circle-check" title="Verified business" aria-label="Verified" />
+                        </>
+                      ) : null}
+                    </strong>
+                    <span>{t.category}</span>
+                  </div>
+                </div>
+                <div className={styles.trendMeta}>
+                  <span>
+                    <i className="fa-solid fa-star" />{' '}
+                    {t.rating > 0 ? t.rating.toFixed(1) : 'New'}
+                  </span>
+                  <span className={styles.trendSlots}>{t.location}</span>
+                </div>
+                <Link href={`/profile/business/${t.businessId}`} className={styles.trendBtn}>
+                  View profile
+                </Link>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Calendar preview */}
@@ -469,14 +582,15 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Testimonials */}
+      {/* Example stories */}
       <section className={`${styles.section} ${styles.testimonials}`}>
         <div className={styles.sectionHeadCenter}>
-          <p className={styles.eyebrow}>Loved by teams</p>
-          <h2 className={styles.displayTitle}>Real stories from the marketplace</h2>
+          <p className={styles.eyebrow}>How teams use HourSlot</p>
+          <h2 className={styles.displayTitle}>Example workflows</h2>
+          <p className={styles.sectionSub}>Illustrative scenarios — not fabricated customer quotes.</p>
         </div>
         <div className={styles.testGrid}>
-          {TESTIMONIALS.map((t) => (
+          {EXAMPLE_STORIES.map((t) => (
             <blockquote key={t.name} className={`${styles.testCard} ${styles[`test${t.color.charAt(0).toUpperCase()}${t.color.slice(1)}`]}`}>
               <i className={`fa-solid fa-quote-left ${styles.quoteIcon}`} />
               <p>{t.quote}</p>
@@ -615,11 +729,14 @@ export default function LandingPage() {
         <div className={styles.newsletterInner}>
           <div>
             <h2 className={styles.displayTitle}>Stay in the loop</h2>
-            <p>Product updates, marketplace launches, and tips for filling your calendar.</p>
+            <p>Product updates will appear here when a mailing list is available.</p>
+            {newsletterNote && (
+              <p className={styles.newsletterNote} role="status">{newsletterNote}</p>
+            )}
           </div>
           <form className={styles.newsletterForm} onSubmit={handleNewsletter}>
-            <input type="email" placeholder="you@email.com" value={newsletterEmail} onChange={(e) => setNewsletterEmail(e.target.value)} required aria-label="Email for newsletter" />
-            <button type="submit" className="btn btn-violet">Subscribe</button>
+            <input type="email" placeholder="you@email.com" disabled aria-label="Email for newsletter (coming soon)" />
+            <button type="submit" className="btn btn-violet" disabled>Coming soon</button>
           </form>
         </div>
       </section>
@@ -640,7 +757,7 @@ export default function LandingPage() {
       <footer className={styles.footer}>
         <div className={styles.footerGrid}>
           <div className={styles.footerBrand}>
-            <Image src="/logo-hourslot.png" alt="HourSlot" width={120} height={36} className={styles.footerLogo} />
+            <Image src="/logo-hourslot.png" alt="HourSlot" width={156} height={47} className={styles.footerLogo} />
             <p>The smart marketplace for effortless scheduling — customers find the hour, businesses fill it.</p>
           </div>
           <div>

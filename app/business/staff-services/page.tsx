@@ -8,6 +8,7 @@ import Skeleton from '@/components/Skeleton';
 import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import DataTable from '@/components/DataTable';
+import CustomSelect from '@/components/CustomSelect';
 import { formatMoney } from '@/lib/money';
 import styles from './staff-services.module.css';
 
@@ -310,37 +311,37 @@ export default function StaffServicesPage() {
             <label className="form-label" htmlFor="staffSelect">
               Staff member
             </label>
-            <select
+            <CustomSelect
               id="staffSelect"
-              className="select-field"
-              value={formData.staffId}
-              onChange={(e) => handleInputChange('staffId', e.target.value)}
+              options={staffList.map((s) => ({
+                value: String(s.id),
+                label: staffLabel(s),
+                sublabel: s.specialty || 'Generalist',
+              }))}
+              value={String(formData.staffId || '')}
+              onChange={(value) => handleInputChange('staffId', value)}
+              placeholder="Select staff member"
               disabled={!!editingAssignment}
-            >
-              {staffList.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {staffLabel(s)} ({s.specialty || 'Generalist'})
-                </option>
-              ))}
-            </select>
+              searchable={staffList.length > 6}
+            />
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="serviceSelect">
               Service
             </label>
-            <select
+            <CustomSelect
               id="serviceSelect"
-              className="select-field"
-              value={formData.serviceId}
-              onChange={(e) => handleInputChange('serviceId', e.target.value)}
+              options={services.map((svc) => ({
+                value: String(svc.id),
+                label: svc.name,
+                sublabel: money(svc.price, svc.currency),
+              }))}
+              value={String(formData.serviceId || '')}
+              onChange={(value) => handleInputChange('serviceId', value)}
+              placeholder="Select service"
               disabled={!!editingAssignment}
-            >
-              {services.map((svc) => (
-                <option key={svc.id} value={svc.id}>
-                  {svc.name} ({money(svc.price, svc.currency)})
-                </option>
-              ))}
-            </select>
+              searchable={services.length > 6}
+            />
           </div>
           <div className={styles.checkRow}>
             <input

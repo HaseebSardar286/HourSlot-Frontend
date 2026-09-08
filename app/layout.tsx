@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Roboto } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/lib/auth-context';
@@ -15,6 +15,22 @@ export const metadata: Metadata = {
   title: 'HourSlot — Smart appointment booking',
   description:
     'Discover nearby services, book the perfect slot, and manage your business schedule with HourSlot.',
+  appleWebApp: {
+    capable: true,
+    title: 'HourSlot',
+    statusBarStyle: 'default',
+  },
+  formatDetection: {
+    telephone: false,
+  },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: 'cover',
+  themeColor: '#f4f7fb',
 };
 
 export default function RootLayout({

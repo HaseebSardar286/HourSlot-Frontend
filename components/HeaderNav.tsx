@@ -48,7 +48,7 @@ export default function HeaderNav() {
           >
             {initials}
           </div>
-          <span style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', fontWeight: 600 }}>
+          <span className="auth-name" style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', fontWeight: 600 }}>
             {user.firstName}
           </span>
         </div>

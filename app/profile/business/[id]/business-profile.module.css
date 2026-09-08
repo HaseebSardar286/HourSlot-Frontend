@@ -3,11 +3,11 @@
   width: 100%;
   max-width: none;
   margin: 0;
-  padding: 0 0 88px;
+  padding: 0 0 96px;
 }
 
 .flowBarWrap {
-  padding: 16px 4px 0;
+  padding: 4px 8px 20px;
   width: 100%;
   max-width: none;
   margin: 0;
@@ -17,7 +17,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin: 16px 8px 0;
+  margin: 20px 8px 8px;
 }
 
 .guestPill {
@@ -427,8 +427,9 @@
 }
 
 .content {
-  margin-top: 28px;
+  margin-top: 32px;
   min-width: 0;
+  padding: 0 8px;
 }
 
 .panel {
@@ -1102,7 +1103,24 @@
   }
 
   .page {
-    padding-bottom: 100px;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+
+  .flowBarWrap {
+    overflow-x: auto;
+    padding: 0 0 12px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tab {
+    min-height: 44px;
+    padding: 12px 14px;
+  }
+
+  .coverWrap {
+    --cover-height: 200px;
+    height: 200px;
+    border-radius: 0 0 18px 18px;
   }
 }
 
@@ -1128,6 +1146,7 @@
 
 .mobileDockBtn {
   flex-shrink: 0;
+  min-height: 48px;
   padding: 12px 20px;
   border-radius: 12px;
   background: var(--accent-gradient);
@@ -1135,6 +1154,8 @@
   font-weight: 700;
   font-size: 0.88rem;
   text-decoration: none;
+  display: inline-flex;
+  align-items: center;
 }
 
 .skeletonCover {
@@ -1171,12 +1192,13 @@
 @media (max-width: 560px) {
   .identityCard {
     grid-template-columns: 1fr;
-    text-align: center;
-    justify-items: center;
+    text-align: left;
+    justify-items: stretch;
+    padding: 16px;
   }
 
   .metaRow {
-    justify-content: center;
+    justify-content: flex-start;
   }
 
   .serviceRow {
@@ -1187,6 +1209,16 @@
     grid-column: 2;
     text-align: left;
     margin-top: -4px;
+  }
+
+  .mobileDockInner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mobileDockBtn {
+    width: 100%;
+    justify-content: center;
   }
 }
 

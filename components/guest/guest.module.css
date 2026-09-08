@@ -64,8 +64,8 @@
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  padding: 14px 20px;
-  margin-bottom: 20px;
+  padding: 16px 22px;
+  margin: 20px 8px 8px;
   border-radius: 16px;
   background: linear-gradient(135deg, var(--tint-indigo) 0%, var(--tint-teal) 50%, var(--tint-sky) 100%);
   border: 1px solid rgba(26, 138, 138, 0.12);
@@ -115,8 +115,8 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
-  margin-bottom: 16px;
+  padding: 14px 18px;
+  margin-bottom: 22px;
   border-radius: 14px;
   background: var(--tint-sky);
   border: 1px solid rgba(14, 165, 233, 0.15);
@@ -131,4 +131,25 @@
 
 .bookingGuestNote strong {
   color: #0c4a6e;
+}
+
+@media (max-width: 640px) {
+  .browseBanner {
+    margin: 16px 0 8px;
+    padding: 14px 16px;
+  }
+
+  .browseBannerActions {
+    width: 100%;
+  }
+
+  .browseBannerActions a {
+    flex: 1;
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  .bookingGuestNote {
+    align-items: flex-start;
+  }
 }

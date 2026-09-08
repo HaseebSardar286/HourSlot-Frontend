@@ -10,7 +10,6 @@ export default function ForgotPasswordPage() {
   const [touched, setTouched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
-  const [devToken, setDevToken] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const emailError =
@@ -29,12 +28,11 @@ export default function ForgotPasswordPage() {
     setErrorMessage(null);
 
     try {
-      const res = await apiFetch<{ message: string; token?: string }>('/api/auth/forgot-password', {
+      await apiFetch<{ message: string }>('/api/auth/forgot-password', {
         method: 'POST',
         skipAuth: true,
         body: JSON.stringify({ email }),
       });
-      if (res?.token) setDevToken(res.token);
       setSent(true);
     } catch (err: unknown) {
       const e = err as { message?: string };
@@ -53,14 +51,9 @@ export default function ForgotPasswordPage() {
           </div>
           <h2 className={shared.successTitle}>Check your inbox</h2>
           <p className={shared.successMessage}>
-            If an account exists for <strong>{email}</strong>, a password reset link was generated. In local
-            development the token is also written to the backend logs.
+            If an account exists for <strong>{email}</strong>, a password reset link has been sent.
+            Check your email (and spam folder) when SMTP is configured.
           </p>
-          {devToken && (
-            <Link href={`/auth/reset-password?token=${devToken}`} className={shared.submitBtn} style={{ marginBottom: 12 }}>
-              Continue with reset token
-            </Link>
-          )}
           <Link href="/auth/login" className={shared.secondaryBtn}>
             Back to login
           </Link>

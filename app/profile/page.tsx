@@ -19,6 +19,12 @@ interface ProfileData {
   role: string;
 }
 
+interface NotificationPrefs {
+  emailBooking: boolean;
+  smsReminder: boolean;
+  emailMarketing: boolean;
+}
+
 export default function ProfilePage() {
   const { user, logout } = useAuth();
   const router = useRouter();
@@ -34,13 +40,12 @@ export default function ProfilePage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Tabs state
   const [activeTab, setActiveTab] = useState<'personal' | 'security' | 'notifications'>('personal');
 
-  // Notifications preferences
   const [emailNotify, setEmailNotify] = useState(true);
   const [smsNotify, setSmsNotify] = useState(true);
   const [marketingNotify, setMarketingNotify] = useState(false);
+  const [prefsLoading, setPrefsLoading] = useState(false);
 
   useEffect(() => {
     apiFetch<ProfileData>('/api/users/me')
@@ -66,6 +71,21 @@ export default function ProfilePage() {
       .finally(() => setLoading(false));
   }, [user]);
 
+  useEffect(() => {
+    if (activeTab !== 'notifications') return;
+    setPrefsLoading(true);
+    apiFetch<NotificationPrefs>('/api/users/me/notification-preferences')
+      .then((prefs) => {
+        setEmailNotify(prefs.emailBooking);
+        setSmsNotify(prefs.smsReminder);
+        setMarketingNotify(prefs.emailMarketing);
+      })
+      .catch(() => {
+        setError('Could not load notification preferences.');
+      })
+      .finally(() => setPrefsLoading(false));
+  }, [activeTab]);
+
   const handleLogout = () => {
     document.cookie = 'hourslot_user_session=; path=/; max-age=0';
     logout();
@@ -78,7 +98,6 @@ export default function ProfilePage() {
     setMessage(null);
     setError(null);
 
-    // If changing password, verify confirmPassword matches newPassword
     if (newPassword && newPassword !== confirmPassword) {
       setError('New passwords do not match.');
       setSaving(false);
@@ -107,22 +126,35 @@ export default function ProfilePage() {
         localStorage.setItem('hourslot_user_session', JSON.stringify(next));
         document.cookie = `hourslot_user_session=${encodeURIComponent(JSON.stringify(next))}; path=/; max-age=86400; SameSite=Lax`;
       }
-    } catch (err: any) {
-      setError(err?.message || 'Could not update profile.');
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      setError(e?.message || 'Could not update profile.');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleSavePreferences = (e: FormEvent) => {
+  const handleSavePreferences = async (e: FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setMessage(null);
     setError(null);
-    setTimeout(() => {
+    try {
+      await apiFetch('/api/users/me/notification-preferences', {
+        method: 'PUT',
+        body: JSON.stringify({
+          emailBooking: emailNotify,
+          smsReminder: smsNotify,
+          emailMarketing: marketingNotify,
+        }),
+      });
       setMessage('Notification preferences saved successfully!');
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      setError(e?.message || 'Could not save notification preferences.');
+    } finally {
       setSaving(false);
-    }, 400);
+    }
   };
 
   if (loading || !profile) {
@@ -140,12 +172,10 @@ export default function ProfilePage() {
 
   const initials = `${firstName?.charAt(0) || 'U'}${lastName?.charAt(0) || ''}`;
 
-  // Dynamic strength calculation
   const fields = [firstName.trim(), lastName.trim(), phoneNumber.trim(), profile.email];
   const filledCount = fields.filter(Boolean).length;
   const completionPercent = Math.round((filledCount / fields.length) * 100);
 
-  // Password requirements checklist
   const isLengthValid = newPassword.length >= 8;
   const hasNumber = /[0-9]/.test(newPassword);
   const isMatchValid = newPassword === confirmPassword && newPassword !== '';
@@ -183,7 +213,6 @@ export default function ProfilePage() {
         </Link>
       </div>
 
-      {/* Stats Widgets */}
       <div className={styles.statsRow}>
         <div className={styles.statCard}>
           <div className={styles.statIcon}>
@@ -209,14 +238,13 @@ export default function ProfilePage() {
       </div>
 
       <div className={styles.profileGrid}>
-        {/* Left Card */}
         <div className={styles.profileCard}>
           <div className={styles.avatarCircle}>{initials}</div>
           <h4>
             {firstName} {lastName}
           </h4>
           <span className={styles.roleBadge}>{(profile.role || 'UNKNOWN').replaceAll('_', ' ')}</span>
-          
+
           <div className={styles.metaSection}>
             <div className={styles.metaItem}>
               <i className="fa-regular fa-envelope" />
@@ -237,7 +265,6 @@ export default function ProfilePage() {
           </button>
         </div>
 
-        {/* Right Tabbed Card */}
         <div className={styles.tabsCard}>
           <div className={styles.tabsHeader}>
             <button
@@ -275,7 +302,6 @@ export default function ProfilePage() {
             </button>
           </div>
 
-          {/* Conditional Tabs Form content */}
           {activeTab === 'personal' && (
             <form onSubmit={handleSave} className={styles.form}>
               <div className={styles.detailsCard}>
@@ -419,46 +445,50 @@ export default function ProfilePage() {
             <form onSubmit={handleSavePreferences} className={styles.form}>
               <div className={styles.detailsCard}>
                 <h3>Communication preferences</h3>
-                <div className={styles.checkboxList}>
-                  <label className={styles.checkboxRow}>
-                    <input
-                      type="checkbox"
-                      checked={emailNotify}
-                      onChange={(e) => setEmailNotify(e.target.checked)}
-                    />
-                    <div className={styles.checkboxLabelInfo}>
-                      <span className={styles.checkboxLabelText}>Email Booking Confirmations</span>
-                      <span className={styles.checkboxLabelDesc}>Receive direct confirmations and rescheduling notices by email.</span>
-                    </div>
-                  </label>
-                  
-                  <label className={styles.checkboxRow}>
-                    <input
-                      type="checkbox"
-                      checked={smsNotify}
-                      onChange={(e) => setSmsNotify(e.target.checked)}
-                    />
-                    <div className={styles.checkboxLabelInfo}>
-                      <span className={styles.checkboxLabelText}>SMS Appointment Reminders</span>
-                      <span className={styles.checkboxLabelDesc}>Receive automated text alerts on your phone 2 hours prior to bookings.</span>
-                    </div>
-                  </label>
+                {prefsLoading ? (
+                  <p>Loading preferences…</p>
+                ) : (
+                  <div className={styles.checkboxList}>
+                    <label className={styles.checkboxRow}>
+                      <input
+                        type="checkbox"
+                        checked={emailNotify}
+                        onChange={(e) => setEmailNotify(e.target.checked)}
+                      />
+                      <div className={styles.checkboxLabelInfo}>
+                        <span className={styles.checkboxLabelText}>Email booking confirmations</span>
+                        <span className={styles.checkboxLabelDesc}>Receive confirmations and rescheduling notices by email when SMTP is configured.</span>
+                      </div>
+                    </label>
 
-                  <label className={styles.checkboxRow}>
-                    <input
-                      type="checkbox"
-                      checked={marketingNotify}
-                      onChange={(e) => setMarketingNotify(e.target.checked)}
-                    />
-                    <div className={styles.checkboxLabelInfo}>
-                      <span className={styles.checkboxLabelText}>Marketing &amp; Special Offers</span>
-                      <span className={styles.checkboxLabelDesc}>Be the first to hear about promotional combos, peak pricing discounts, and deal packages.</span>
-                    </div>
-                  </label>
-                </div>
+                    <label className={styles.checkboxRow}>
+                      <input
+                        type="checkbox"
+                        checked={smsNotify}
+                        onChange={(e) => setSmsNotify(e.target.checked)}
+                      />
+                      <div className={styles.checkboxLabelInfo}>
+                        <span className={styles.checkboxLabelText}>SMS appointment reminders</span>
+                        <span className={styles.checkboxLabelDesc}>Saved for when SMS is enabled on your plan. Not sent yet.</span>
+                      </div>
+                    </label>
+
+                    <label className={styles.checkboxRow}>
+                      <input
+                        type="checkbox"
+                        checked={marketingNotify}
+                        onChange={(e) => setMarketingNotify(e.target.checked)}
+                      />
+                      <div className={styles.checkboxLabelInfo}>
+                        <span className={styles.checkboxLabelText}>Marketing &amp; special offers</span>
+                        <span className={styles.checkboxLabelDesc}>Opt in to hear about promotions and package deals.</span>
+                      </div>
+                    </label>
+                  </div>
+                )}
               </div>
               <div className={styles.formActions}>
-                <button type="submit" className="btn btn-primary" disabled={saving}>
+                <button type="submit" className="btn btn-primary" disabled={saving || prefsLoading}>
                   {saving ? 'Saving preferences…' : 'Save preferences'}
                 </button>
               </div>
@@ -469,4 +499,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-

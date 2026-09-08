@@ -357,7 +357,7 @@
   }
 
   .pageBody {
-    padding: 20px 16px;
+    padding: 16px 14px calc(24px + env(safe-area-inset-bottom));
   }
 
   .roleSwitchBtn span {

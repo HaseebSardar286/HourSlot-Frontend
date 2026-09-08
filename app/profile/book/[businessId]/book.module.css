@@ -2,7 +2,7 @@
   width: 100%;
   max-width: none;
   margin: 0;
-  padding: 8px 0 48px;
+  padding: 8px 0 64px;
 }
 
 .head {
@@ -910,8 +910,17 @@
 }
 
 @media (max-width: 560px) {
-  .serviceGrid {
-    grid-template-columns: 1fr;
+  .wizard {
+    padding: 4px 0 72px;
+  }
+
+  .head h1 {
+    font-size: 1.4rem;
+  }
+
+  .stepper {
+    overflow-x: auto;
+    padding-bottom: 4px;
   }
 
   .dateStrip {

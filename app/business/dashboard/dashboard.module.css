@@ -505,6 +505,55 @@
   padding: 0 12px;
 }
 
+.appointmentsCards {
+  display: none;
+}
+
+.appointmentCard {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.appointmentCard:last-child {
+  border-bottom: none;
+}
+
+.appointmentCardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.appointmentCardTop strong {
+  font-size: 0.95rem;
+  color: var(--text-main);
+}
+
+.appointmentCardMeta {
+  margin: 0 0 4px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.appointmentCardPrice {
+  margin: 8px 0 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+@media (max-width: 640px) {
+  .tableResponsive {
+    display: none;
+  }
+
+  .appointmentsCards {
+    display: block;
+  }
+}
+
 .appointmentsTable {
   width: 100%;
   border-collapse: collapse;

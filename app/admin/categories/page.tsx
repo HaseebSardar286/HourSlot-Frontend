@@ -7,6 +7,7 @@ import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
 import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import CustomSelect from '@/components/CustomSelect';
 import styles from './categories.module.css';
 
 interface Category {
@@ -267,21 +268,21 @@ export default function AdminCategoriesPage() {
             <label className="form-label" htmlFor="catParent">
               Parent category
             </label>
-            <select
+            <CustomSelect
               id="catParent"
-              className="select-field"
-              value={formData.parentId}
-              onChange={(e) => handleInputChange('parentId', e.target.value)}
-            >
-              <option value="">-- None (root) --</option>
-              {flatCategories
-                .filter((c) => !editingCategory || c.id !== editingCategory.id)
-                .map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-            </select>
+              options={[
+                { value: '', label: 'None (root)' },
+                ...flatCategories
+                  .filter((c) => !editingCategory || c.id !== editingCategory.id)
+                  .map((c) => ({
+                    value: String(c.id),
+                    label: c.name,
+                  })),
+              ]}
+              value={String(formData.parentId || '')}
+              onChange={(value) => handleInputChange('parentId', value)}
+              placeholder="None (root)"
+            />
           </div>
           <div className={styles.twoCol}>
             <div className="form-group">

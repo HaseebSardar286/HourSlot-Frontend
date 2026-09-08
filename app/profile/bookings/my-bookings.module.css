@@ -225,4 +225,16 @@
     justify-self: start;
     margin-top: -4px;
   }
+
+  .cardFooter {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cardFooter a,
+  .cardFooter button {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
 }

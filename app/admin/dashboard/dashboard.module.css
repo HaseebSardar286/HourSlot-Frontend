@@ -45,6 +45,39 @@
   overflow-x: auto;
 }
 
+.mobileList {
+  display: none;
+}
+
+.mobileRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.mobileRow:last-child {
+  border-bottom: none;
+}
+
+.mobileRowMain {
+  min-width: 0;
+  flex: 1;
+}
+
+@media (max-width: 640px) {
+  .simpleTable {
+    display: none;
+  }
+
+  .mobileList {
+    display: block;
+    margin-top: 8px;
+  }
+}
+
 .emptyCell {
   text-align: center;
   color: var(--text-muted);

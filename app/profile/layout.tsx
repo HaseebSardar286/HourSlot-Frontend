@@ -17,11 +17,11 @@ const GUEST_NAV = [
 ];
 
 const CUSTOMER_NAV = [
-  { href: '/profile/explore', icon: 'fa-compass', label: 'Explore', accent: 'teal' },
-  { href: '/profile/bookings', icon: 'fa-calendar-check', label: 'My Bookings', accent: 'indigo' },
-  { href: '/profile/favorites', icon: 'fa-heart', label: 'Favorites', accent: 'rose' },
-  { href: '/profile/packages', icon: 'fa-gift', label: 'Packages', accent: 'violet' },
-  { href: '/profile', icon: 'fa-gear', label: 'Settings', exact: true, accent: 'sky' },
+  { href: '/profile/explore', icon: 'fa-compass', label: 'Explore', short: 'Explore', accent: 'teal' },
+  { href: '/profile/bookings', icon: 'fa-calendar-check', label: 'My Bookings', short: 'Bookings', accent: 'indigo' },
+  { href: '/profile/favorites', icon: 'fa-heart', label: 'Favorites', short: 'Saved', accent: 'rose' },
+  { href: '/profile/packages', icon: 'fa-gift', label: 'Packages', short: 'Packages', accent: 'violet' },
+  { href: '/profile', icon: 'fa-gear', label: 'Settings', short: 'Account', exact: true, accent: 'sky' },
 ] as const;
 
 export default function ProfileLayout({ children }: { children: React.ReactNode }) {
@@ -112,16 +112,6 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
               </Link>
             ))}
           </nav>
-          {!sidebarCollapsed ? (
-            <Link href="/#pricing" className={styles.proCard} onClick={() => setMenuOpen(false)}>
-              <strong>Pro Account</strong>
-              <span>Get priority booking &amp; exclusive deals.</span>
-            </Link>
-          ) : (
-            <Link href="/#pricing" className={styles.proCardMini} onClick={() => setMenuOpen(false)} title="Pro Account">
-              <i className="fa-solid fa-star" />
-            </Link>
-          )}
           <button type="button" className={styles.sideLogout} onClick={handleLogout} title={sidebarCollapsed ? 'Sign out' : undefined}>
             <i className="fa-solid fa-right-from-bracket" />
             {!sidebarCollapsed && <span>Sign out</span>}
@@ -145,7 +135,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
                   <span className={styles.avatar}>{initials || 'U'}</span>
                   <span className={styles.userMeta}>
                     <strong>{fullName}</strong>
-                    <em>Premium Member</em>
+                    <em>{(user.role || 'CUSTOMER').replaceAll('_', ' ')}</em>
                   </span>
                 </button>
                 {userOpen && (
@@ -158,6 +148,18 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
             </div>
           </header>
           <div className={isExplore ? styles.dashBodyFill : styles.dashBody}>{children}</div>
+          <nav className={styles.bottomNav} aria-label="Customer">
+            {CUSTOMER_NAV.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`${styles.bottomLink} ${isActive(item.href, 'exact' in item ? item.exact : undefined) ? styles.bottomLinkOn : ''}`}
+              >
+                <i className={`fa-solid ${item.icon}`} aria-hidden />
+                <span>{item.short}</span>
+              </Link>
+            ))}
+          </nav>
         </div>
       </div>
     );
@@ -173,8 +175,17 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
       <header className={`app-header ${styles.header}`}>
         <div className={styles.headerInner}>
           <div className={styles.left}>
+            <button
+              type="button"
+              className={styles.guestMenuBtn}
+              aria-label="Open menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen(true)}
+            >
+              <i className="fa-solid fa-bars" />
+            </button>
             <Link href="/" className={styles.brand}>
-              <Image src="/logo-hourslot.png" alt="HourSlot" width={120} height={36} priority className={styles.logo} />
+              <Image src="/logo-hourslot.png" alt="HourSlot" width={156} height={47} priority className={styles.logo} />
             </Link>
             <nav className={styles.nav} aria-label="Customer">
               {GUEST_NAV.map((item) => (
@@ -197,6 +208,37 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
         </div>
       </header>
 
+      {menuOpen && (
+        <>
+          <button type="button" className={styles.guestMenuBackdrop} aria-label="Close menu" onClick={() => setMenuOpen(false)} />
+          <nav className={styles.guestMenuSheet} aria-label="Mobile">
+            <div className={styles.guestMenuHead}>
+              <strong>HourSlot</strong>
+              <button type="button" className={styles.guestMenuClose} aria-label="Close" onClick={() => setMenuOpen(false)}>
+                <i className="fa-solid fa-xmark" />
+              </button>
+            </div>
+            {GUEST_NAV.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`${styles.guestMenuLink} ${isActive(item.href) ? styles.guestMenuLinkOn : ''}`}
+                onClick={() => setMenuOpen(false)}
+              >
+                <i className={`fa-solid ${item.icon}`} aria-hidden />
+                {item.label}
+              </Link>
+            ))}
+            <Link href={loginHref(pathname)} className={styles.guestMenuLink} onClick={() => setMenuOpen(false)}>
+              <i className="fa-solid fa-right-to-bracket" aria-hidden /> Sign in
+            </Link>
+            <Link href={registerHref(pathname)} className={styles.guestMenuCta} onClick={() => setMenuOpen(false)}>
+              Create account
+            </Link>
+          </nav>
+        </>
+      )}
+
       <main className={isGuestBrowseRoute ? styles.mainWide : styles.main}>{children}</main>
 
       <footer className={styles.guestFooter}>
@@ -204,7 +246,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
           <div className={styles.guestFooterMain}>
             <div className={styles.guestFooterBrand}>
               <Link href="/" className={styles.guestFooterLogo}>
-                <Image src="/logo-hourslot.png" alt="HourSlot" width={128} height={38} className={styles.logo} />
+                <Image src="/logo-hourslot.png" alt="HourSlot" width={166} height={49} className={styles.logo} />
               </Link>
               <p>
                 The live marketplace for local services — browse businesses, compare packages, and book real open

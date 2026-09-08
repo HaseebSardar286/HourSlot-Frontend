@@ -44,6 +44,14 @@
   .quickLinks {
     grid-template-columns: 1fr;
   }
+
+  .quickLink {
+    min-height: 48px;
+  }
+
+  .statsRow {
+    grid-template-columns: 1fr;
+  }
 }
 
 .statsRow {

@@ -53,5 +53,11 @@ export function destinationAfterAuth(role: string, rawReturn: string | null): st
   if (role === 'BUSINESS_OWNER' || role === 'BUSINESS_STAFF') {
     return isBookingReturnUrl(returnUrl) ? returnUrl : dashboard;
   }
+  if (isBookingReturnUrl(returnUrl)) {
+    return returnUrl;
+  }
+  if (!rawReturn || returnUrl === '/profile/explore') {
+    return '/onboarding';
+  }
   return returnUrl;
 }

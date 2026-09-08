@@ -15,29 +15,37 @@
 .headerInner {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 12px 24px;
+  height: 72px;
+  padding: 0 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  box-sizing: border-box;
 }
 
 .left {
   display: flex;
   align-items: center;
   gap: 28px;
+  min-width: 0;
 }
 
 .brand {
   display: flex;
   align-items: center;
+  height: 34px;
+  flex-shrink: 0;
+  overflow: visible;
 }
 
 .logo {
   height: 34px;
   width: auto;
   object-fit: contain;
+  transform: scale(1.3);
+  transform-origin: left center;
 }
 
 .nav {
@@ -74,10 +82,30 @@
   background: rgba(26, 138, 138, 0.1);
 }
 
-.right {
-  display: flex;
+.guestMenuBtn {
+  display: none;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--text-main);
+  cursor: pointer;
+  flex-shrink: 0;
   align-items: center;
-  gap: 14px;
+  justify-content: center;
+}
+
+.guestMenuBackdrop {
+  display: none;
+}
+
+.guestMenuSheet {
+  display: none;
+}
+
+.bottomNav {
+  display: none;
 }
 
 .main {
@@ -95,7 +123,7 @@
   width: 100%;
   max-width: none;
   margin: 0;
-  padding: 0 24px 48px;
+  padding: 28px 32px 72px;
   box-sizing: border-box;
   animation: hsFadeUp 0.35s ease both;
 }
@@ -136,8 +164,10 @@
 }
 
 .guestFooterLogo .logo {
-  height: 36px;
+  height: 47px;
   width: auto;
+  margin-block: 0;
+  transform: none;
   filter: brightness(0) invert(1);
   opacity: 0.95;
 }
@@ -678,21 +708,170 @@
 }
 
 @media (max-width: 768px) {
-  .nav {
-    width: 100%;
-    overflow-x: auto;
-    gap: 2px;
-    padding-bottom: 4px;
+  .hamburger {
+    display: none;
   }
 
-  .navLink {
-    font-size: 0.82rem;
-    padding: 6px 10px;
-    white-space: nowrap;
+  .dashMain {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+
+  .topbar {
+    min-height: 56px;
+    padding: 8px 14px;
+  }
+
+  .dashBody {
+    padding: 16px 14px 28px;
+  }
+
+  .bottomNav {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 80;
+    align-items: stretch;
+    justify-content: space-around;
+    gap: 2px;
+    min-height: calc(56px + env(safe-area-inset-bottom));
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+    background: rgba(255, 255, 255, 0.96);
+    border-top: 1px solid var(--border-color);
+    backdrop-filter: blur(14px);
+  }
+
+  .bottomLink {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: 48px;
+    border-radius: 12px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.68rem;
+    font-weight: 700;
+  }
+
+  .bottomLink i {
+    font-size: 1.05rem;
+  }
+
+  .bottomLinkOn {
+    color: var(--accent-primary);
+    background: var(--tint-teal);
+  }
+
+  .nav {
+    display: none;
+  }
+
+  .guestMenuBtn {
+    display: inline-flex;
+  }
+
+  .guestMenuBackdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    border: 0;
+    background: rgba(20, 40, 46, 0.4);
+  }
+
+  .guestMenuSheet {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1110;
+    width: min(320px, 86vw);
+    height: 100%;
+    height: 100dvh;
+    padding: calc(16px + env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom));
+    background: #fff;
+    box-shadow: 16px 0 40px rgba(15, 30, 35, 0.18);
+    gap: 4px;
+  }
+
+  .guestMenuHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .guestMenuHead strong {
+    font-size: 1rem;
+  }
+
+  .guestMenuClose {
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: #fff;
+    cursor: pointer;
+  }
+
+  .guestMenuLink {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 48px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    color: var(--text-main);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .guestMenuLink i {
+    width: 20px;
+    color: var(--accent-primary);
+  }
+
+  .guestMenuLinkOn {
+    background: var(--tint-teal);
+    color: var(--accent-primary);
+  }
+
+  .guestMenuCta {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    padding: 12px 16px;
+    border-radius: 14px;
+    background: var(--accent-gradient);
+    color: #fff;
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .headerInner {
+    padding: 0 16px;
+    height: 64px;
+  }
+
+  .logo {
+    transform: scale(1.15);
   }
 
   .main {
-    padding: 24px 16px;
+    padding: 20px 16px 32px;
+  }
+
+  .mainWide {
+    padding: 16px 14px calc(32px + env(safe-area-inset-bottom));
   }
 }
 

@@ -39,7 +39,7 @@ export default function OnboardingPage() {
         </h1>
         <p className={styles.welcomeSubtitle}>
           {isBusiness
-            ? 'Your business registration is being reviewed. Here’s what you can do once verified:'
+            ? 'Your business registration is being reviewed. Once approved you appear on Explore; Tax ID and bank statement unlock a Verified badge:'
             : 'You’re all set. Here’s how to get the most out of HourSlot:'}
         </p>
 

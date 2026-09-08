@@ -1,18 +1,21 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '@/lib/api';
 import PageHeader from '@/components/PageHeader';
 import Skeleton from '@/components/Skeleton';
 import StatusBadge from '@/components/StatusBadge';
 import UploadZone from '@/components/UploadZone';
+import CustomSelect from '@/components/CustomSelect';
 import styles from './verification.module.css';
 
-type DocType = { code: string; label: string };
+type DocType = { code: string; label: string; hint?: string; tier?: number };
 type Doc = {
   id: number;
   documentType: string;
   label: string;
+  hint?: string;
+  tier?: number;
   status: string;
   originalFilename?: string;
   url?: string;
@@ -22,12 +25,18 @@ type Doc = {
 type Payload = {
   documents: Doc[];
   readiness: {
+    readyForListing?: boolean;
     readyForVerifiedBadge: boolean;
     approvedCount: number;
     requiredCount: number;
-    submittedCount: number;
+    tier1ApprovedCount?: number;
+    tier1RequiredCount?: number;
+    tier2ApprovedCount?: number;
+    tier2RequiredCount?: number;
   };
   requiredTypes: DocType[];
+  tier1Types?: DocType[];
+  tier2Types?: DocType[];
 };
 
 export default function VerificationPage() {
@@ -35,9 +44,23 @@ export default function VerificationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [documentType, setDocumentType] = useState('TRADE_LICENSE');
+  const [documentType, setDocumentType] = useState('OWNER_GOVERNMENT_ID');
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+
+  const tier1Types = data?.tier1Types?.length
+    ? data.tier1Types
+    : (data?.requiredTypes || []).filter((t) => t.tier === 1);
+  const tier2Types = data?.tier2Types?.length
+    ? data.tier2Types
+    : (data?.requiredTypes || []).filter((t) => t.tier === 2);
+
+  const allTypes = useMemo(() => {
+    if (data?.requiredTypes?.length) return data.requiredTypes;
+    return [...(tier1Types || []), ...(tier2Types || [])];
+  }, [data, tier1Types, tier2Types]);
+
+  const selectedHint = allTypes.find((t) => t.code === documentType)?.hint;
 
   const load = async () => {
     setLoading(true);
@@ -45,8 +68,11 @@ export default function VerificationPage() {
     try {
       const payload = await apiFetch<Payload>('/api/business/verification-documents');
       setData(payload);
-      if (payload.requiredTypes?.length && !payload.requiredTypes.find((t) => t.code === documentType)) {
-        setDocumentType(payload.requiredTypes[0].code);
+      const types = payload.requiredTypes?.length
+        ? payload.requiredTypes
+        : [...(payload.tier1Types || []), ...(payload.tier2Types || [])];
+      if (types.length && !types.find((t) => t.code === documentType)) {
+        setDocumentType(types[0].code);
       }
     } catch (err: unknown) {
       const e = err as { message?: string };
@@ -101,6 +127,9 @@ export default function VerificationPage() {
     }
   };
 
+  const docsForTier = (tier: number) =>
+    (data?.documents || []).filter((d) => (d.tier ?? 0) === tier || allTypes.find((t) => t.code === d.documentType)?.tier === tier);
+
   if (loading && !data) {
     return (
       <div className={styles.page}>
@@ -113,8 +142,8 @@ export default function VerificationPage() {
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Verification documents"
-        subtitle="Submit trade license, bank statement, and owner government ID. Super Admin reviews each file before granting a verified badge."
+        title="Verification"
+        subtitle="Tier 1 gets you listed on Explore and maps. Tier 2 unlocks the Verified badge for extra credibility."
       />
 
       {message && (
@@ -128,18 +157,37 @@ export default function VerificationPage() {
         </div>
       )}
 
-      <div className={`surface ${styles.readiness}`}>
-        <div>
-          <strong>
-            {data?.readiness?.approvedCount ?? 0}/{data?.readiness?.requiredCount ?? 3} documents approved
-          </strong>
-          <p>
-            {data?.readiness?.readyForVerifiedBadge
-              ? 'Ready for verified badge. Waiting for Super Admin to grant it.'
-              : 'Upload all three required document types, then wait for Super Admin review.'}
-          </p>
+      <div className={styles.tierRow}>
+        <div className={`surface ${styles.readiness}`}>
+          <div>
+            <strong>Get listed (Tier 1)</strong>
+            <p>
+              {data?.readiness?.tier1ApprovedCount ?? 0}/{data?.readiness?.tier1RequiredCount ?? 3} approved — Owner ID,
+              trade license, and address proof (utility bill/lease or shop photos).
+            </p>
+            <p>
+              {data?.readiness?.readyForListing
+                ? 'Ready for Super Admin to approve your listing.'
+                : 'Upload and wait for admin approval of all Tier 1 files.'}
+            </p>
+          </div>
+          <StatusBadge status={data?.readiness?.readyForListing ? 'APPROVED' : 'PENDING'} />
         </div>
-        <StatusBadge status={data?.readiness?.readyForVerifiedBadge ? 'APPROVED' : 'PENDING'} />
+        <div className={`surface ${styles.readiness}`}>
+          <div>
+            <strong>Verified badge (Tier 2)</strong>
+            <p>
+              {data?.readiness?.tier2ApprovedCount ?? 0}/{data?.readiness?.tier2RequiredCount ?? 2} approved — Tax ID and
+              bank statement (you may redact amounts).
+            </p>
+            <p>
+              {data?.readiness?.readyForVerifiedBadge
+                ? 'Ready for Super Admin to grant the Verified badge.'
+                : 'Optional after listing — builds customer trust.'}
+            </p>
+          </div>
+          <StatusBadge status={data?.readiness?.readyForVerifiedBadge ? 'APPROVED' : 'PENDING'} />
+        </div>
       </div>
 
       <div className={styles.grid}>
@@ -149,18 +197,18 @@ export default function VerificationPage() {
             <label className="form-label" htmlFor="docType">
               Document type
             </label>
-            <select
+            <CustomSelect
               id="docType"
-              className="select-field"
+              options={allTypes.map((t) => ({
+                value: t.code,
+                label: `Tier ${t.tier ?? '?'}: ${t.label}`,
+              }))}
               value={documentType}
-              onChange={(e) => setDocumentType(e.target.value)}
-            >
-              {(data?.requiredTypes || []).map((t) => (
-                <option key={t.code} value={t.code}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
+              onChange={setDocumentType}
+              placeholder="Select document type"
+              searchable={false}
+            />
+            {selectedHint && <p className={styles.hint}>{selectedHint}</p>}
           </div>
           <div className="form-group" style={{ marginBottom: '18px' }}>
             <label className="form-label" htmlFor="docFile">
@@ -184,28 +232,56 @@ export default function VerificationPage() {
           {(data?.documents || []).length === 0 ? (
             <p className={styles.empty}>No documents uploaded yet.</p>
           ) : (
-            <ul className={styles.docList}>
-              {data?.documents.map((doc) => (
-                <li key={doc.id}>
-                  <div>
-                    <strong>{doc.label}</strong>
-                    <div className={styles.meta}>{doc.originalFilename || 'Document'}</div>
-                    {doc.reviewNotes && <div className={styles.notes}>{doc.reviewNotes}</div>}
-                  </div>
-                  <div className={styles.docActions}>
-                    <StatusBadge status={doc.status} />
-                    {doc.url && (
-                      <a href={doc.url} target="_blank" rel="noreferrer" className="btn btn-sm btn-outline">
-                        View
-                      </a>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <>
+              <h4 className={styles.tierHeading}>Tier 1 — Get listed</h4>
+              <DocList docs={docsForTier(1)} fallbackTypes={tier1Types} />
+              <h4 className={styles.tierHeading}>Tier 2 — Verified badge</h4>
+              <DocList docs={docsForTier(2)} fallbackTypes={tier2Types} />
+            </>
           )}
         </div>
       </div>
     </div>
+  );
+}
+
+function DocList({ docs, fallbackTypes }: { docs: Doc[]; fallbackTypes: DocType[] }) {
+  if (docs.length === 0) {
+    return (
+      <ul className={styles.docList}>
+        {fallbackTypes.map((t) => (
+          <li key={t.code}>
+            <div>
+              <strong>{t.label}</strong>
+              <div className={styles.meta}>Not uploaded yet</div>
+              {t.hint && <div className={styles.meta}>{t.hint}</div>}
+            </div>
+            <StatusBadge status="PENDING" />
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  return (
+    <ul className={styles.docList}>
+      {docs.map((doc) => (
+        <li key={doc.id}>
+          <div>
+            <strong>{doc.label}</strong>
+            <div className={styles.meta}>{doc.originalFilename || 'Document'}</div>
+            {doc.reviewNotes && <div className={styles.notes}>{doc.reviewNotes}</div>}
+          </div>
+          <div className={styles.docActions}>
+            <StatusBadge status={doc.status} />
+            {doc.url && (
+              <a href={doc.url} target="_blank" rel="noreferrer" className="btn btn-sm btn-outline">
+                View
+              </a>
+            )}
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }

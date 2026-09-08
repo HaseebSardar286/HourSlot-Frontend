@@ -10,6 +10,7 @@ import { loginHref } from '@/lib/auth-redirect';
 import type { Branch, Category } from '@/lib/types';
 import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
+import CustomSelect from '@/components/CustomSelect';
 import styles from './explore.module.css';
 
 const LocationMap = dynamic(() => import('@/components/LocationMap'), {
@@ -159,8 +160,21 @@ export default function ExplorePage() {
     bootstrapped.current = true;
 
     let q = '';
+    let latParam: number | null = null;
+    let lonParam: number | null = null;
     try {
-      q = new URLSearchParams(window.location.search).get('q') || '';
+      const params = new URLSearchParams(window.location.search);
+      q = params.get('q') || '';
+      const lat = params.get('lat');
+      const lon = params.get('lon');
+      if (lat && lon) {
+        const latN = Number(lat);
+        const lonN = Number(lon);
+        if (Number.isFinite(latN) && Number.isFinite(lonN)) {
+          latParam = latN;
+          lonParam = lonN;
+        }
+      }
       if (!q) {
         const raw = sessionStorage.getItem('hourslot_explore_q');
         if (raw) {
@@ -169,14 +183,39 @@ export default function ExplorePage() {
           q = typeof parsed === 'string' ? parsed : parsed?.q || '';
         }
       }
+      if (latParam == null) {
+        const rawCoords = sessionStorage.getItem('hourslot_explore_coords');
+        if (rawCoords) {
+          sessionStorage.removeItem('hourslot_explore_coords');
+          const parsed = JSON.parse(rawCoords) as { lat?: number; lon?: number };
+          if (typeof parsed.lat === 'number' && typeof parsed.lon === 'number') {
+            latParam = parsed.lat;
+            lonParam = parsed.lon;
+          }
+        }
+      }
     } catch {
       q = '';
+    }
+
+    if (latParam != null && lonParam != null) {
+      setCoords({ lat: latParam, lon: lonParam });
+      setLocationLabel('Near you');
     }
 
     if (q) {
       setSearchQuery(q);
       setActiveCategory(q);
-      triggerSearchOrNearby(q);
+      if (latParam != null && lonParam != null) {
+        loadNearby(latParam, lonParam, q, radiusKm);
+      } else {
+        triggerSearchOrNearby(q);
+      }
+      return;
+    }
+
+    if (latParam != null && lonParam != null) {
+      loadNearby(latParam, lonParam, '', radiusKm);
       return;
     }
 
@@ -186,7 +225,7 @@ export default function ExplorePage() {
     }
 
     loadCategoriesOnly();
-  }, [authLoading, isAuthenticated, loadCategoriesOnly, triggerSearchOrNearby]);
+  }, [authLoading, isAuthenticated, loadCategoriesOnly, loadNearby, radiusKm, triggerSearchOrNearby]);
 
   useEffect(() => {
     try {
@@ -384,7 +423,16 @@ export default function ExplorePage() {
           </button>
         </div>
         <div className={styles.popularCardContent}>
-          <h4>{b.business.name}</h4>
+          <h4>
+            {b.business.name}
+            {b.business.verified ? (
+              <i
+                className="fa-solid fa-circle-check"
+                title="Verified business"
+                style={{ marginLeft: 6, color: 'var(--accent-primary)', fontSize: '0.85em' }}
+              />
+            ) : null}
+          </h4>
           <p className={styles.categorySub}>{b.name}</p>
           <p className={styles.distanceText}>
             <i className="fa-solid fa-location-dot" />{' '}
@@ -436,6 +484,13 @@ export default function ExplorePage() {
           </div>
           <Link href={`/profile/business/${b.business.id}`} className={styles.resultName} onClick={(e) => e.stopPropagation()}>
             {b.business.name}
+            {b.business.verified ? (
+              <i
+                className="fa-solid fa-circle-check"
+                title="Verified business"
+                style={{ marginLeft: 6, color: 'var(--accent-primary)', fontSize: '0.85em' }}
+              />
+            ) : null}
           </Link>
           <p className={styles.resultAddr}>
             {[b.city, b.region, b.address].filter(Boolean).join(', ') || b.name}
@@ -530,32 +585,32 @@ export default function ExplorePage() {
             </button>
             <label className={styles.filterPill}>
               Distance
-              <select
-                value={radiusKm}
-                onChange={(e) => {
-                  const next = Number(e.target.value);
+              <CustomSelect
+                variant="compact"
+                searchable={false}
+                value={String(radiusKm)}
+                onChange={(value) => {
+                  const next = Number(value);
                   setRadiusKm(next);
                   triggerSearchOrNearby(searchQuery, next);
                 }}
-                aria-label="Distance"
-              >
-                {DISTANCES.map((d) => (
-                  <option key={d} value={d}>
-                    {d} km
-                  </option>
-                ))}
-              </select>
+                options={DISTANCES.map((d) => ({ value: String(d), label: `${d} km` }))}
+                placeholder="Distance"
+              />
             </label>
             <label className={styles.filterPill}>
               Sort
-              <select
+              <CustomSelect
+                variant="compact"
+                searchable={false}
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as 'recommended' | 'rating')}
-                aria-label="Sort by"
-              >
-                <option value="recommended">Recommended</option>
-                <option value="rating">Rating</option>
-              </select>
+                onChange={(value) => setSortBy(value as 'recommended' | 'rating')}
+                options={[
+                  { value: 'recommended', label: 'Recommended' },
+                  { value: 'rating', label: 'Rating' },
+                ]}
+                placeholder="Sort by"
+              />
             </label>
           </div>
 

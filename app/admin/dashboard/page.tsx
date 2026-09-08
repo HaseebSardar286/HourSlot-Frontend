@@ -314,6 +314,22 @@ export default function AdminDashboardPage() {
                   )}
                 </tbody>
               </table>
+              {recent.users.length > 0 && (
+                <div className={styles.mobileList} aria-label="Recent user registrations">
+                  {recent.users.slice(0, 5).map((u) => (
+                    <article key={u.id} className={styles.mobileRow}>
+                      <div className={styles.mobileRowMain}>
+                        <div className={styles.regName}>
+                          {u.firstName ? `${u.firstName} ${u.lastName || ''}` : 'New user'}
+                        </div>
+                        <div className={styles.regEmail}>{u.email}</div>
+                        <div className={styles.muted}>{formatDate(u.createdAt)}</div>
+                      </div>
+                      <StatusBadge status={u.role === 'CUSTOMER' ? 'ACTIVE' : u.role} />
+                    </article>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -358,6 +374,22 @@ export default function AdminDashboardPage() {
                   )}
                 </tbody>
               </table>
+              {recent.businesses.length > 0 && (
+                <div className={styles.mobileList} aria-label="Recent businesses">
+                  {recent.businesses.slice(0, 5).map((b) => (
+                    <article key={b.id} className={styles.mobileRow}>
+                      <div className={styles.mobileRowMain}>
+                        <div className={styles.regName}>{b.name}</div>
+                        <div className={styles.regEmail}>
+                          {b.category || 'Service business'} · {b.owner?.email}
+                        </div>
+                        <div className={styles.muted}>{formatDate(b.createdAt)}</div>
+                      </div>
+                      <StatusBadge status={b.status} />
+                    </article>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

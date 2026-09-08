@@ -1,10 +1,12 @@
 .bar {
-  margin-bottom: 20px;
+  margin-bottom: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .list {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 4px 0;
   list-style: none;

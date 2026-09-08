@@ -67,15 +67,24 @@ interface BusinessDetailResponse {
     id: number;
     documentType: string;
     label: string;
+    hint?: string;
+    tier?: number;
     status: string;
     originalFilename?: string;
     url?: string;
     reviewNotes?: string;
   }[];
   verificationReadiness?: {
+    readyForListing?: boolean;
     readyForVerifiedBadge: boolean;
     approvedCount: number;
     requiredCount: number;
+    tier1ApprovedCount?: number;
+    tier1RequiredCount?: number;
+    tier2ApprovedCount?: number;
+    tier2RequiredCount?: number;
+    tier1Types?: { code: string; label: string; hint?: string }[];
+    tier2Types?: { code: string; label: string; hint?: string }[];
   };
 }
 
@@ -137,7 +146,7 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
       setMessage('Verified badge granted.');
       await loadDetails();
     } catch (err: any) {
-      setError(err.message || 'Failed to grant verified badge. Approve all three documents first.');
+      setError(err.message || 'Failed to grant verified badge. Approve Tax ID and Bank statement first.');
     } finally {
       setActionLoading(false);
     }
@@ -393,10 +402,14 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
           <div className="surface">
             <h3 className={styles.sectionTitle}>Verification documents</h3>
             <p className={styles.description}>
-              Ready for verified badge:{' '}
-              {detail.verificationReadiness?.readyForVerifiedBadge
-                ? 'Yes'
-                : `No (${detail.verificationReadiness?.approvedCount ?? 0}/${detail.verificationReadiness?.requiredCount ?? 3} approved)`}
+              Tier 1 (listing): {detail.verificationReadiness?.tier1ApprovedCount ?? 0}/
+              {detail.verificationReadiness?.tier1RequiredCount ?? 3} approved
+              {detail.verificationReadiness?.readyForListing ? ' — ready to approve listing' : ''}
+            </p>
+            <p className={styles.description}>
+              Tier 2 (badge): {detail.verificationReadiness?.tier2ApprovedCount ?? 0}/
+              {detail.verificationReadiness?.tier2RequiredCount ?? 2} approved
+              {detail.verificationReadiness?.readyForVerifiedBadge ? ' — ready for verified badge' : ''}
             </p>
             {(detail.verificationDocuments || []).length === 0 ? (
               <p className={styles.description}>No documents uploaded yet.</p>
@@ -404,7 +417,10 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
               <div className={styles.infoGroup}>
                 {detail.verificationDocuments!.map((doc) => (
                   <div key={doc.id} className={styles.infoRow} style={{ alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-                    <span className={styles.infoLabel}>{doc.label}</span>
+                    <span className={styles.infoLabel}>
+                      {doc.tier ? `T${doc.tier}: ` : ''}
+                      {doc.label}
+                    </span>
                     <StatusBadge status={doc.status} />
                     {doc.url && (
                       <a href={doc.url} target="_blank" rel="noreferrer" className="btn btn-sm btn-outline">
@@ -436,7 +452,8 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
                     type="button"
                     className="btn btn-secondary"
                     onClick={handleApproveListing}
-                    disabled={actionLoading}
+                    disabled={actionLoading || !detail.verificationReadiness?.readyForListing}
+                    title="Requires Tier 1 documents approved (Owner ID, Trade license, Address proof)"
                   >
                     Approve listing
                   </button>
@@ -445,7 +462,7 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
                     className="btn btn-primary"
                     onClick={handleApprove}
                     disabled={actionLoading || !detail.verificationReadiness?.readyForVerifiedBadge}
-                    title="Requires all three documents approved"
+                    title="Requires Tier 2 documents approved (Tax ID, Bank statement)"
                   >
                     Grant verified badge
                   </button>
@@ -467,6 +484,7 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
                       className="btn btn-primary"
                       onClick={handleApprove}
                       disabled={actionLoading || !detail.verificationReadiness?.readyForVerifiedBadge}
+                      title="Requires Tier 2 documents approved (Tax ID, Bank statement)"
                     >
                       Grant verified badge
                     </button>
@@ -482,7 +500,13 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
                 </>
               )}
               {(business.status === 'REJECTED' || business.status === 'SUSPENDED') && (
-                <button type="button" className="btn btn-primary" onClick={handleApproveListing} disabled={actionLoading}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleApproveListing}
+                  disabled={actionLoading || !detail.verificationReadiness?.readyForListing}
+                  title="Requires Tier 1 documents approved"
+                >
                   Restore listing
                 </button>
               )}

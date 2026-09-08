@@ -2,6 +2,7 @@
 
 import type { Branch, Staff } from '@/lib/types';
 import EmptyState from '@/components/EmptyState';
+import CustomSelect from '@/components/CustomSelect';
 import styles from './booking.module.css';
 
 interface DetailsStepProps {
@@ -30,17 +31,18 @@ export default function DetailsStep({
       {branches.length > 1 && (
         <div className={styles.fieldBlock}>
           <label htmlFor="bookingBranch">Location</label>
-          <select
+          <CustomSelect
             id="bookingBranch"
-            value={selectedBranchId}
-            onChange={(e) => onBranchChange(e.target.value)}
-          >
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name} — {b.address}
-              </option>
-            ))}
-          </select>
+            options={branches.map((b) => ({
+              value: String(b.id),
+              label: b.name,
+              sublabel: b.address,
+            }))}
+            value={String(selectedBranchId || '')}
+            onChange={onBranchChange}
+            placeholder="Select a location"
+            searchable={branches.length > 6}
+          />
         </div>
       )}
 

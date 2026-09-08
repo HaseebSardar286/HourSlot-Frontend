@@ -71,7 +71,7 @@ export default function AdminBusinessesPage() {
     setMessage(null);
     try {
       await apiFetch(`/api/admin/businesses/${verifyTarget.id}/verify`, { method: 'PUT' });
-      setMessage(`Business "${verifyTarget.name}" verified and approved successfully.`);
+      setMessage(`Verified badge granted for "${verifyTarget.name}".`);
       if (statusFilter === 'PENDING') {
         setBusinesses((prev) => prev.filter((b) => b.id !== verifyTarget.id));
       } else {
@@ -97,7 +97,7 @@ export default function AdminBusinessesPage() {
 
   return (
     <div className={styles.businessesWrapper}>
-      <PageHeader title="Businesses" subtitle="Review applications, verify partners, and open detail records." />
+      <PageHeader title="Businesses" subtitle="Review applications, approve listings, and grant Verified badges." />
 
       {error && (
         <div className="error-alert">
@@ -188,8 +188,8 @@ export default function AdminBusinessesPage() {
       <ConfirmDialog
         open={!!verifyTarget}
         title="Approve business"
-        message={`Verify and approve "${verifyTarget?.name}"?`}
-        confirmLabel="Approve"
+        message={`Grant the Verified badge for "${verifyTarget?.name}"? Tier 2 documents (Tax ID and bank statement) must already be approved.`}
+        confirmLabel="Grant badge"
         loading={verifying}
         onConfirm={handleQuickVerify}
         onCancel={() => setVerifyTarget(null)}

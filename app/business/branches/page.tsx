@@ -158,7 +158,7 @@ export default function BranchesPage() {
       await loadBranches();
       await refreshPlan();
     } catch (err: any) {
-      setError(err?.message || 'Action failed. Please verify your profile is verified.');
+      setError(err?.message || 'Action failed. Your listing may need approval first.');
     } finally {
       setSubmitting(false);
     }

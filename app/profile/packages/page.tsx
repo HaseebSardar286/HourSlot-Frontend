@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { buildBookingHref } from '@/lib/booking-flow';
 import type { CustomerPackage } from '@/lib/types';
@@ -11,10 +12,12 @@ import StatusBadge from '@/components/StatusBadge';
 import Skeleton from '@/components/Skeleton';
 import styles from './packages.module.css';
 
-export default function CustomerPackagesPage() {
+function CustomerPackagesContent() {
+  const searchParams = useSearchParams();
   const [packages, setPackages] = useState<CustomerPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const loadPackages = async () => {
     setLoading(true);
@@ -22,12 +25,25 @@ export default function CustomerPackagesPage() {
     try {
       const data = await apiFetch<CustomerPackage[]>('/api/customer/packages');
       setPackages(data || []);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load purchased packages.');
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      setError(e?.message || 'Failed to load purchased packages.');
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const payment = searchParams.get('payment');
+    if (payment === 'success') {
+      setSuccess('Package payment completed successfully.');
+      setError(null);
+    }
+    if (payment === 'cancelled') {
+      setError('Online package payment was cancelled.');
+      setSuccess(null);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     loadPackages();
@@ -52,6 +68,11 @@ export default function CustomerPackagesPage() {
         }
       />
 
+      {success && (
+        <div className="success-alert" style={{ marginBottom: 16 }}>
+          <i className="fa-solid fa-circle-check" /> {success}
+        </div>
+      )}
       {error && (
         <div className="error-alert" style={{ marginBottom: 16 }}>
           <i className="fa-solid fa-triangle-exclamation" /> {error}
@@ -110,5 +131,24 @@ export default function CustomerPackagesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function CustomerPackagesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className={styles.container}>
+          <PageHeader title="Package wallet" subtitle="Loading your packages…" />
+          <div className={styles.grid}>
+            {[1, 2, 3].map((n) => (
+              <Skeleton key={n} variant="card" height={180} />
+            ))}
+          </div>
+        </div>
+      }
+    >
+      <CustomerPackagesContent />
+    </Suspense>
   );
 }

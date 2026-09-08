@@ -19,6 +19,9 @@ interface CustomSelectProps {
   disabled?: boolean;
   loading?: boolean;
   id?: string;
+  /** Compact pill style for toolbar/filter rows */
+  variant?: 'default' | 'compact';
+  className?: string;
 }
 
 export default function CustomSelect({
@@ -30,6 +33,8 @@ export default function CustomSelect({
   disabled = false,
   loading = false,
   id,
+  variant = 'default',
+  className = '',
 }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -68,7 +73,7 @@ export default function CustomSelect({
   return (
     <div
       ref={containerRef}
-      className={`${styles.selectContainer} ${disabled ? styles.disabled : ''} ${isOpen ? styles.open : ''}`}
+      className={`${styles.selectContainer} ${variant === 'compact' ? styles.compact : ''} ${disabled ? styles.disabled : ''} ${isOpen ? styles.open : ''} ${className}`.trim()}
       id={id}
     >
       <button
@@ -107,7 +112,7 @@ export default function CustomSelect({
         <div className={styles.dropdownMenu}>
           {searchable && (
             <div className={styles.searchWrapper}>
-              <i className="fa-solid fa-magnifying-glass styles.searchIcon" />
+              <i className={`fa-solid fa-magnifying-glass ${styles.searchIcon}`} />
               <input
                 type="text"
                 className={styles.searchInput}

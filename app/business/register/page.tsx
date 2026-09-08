@@ -7,6 +7,7 @@ import { apiFetch } from '@/lib/api';
 import FormField from '@/components/FormField';
 import Skeleton from '@/components/Skeleton';
 import GeoFields, { type GeoSelection } from '@/components/GeoFields';
+import CustomSelect from '@/components/CustomSelect';
 import styles from './register-business.module.css';
 
 const LocationPicker = dynamic(
@@ -179,19 +180,19 @@ export default function RegisterBusinessPage() {
                 <label className="form-label" htmlFor="category">
               Primary category
             </label>
-                <select
+                <CustomSelect
                   id="category"
-                  className="select-field"
-                  value={formData.primaryCategoryId}
-                  onChange={(e) => handleInputChange('primaryCategoryId', e.target.value)}
-                >
-                  <option value="">Select category</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    { value: '', label: 'Select category' },
+                    ...categories.map((c) => ({
+                      value: String(c.id),
+                      label: c.name,
+                    })),
+                  ]}
+                  value={String(formData.primaryCategoryId || '')}
+                  onChange={(value) => handleInputChange('primaryCategoryId', value)}
+                  placeholder="Select category"
+                />
               </div>
               <FormField
                 label="Registration / license number (optional)"
@@ -272,8 +273,8 @@ export default function RegisterBusinessPage() {
                 {formData.countryCode} · {formData.defaultCurrency}
               </p>
               <p className={styles.hint}>
-                After submit, upload trade license, bank statement, and owner ID so Super Admin can grant a verified
-                badge.
+                After submit, upload Tier 1 documents (Owner ID, trade license, address proof) so Super Admin can approve
+                your listing. Tax ID and bank statement unlock a Verified badge later.
               </p>
             </div>
           )}

@@ -2,7 +2,7 @@
   width: 100%;
   max-width: none;
   margin: 0;
-  padding: 0 0 40px;
+  padding: 8px 0 48px;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -13,7 +13,7 @@
   width: 100%;
   max-width: none;
   margin: 0;
-  padding: 8px 0 32px;
+  padding: 8px 0 48px;
 }
 
 .appHeader {
@@ -22,9 +22,9 @@
   justify-content: space-between;
   gap: 20px;
   flex-wrap: wrap;
-  padding: 20px 0 16px;
+  padding: 8px 0 20px;
   border-bottom: 1px solid var(--border-color);
-  margin-bottom: 16px;
+  margin-bottom: 24px;
 }
 
 .appHeaderMain {
@@ -108,7 +108,7 @@
 .appSearchPanel {
   display: flex;
   gap: 10px;
-  margin-bottom: 20px;
+  margin-bottom: 28px;
   flex-wrap: wrap;
 }
 
@@ -142,7 +142,7 @@
 .appLayout {
   display: grid;
   grid-template-columns: minmax(280px, 380px) 1fr;
-  gap: 16px;
+  gap: 24px;
   align-items: stretch;
   min-height: 420px;
 }
@@ -335,8 +335,8 @@
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  margin-top: 20px;
-  padding-top: 16px;
+  margin-top: 32px;
+  padding-top: 24px;
   border-top: 1px solid var(--border-color);
   font-size: 0.8rem;
   color: var(--text-muted);
@@ -358,14 +358,65 @@
 @media (max-width: 800px) {
   .appLayout {
     grid-template-columns: 1fr;
+    gap: 16px;
+    min-height: 0;
   }
 
   .browsePanel {
-    min-height: 240px;
+    min-height: 180px;
   }
 
   .categoryList {
-    max-height: 320px;
+    max-height: none;
+  }
+
+  .appHeader {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 4px 0 16px;
+    margin-bottom: 16px;
+  }
+
+  .appTitle {
+    font-size: 1.55rem;
+  }
+
+  .appSearchPanel {
+    position: sticky;
+    top: 64px;
+    z-index: 15;
+    background: var(--bg-primary);
+    padding: 8px 0 12px;
+    margin: 0 -2px 16px;
+  }
+
+  .appSearchField {
+    min-width: 0;
+  }
+
+  .appSearchField input {
+    font-size: 16px;
+  }
+
+  .appSearchPanel .btn {
+    width: 100%;
+  }
+
+  .categoryRow {
+    min-height: 56px;
+    padding: 14px 14px;
+  }
+
+  .appHeaderMeta {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .locBtn {
+    min-height: 44px;
+    flex: 1;
+    justify-content: center;
   }
 }
 
@@ -806,6 +857,11 @@
 
   .searchBar .btn {
     width: 100%;
+  }
+
+  .searchBar input {
+    font-size: 16px;
+    min-height: 44px;
   }
 }
 
@@ -1298,24 +1354,14 @@
 .filterPill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: #fff;
-  border: 1px solid var(--border-color);
-  border-radius: 999px;
-  padding: 6px 12px;
+  gap: 8px;
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--text-muted);
 }
 
 .filterPill select {
-  border: 0;
-  background: transparent;
-  font: inherit;
-  font-weight: 600;
-  color: var(--text-main);
-  cursor: pointer;
-  outline: none;
+  display: none;
 }
 
 .resultsBar {
@@ -1696,8 +1742,8 @@
   }
 
   .mapPane {
-    min-height: 40vh;
-    flex: 0 0 40vh;
+    min-height: 36vh;
+    flex: 0 0 36vh;
     width: 100%;
   }
 
@@ -1730,10 +1776,13 @@
   .findSearch input {
     width: 100%;
     flex: 1 1 140px;
+    font-size: 16px;
+    min-height: 44px;
   }
 
   .searchGo {
     flex: 1;
+    min-height: 44px;
   }
 
   .resultCard {
@@ -1742,5 +1791,9 @@
 
   .resultThumb {
     height: 88px;
+  }
+
+  .findPane {
+    padding-bottom: 8px;
   }
 }
