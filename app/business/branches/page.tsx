@@ -39,6 +39,11 @@ interface Branch {
   timezone?: string;
 }
 
+function storedCoord(value: unknown, fallback: number) {
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 export default function BranchesPage() {
   const { plan, loaded: planLoaded, refresh: refreshPlan } = useOwnerPlan();
   const { locale } = useOrgLocale();
@@ -94,10 +99,10 @@ export default function BranchesPage() {
   const handleEditClick = (branch: Branch) => {
     setEditingBranch(branch);
     setFormData({
-      name: branch.name,
-      address: branch.address,
-      latitude: branch.latitude || 31.5204,
-      longitude: branch.longitude || 74.3587,
+      name: branch.name || '',
+      address: branch.address || '',
+      latitude: storedCoord(branch.latitude, 31.5204),
+      longitude: storedCoord(branch.longitude, 74.3587),
       phoneNumber: branch.phoneNumber || '',
       countryCode: branch.countryCode || locale.countryCode || '',
       region: branch.region || locale.region || '',
@@ -441,9 +446,11 @@ export default function BranchesPage() {
           />
 
           <LocationPicker
+            key={editingBranch ? `edit-${editingBranch.id}` : 'new-branch'}
             address={formData.address}
             latitude={formData.latitude}
             longitude={formData.longitude}
+            skipInitialGeocode={!!editingBranch}
             onAddressChange={(address) => setFormData((p) => ({ ...p, address }))}
             onCoordinatesChange={(latitude, longitude) =>
               setFormData((p) => ({ ...p, latitude, longitude }))

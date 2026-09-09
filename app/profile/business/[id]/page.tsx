@@ -49,6 +49,7 @@ interface Staff {
   specialty?: string;
   designation?: string;
   rating?: number;
+  branch?: { id: number; name?: string };
 }
 
 interface Review {
@@ -199,7 +200,9 @@ export default function BusinessProfilePage() {
       setProfile(profileData);
       setFavorites(favData.map((f) => f.business.id));
       if (profileData.branches.length > 0) {
-        setSelectedBranchId(String(profileData.branches[0].id));
+        const requested = searchParams.get('branchId');
+        const match = requested && profileData.branches.some((b) => String(b.id) === requested);
+        setSelectedBranchId(match ? requested : String(profileData.branches[0].id));
       }
     } catch (err: unknown) {
       const e = err as { message?: string };
@@ -218,6 +221,21 @@ export default function BusinessProfilePage() {
     if (!selectedBranchId) return;
     loadHours(Number.parseInt(selectedBranchId, 10)).catch(() => setWorkingHours([]));
   }, [selectedBranchId]);
+
+  useEffect(() => {
+    if (!profile) return;
+    const requested = searchParams.get('branchId');
+    if (requested && profile.branches.some((b) => String(b.id) === requested)) {
+      setSelectedBranchId(requested);
+    }
+  }, [searchParams, profile]);
+
+  const selectBranch = (branchId: string) => {
+    setSelectedBranchId(branchId);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('branchId', branchId);
+    router.replace(`/profile/business/${id}?${params.toString()}`, { scroll: false });
+  };
 
   const handleToggleFavorite = async () => {
     if (!profile) return;
@@ -350,6 +368,9 @@ export default function BusinessProfilePage() {
   const isFav = favorites.includes(business.id);
   const coverSrc = galleryImages[heroIndex] || galleryImages[0] || null;
   const activeBranch = branches.find((b) => String(b.id) === selectedBranchId) || branches[0];
+  const branchStaff = staff.filter(
+    (s) => !s.branch?.id || String(s.branch.id) === String(activeBranch?.id)
+  );
   const hasCoords =
     activeBranch &&
     Number.isFinite(activeBranch.latitude) &&
@@ -387,7 +408,7 @@ export default function BusinessProfilePage() {
       ? { icon: 'fa-clock', label: 'Online booking' }
       : { icon: 'fa-calendar', label: 'By appointment' },
     staff.length > 0
-      ? { icon: 'fa-user-group', label: `${staff.length} specialist${staff.length === 1 ? '' : 's'}` }
+      ? { icon: 'fa-user-group', label: `${branchStaff.length} specialist${branchStaff.length === 1 ? '' : 's'} at this location` }
       : { icon: 'fa-store', label: 'Local venue' },
     services.length > 0
       ? { icon: 'fa-list-check', label: `${services.length} service${services.length === 1 ? '' : 's'}` }
@@ -476,16 +497,31 @@ export default function BusinessProfilePage() {
                   </span>
                 </>
               )}
-              {activeBranch?.address && (
+              {activeBranch && (
                 <>
                   <span className={styles.metaDot} />
                   <span className={styles.metaItem}>
                     <i className="fa-solid fa-location-dot" />
-                    {activeBranch.address}
+                    {activeBranch.name}
+                    {activeBranch.address ? ` · ${activeBranch.address}` : ''}
                   </span>
                 </>
               )}
             </div>
+            {branches.length > 1 && (
+              <div className={styles.branchSwitch} role="group" aria-label="Locations">
+                {branches.map((b) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    className={`${styles.branchChip} ${String(b.id) === String(activeBranch?.id) ? styles.branchChipOn : ''}`}
+                    onClick={() => selectBranch(String(b.id))}
+                  >
+                    {b.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <Link
             href={canBook ? bookStartHref : '#'}
@@ -729,12 +765,14 @@ export default function BusinessProfilePage() {
           {activeTab === 'team' && (
             <div className={styles.panel} role="tabpanel">
               <h2 className={styles.panelTitle}>Our team</h2>
-              <p className={styles.panelLead}>Meet the specialists at this business</p>
-              {staff.length === 0 ? (
-                <EmptyState icon="fa-user-group" title="No team listed" description="You can still book with any available staff." />
+              <p className={styles.panelLead}>
+                Specialists at {activeBranch?.name || 'this location'}
+              </p>
+              {branchStaff.length === 0 ? (
+                <EmptyState icon="fa-user-group" title="No team listed here" description="You can still book with any available staff at this location." />
               ) : (
                 <div className={styles.teamGrid}>
-                  {staff.map((s) => (
+                  {branchStaff.map((s) => (
                     <article key={s.id} className={styles.teamMember}>
                       <div className={styles.teamAvatar}>{s.name.charAt(0)}</div>
                       <strong>{s.name}</strong>
@@ -798,7 +836,7 @@ export default function BusinessProfilePage() {
                     <CustomSelect
                       options={branches.map((b) => ({ value: String(b.id), label: b.name, sublabel: b.address }))}
                       value={selectedBranchId}
-                      onChange={setSelectedBranchId}
+                      onChange={selectBranch}
                       placeholder="Select location"
                     />
                   </div>

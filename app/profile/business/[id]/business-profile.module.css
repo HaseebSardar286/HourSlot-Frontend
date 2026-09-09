@@ -231,6 +231,30 @@
   color: var(--text-secondary);
 }
 
+.branchSwitch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.branchChip {
+  border: 1px solid var(--border-color);
+  background: #fff;
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.branchChipOn {
+  border-color: var(--accent-primary);
+  background: rgba(26, 138, 138, 0.1);
+  color: var(--accent-primary);
+}
+
 .metaItem {
   display: inline-flex;
   align-items: center;

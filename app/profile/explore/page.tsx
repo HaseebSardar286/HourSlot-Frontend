@@ -23,6 +23,10 @@ interface ExploreBranch extends Branch {
   distanceKm?: number;
 }
 
+function branchProfileHref(businessId: number, branchId: number) {
+  return `/profile/business/${businessId}?branchId=${branchId}`;
+}
+
 function withExploreMeta(list: ExploreBranch[]): ExploreBranch[] {
   return list.map((b) => ({
     ...b,
@@ -399,7 +403,7 @@ export default function ExplorePage() {
     const cover = coverFor(b);
     const cat = b.business.primaryCategory?.name || 'Service';
     return (
-      <Link href={`/profile/business/${b.business.id}`} key={b.id} className={styles.popularCard}>
+      <Link href={branchProfileHref(b.business.id, b.id)} key={b.id} className={styles.popularCard}>
         <div className={styles.popularCardImageWrapper}>
           {cover ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -436,7 +440,9 @@ export default function ExplorePage() {
           <p className={styles.categorySub}>{b.name}</p>
           <p className={styles.distanceText}>
             <i className="fa-solid fa-location-dot" />{' '}
-            {typeof b.distanceKm === 'number' ? `${b.distanceKm.toFixed(1)} km away` : [b.city, b.region, b.address].filter(Boolean).join(', ')}
+            {[b.address, typeof b.distanceKm === 'number' ? `${b.distanceKm.toFixed(1)} km away` : [b.city, b.region].filter(Boolean).join(', ')]
+              .filter(Boolean)
+              .join(' · ') || b.name}
           </p>
           <span className={styles.cardCta}>
             View profile <i className="fa-solid fa-arrow-right" />
@@ -451,11 +457,12 @@ export default function ExplorePage() {
     const isFav = favorites.includes(b.business.id);
     const cover = coverFor(b);
     const cat = b.business.primaryCategory?.name || 'Service';
+    const href = branchProfileHref(b.business.id, b.id);
     return (
       <article
         key={b.id}
         className={`${styles.resultCard} ${selectedId === b.id ? styles.resultCardOn : ''}`}
-        onClick={() => setSelectedId(b.id)}
+        onClick={() => router.push(href)}
       >
         <div className={styles.resultThumb}>
           {cover ? (
@@ -482,7 +489,7 @@ export default function ExplorePage() {
               <i className={`fa-${isFav ? 'solid' : 'regular'} fa-heart`} />
             </button>
           </div>
-          <Link href={`/profile/business/${b.business.id}`} className={styles.resultName} onClick={(e) => e.stopPropagation()}>
+          <Link href={href} className={styles.resultName} onClick={(e) => e.stopPropagation()}>
             {b.business.name}
             {b.business.verified ? (
               <i
@@ -493,16 +500,17 @@ export default function ExplorePage() {
             ) : null}
           </Link>
           <p className={styles.resultAddr}>
-            {[b.city, b.region, b.address].filter(Boolean).join(', ') || b.name}
+            <strong>{b.name}</strong>
+            {b.address ? ` · ${b.address}` : ''}
             {typeof b.distanceKm === 'number' ? ` · ${b.distanceKm.toFixed(1)} km` : ''}
           </p>
           <div className={styles.resultMeta}>
             <Link
-              href={`/profile/business/${b.business.id}`}
+              href={href}
               className={styles.bookLink}
               onClick={(e) => e.stopPropagation()}
             >
-              View &amp; book
+              View this location
             </Link>
             <span className={styles.nextSlot}>Choose a service</span>
           </div>
@@ -717,8 +725,11 @@ export default function ExplorePage() {
                 )}
               </div>
               <div className={styles.mapCardBody}>
-                <Link href={`/profile/business/${selected.business.id}`}>{selected.business.name}</Link>
-                <p>{selected.address || selected.name}</p>
+                <Link href={branchProfileHref(selected.business.id, selected.id)}>{selected.business.name}</Link>
+                <p>
+                  <strong>{selected.name}</strong>
+                  {selected.address ? ` · ${selected.address}` : ''}
+                </p>
                 <span>
                   {typeof selected.averageRating === 'number' && selected.averageRating > 0
                     ? `${selected.averageRating.toFixed(1)} · `
@@ -726,7 +737,7 @@ export default function ExplorePage() {
                   {typeof selected.distanceKm === 'number' ? `${selected.distanceKm.toFixed(1)} km` : 'Nearby'}
                 </span>
               </div>
-              <Link href={`/profile/business/${selected.business.id}`} className={styles.mapCardBook}>
+              <Link href={branchProfileHref(selected.business.id, selected.id)} className={styles.mapCardBook}>
                 View
               </Link>
               <button type="button" className={styles.mapCardClose} onClick={() => setSelectedId(null)} aria-label="Close">

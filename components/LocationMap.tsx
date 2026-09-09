@@ -42,23 +42,58 @@ interface LocationMapProps {
   scrollWheelZoom?: boolean;
 }
 
-function userLocationIcon(className: string, dotClassName: string) {
+function idsMatch(a: string | number | null | undefined, b: string | number | null | undefined) {
+  if (a == null || b == null) return false;
+  return String(a) === String(b);
+}
+
+function pinIcon(selected: boolean) {
+  const fill = selected ? '#0f5c5c' : '#1a8a8a';
+  const w = selected ? 27 : 24;
+  const h = selected ? 40 : 36;
   return L.divIcon({
-    className,
-    html: `<span class="${dotClassName}"></span>`,
-    iconSize: [18, 18],
-    iconAnchor: [9, 9],
+    className: `${styles.pin} ${selected ? styles.pinOn : ''}`,
+    html: `<svg class="${styles.pinSvg}" width="${w}" height="${h}" viewBox="0 0 24 36" aria-hidden="true">
+      <path d="M12 0C5.373 0 0 5.373 0 12c0 9.5 12 24 12 24s12-14.5 12-24C24 5.373 18.627 0 12 0z" fill="${fill}"/>
+      <circle cx="12" cy="12" r="4.4" fill="#fff"/>
+    </svg>`,
+    iconSize: [w, h],
+    iconAnchor: [w / 2, h],
+    popupAnchor: [0, -h + 4],
   });
 }
 
-function businessIcon(selected: boolean) {
+function userLocationIcon() {
   return L.divIcon({
-    className: styles.bizMarker,
-    html: `<span class="${selected ? styles.bizMarkerOn : styles.bizMarkerDot}"></span>`,
-    iconSize: selected ? [22, 22] : [16, 16],
-    iconAnchor: selected ? [11, 11] : [8, 8],
+    className: styles.userMarker,
+    html: `<span class="${styles.userMarkerRing}"></span><span class="${styles.userMarkerDot}"></span>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    popupAnchor: [0, -12],
   });
 }
+
+function infoWindowHtml(label: string) {
+  const parts = label
+    .split(/<br\s*\/?>/i)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const title = parts[0] || label;
+  const lines = parts.slice(1);
+  return `<div class="${styles.infoCard}">
+    <p class="${styles.infoTitle}">${title}</p>
+    ${lines.map((line) => `<p class="${styles.infoLine}">${line}</p>`).join('')}
+  </div>`;
+}
+
+const INFO_POPUP: L.PopupOptions = {
+  className: 'hs-info-popup',
+  closeButton: true,
+  autoPan: true,
+  maxWidth: 260,
+  minWidth: 168,
+  offset: [0, -4],
+};
 
 function isMapAlive(map: L.Map | null | undefined): map is L.Map {
   if (!map) return false;
@@ -179,27 +214,33 @@ export default function LocationMap({
       if (!Number.isFinite(m.lat) || !Number.isFinite(m.lng)) return;
       const ll = L.latLng(m.lat, m.lng);
       latLngs.push(ll);
-      const selected = m.id != null && m.id === selectedId;
+      const selected = idsMatch(m.id, selectedId);
       const marker = L.marker(ll, {
-        icon: businessIcon(selected),
-        zIndexOffset: selected ? 500 : 0,
+        icon: pinIcon(selected),
+        zIndexOffset: selected ? 600 : 0,
+        riseOnHover: true,
       });
+      if (m.label) {
+        marker.bindPopup(infoWindowHtml(m.label), INFO_POPUP);
+      }
       if (m.id != null) {
         marker.on('click', () => clickRef.current?.(m.id as string | number));
       }
-      if (m.label && !onMarkerClick) marker.bindPopup(m.label);
       marker.addTo(layer);
+      if (selected && m.label) {
+        marker.openPopup();
+      }
     });
 
     if (userLocation && Number.isFinite(userLocation.lat) && Number.isFinite(userLocation.lng)) {
       const you = L.latLng(userLocation.lat, userLocation.lng);
       latLngs.push(you);
       L.marker(you, {
-        icon: userLocationIcon(styles.userMarker, styles.userMarkerDot),
+        icon: userLocationIcon(),
         zIndexOffset: 400,
         keyboard: false,
       })
-        .bindPopup('You are here')
+        .bindPopup(infoWindowHtml('<strong>You are here</strong>'), INFO_POPUP)
         .addTo(layer);
     }
 
@@ -257,6 +298,8 @@ interface LocationPickerProps {
   onAddressChange: (address: string) => void;
   onCoordinatesChange: (lat: number, lng: number) => void;
   height?: number;
+  /** When true, keep the provided coordinates instead of geocoding the address on open. */
+  skipInitialGeocode?: boolean;
 }
 
 /**
@@ -270,12 +313,16 @@ export function LocationPicker({
   onAddressChange,
   onCoordinatesChange,
   height = 260,
+  skipInitialGeocode = false,
 }: LocationPickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const geocodeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const skipNextGeocode = useRef(false);
+  const skipNextGeocode = useRef(
+    skipInitialGeocode || (Number.isFinite(latitude) && Number.isFinite(longitude))
+  );
+  const seededAddress = useRef(address);
   const [geocoding, setGeocoding] = useState(false);
   const [geoHint, setGeoHint] = useState<string | null>(null);
 
@@ -305,9 +352,11 @@ export function LocationPicker({
     if (!containerRef.current || mapRef.current) return;
     ensureDefaultIcon();
 
+    const startLat = Number.isFinite(latitude) ? latitude : 37.7749;
+    const startLng = Number.isFinite(longitude) ? longitude : -122.4194;
     const map = L.map(containerRef.current, { scrollWheelZoom: true }).setView(
-      [latitude || 37.7749, longitude || -122.4194],
-      13
+      [startLat, startLng],
+      14
     );
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
@@ -323,7 +372,7 @@ export function LocationPicker({
     });
 
     mapRef.current = map;
-    setMarkerPosition(latitude || 37.7749, longitude || -122.4194, false);
+    setMarkerPosition(startLat, startLng, false);
     let cancelled = false;
     const t = setTimeout(() => {
       if (!cancelled) safeInvalidateSize(map);
@@ -378,6 +427,9 @@ export function LocationPicker({
       skipNextGeocode.current = false;
       return;
     }
+    if (skipInitialGeocode && address === seededAddress.current) {
+      return;
+    }
     if (geocodeTimer.current) clearTimeout(geocodeTimer.current);
     geocodeTimer.current = setTimeout(() => {
       geocodeAddress(address);
@@ -385,7 +437,7 @@ export function LocationPicker({
     return () => {
       if (geocodeTimer.current) clearTimeout(geocodeTimer.current);
     };
-  }, [address, geocodeAddress]);
+  }, [address, geocodeAddress, skipInitialGeocode]);
 
   return (
     <div className={styles.picker}>

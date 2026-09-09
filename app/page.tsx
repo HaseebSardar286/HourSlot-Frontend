@@ -17,7 +17,7 @@ const CAPABILITIES = [
   { value: 'Multi', label: 'Branches, staff & packages', color: 'violet' },
 ];
 
-const STACK = ['Stripe', 'Leaflet', 'OpenStreetMap', 'PostgreSQL', 'Redis'];
+// const STACK = ['Stripe', 'Leaflet', 'OpenStreetMap', 'PostgreSQL', 'Redis'];
 const TREND_COLORS = ['rose', 'sky', 'coral', 'violet'] as const;
 
 interface DiscoverBranch {
@@ -385,13 +385,13 @@ export default function LandingPage() {
       </section>
 
       {/* Stack strip */}
-      <section className={styles.marquee} aria-label="Technology stack">
+      {/* <section className={styles.marquee} aria-label="Technology stack">
         <div className={styles.marqueeTrack}>
           {[...STACK, ...STACK].map((p, i) => (
             <span key={`${p}-${i}`} className={styles.marqueeItem}>{p}</span>
           ))}
         </div>
-      </section>
+      </section> */}
 
       {/* Trust */}
       <section className={styles.trust} aria-label="Why HourSlot">
