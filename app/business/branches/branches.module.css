@@ -68,28 +68,24 @@
 
 .branchCard {
   background: var(--bg-secondary);
-  border: 1.5px solid var(--border-color);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  transition: var(--transition-smooth);
   cursor: pointer;
   position: relative;
+  isolation: isolate;
   box-shadow: var(--card-shadow);
+  transform: none;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .branchCard:hover {
-  border-color: rgba(15, 118, 118, 0.45);
-  box-shadow: var(--glow-shadow);
-  transform: translateY(-2px);
-}
-
-.branchCardActive {
+  background: var(--bg-secondary);
   border-color: var(--accent-primary);
-  box-shadow: 0 0 24px rgba(15, 118, 118, 0.12);
-  background: rgba(242, 248, 247, 0.4);
+  box-shadow: 0 6px 18px rgba(15, 118, 118, 0.14);
 }
 
 .cardHeader {
@@ -192,6 +188,15 @@ a.detailItem:hover {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
+}
+
+.cardActions :global(.btn) {
+  transform: none;
+  transition: border-color 0.16s ease, color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.cardActions :global(.btn:hover) {
+  transform: none;
 }
 
 .coords {

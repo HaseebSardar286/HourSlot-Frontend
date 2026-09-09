@@ -59,6 +59,7 @@ export default function BranchesPage() {
   const [deleting, setDeleting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
+  const [hoveredBranchId, setHoveredBranchId] = useState<number | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -269,14 +270,17 @@ export default function BranchesPage() {
               </div>
             </div>
 
-            <div className={styles.branchesList}>
+            <div
+              className={styles.branchesList}
+              onMouseLeave={() => setHoveredBranchId(null)}
+            >
               {filteredBranches.map((b, index) => (
                 <div
                   key={b.id}
-                  className={`${styles.branchCard} ${
-                    selectedBranchId === b.id ? styles.branchCardActive : ''
-                  }`}
-                  onMouseEnter={() => setSelectedBranchId(b.id)}
+                  className={styles.branchCard}
+                  onMouseEnter={() => setHoveredBranchId(b.id)}
+                  onMouseLeave={() => setHoveredBranchId((current) => (current === b.id ? null : current))}
+                  onClick={() => setSelectedBranchId(b.id)}
                 >
                   <div className={styles.cardHeader}>
                     <h4 className={styles.branchTitle}>{b.name}</h4>
@@ -364,7 +368,7 @@ export default function BranchesPage() {
           <div className={styles.mapSide}>
             <LocationMap
               markers={mapMarkers}
-              selectedId={selectedBranchId}
+              selectedId={hoveredBranchId ?? selectedBranchId}
               onMarkerClick={(id) => setSelectedBranchId(Number(id))}
               fitMarkers={true}
               height="100%"

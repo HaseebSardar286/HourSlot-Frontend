@@ -57,6 +57,7 @@ export default function ExplorePage() {
   const [sortBy, setSortBy] = useState<'recommended' | 'rating'>('recommended');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [hoveredId, setHoveredId] = useState<number | null>(null);
   const bootstrapped = useRef(false);
   const splitRef = useRef<HTMLDivElement>(null);
   const draggingSplit = useRef(false);
@@ -83,7 +84,8 @@ export default function ExplorePage() {
       setFavorites(favData.map((f) => f.business.id));
       setIsSearchActive(queryVal !== '');
       setLocationLabel('Near you');
-      if (rated[0]) setSelectedId(rated[0].id);
+      setSelectedId(null);
+      setHoveredId(null);
     } catch (err: unknown) {
       const e = err as { message?: string };
       setError(e?.message || 'Failed to load nearby businesses.');
@@ -111,7 +113,8 @@ export default function ExplorePage() {
       setCategories(catData);
       setFavorites(favData.map((f) => f.business.id));
       setIsSearchActive(isSearching || queryVal !== '');
-      if (rated[0]) setSelectedId(rated[0].id);
+      setSelectedId(null);
+      setHoveredId(null);
     } catch (err: unknown) {
       const e = err as { message?: string };
       setError(e?.message || 'Failed to load explore data.');
@@ -290,6 +293,8 @@ export default function ExplorePage() {
     setSearchQuery('');
     setIsSearchActive(false);
     setActiveCategory(null);
+    setSelectedId(null);
+    setHoveredId(null);
     if (coords) {
       loadNearby(coords.lat, coords.lon, '');
     } else {
@@ -387,7 +392,8 @@ export default function ExplorePage() {
     [sortedBranches]
   );
 
-  const selected = sortedBranches.find((b) => b.id === selectedId) || null;
+  const previewId = hoveredId ?? selectedId;
+  const selected = sortedBranches.find((b) => b.id === previewId) || null;
 
   if (authLoading) {
     return (
@@ -461,7 +467,9 @@ export default function ExplorePage() {
     return (
       <article
         key={b.id}
-        className={`${styles.resultCard} ${selectedId === b.id ? styles.resultCardOn : ''}`}
+        className={styles.resultCard}
+        onMouseEnter={() => setHoveredId(b.id)}
+        onMouseLeave={() => setHoveredId((current) => (current === b.id ? null : current))}
         onClick={() => router.push(href)}
       >
         <div className={styles.resultThumb}>
@@ -664,7 +672,10 @@ export default function ExplorePage() {
             </div>
           )}
 
-          <div className={styles.resultList}>
+          <div
+            className={styles.resultList}
+            onMouseLeave={() => setHoveredId(null)}
+          >
             {loading ? (
               [1, 2, 3, 4].map((n) => (
                 <div key={n} className={styles.resultCard}>
@@ -707,7 +718,7 @@ export default function ExplorePage() {
             markers={mapMarkers}
             userLocation={coords ? { lat: coords.lat, lng: coords.lon } : null}
             height="100%"
-            selectedId={selectedId}
+            selectedId={previewId}
             onMarkerClick={(id) => setSelectedId(Number(id))}
             showControls
             onLocate={() => triggerSearchOrNearby(searchQuery)}
