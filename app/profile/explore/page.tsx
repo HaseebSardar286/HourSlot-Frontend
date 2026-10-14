@@ -469,6 +469,11 @@ export default function ExplorePage() {
         <div className={styles.popularCardContent}>
           <h4>
             {b.business.name}
+            {b.business.isOnline ? (
+              <span title="Online now" style={{ marginLeft: 6, color: '#16a34a', fontSize: '0.75em' }}>
+                <i className="fa-solid fa-circle" style={{ fontSize: '0.55em', verticalAlign: 'middle' }} /> Online
+              </span>
+            ) : null}
             {b.business.verified ? (
               <i
                 className="fa-solid fa-circle-check"
@@ -533,6 +538,11 @@ export default function ExplorePage() {
           </div>
           <Link href={href} className={styles.resultName} onClick={(e) => e.stopPropagation()}>
             {b.business.name}
+            {b.business.isOnline ? (
+              <span title="Online now" style={{ marginLeft: 6, color: '#16a34a', fontSize: '0.75em' }}>
+                <i className="fa-solid fa-circle" style={{ fontSize: '0.55em', verticalAlign: 'middle' }} /> Online
+              </span>
+            ) : null}
             {b.business.verified ? (
               <i
                 className="fa-solid fa-circle-check"
@@ -583,30 +593,6 @@ export default function ExplorePage() {
               {locationLabel}
             </span>
           </header>
-
-          <div className={styles.dashStats}>
-            <div className={`${styles.dashStat} ${styles.dashStatTeal}`}>
-              <i className="fa-solid fa-store" />
-              <div>
-                <strong>{sortedBranches.length}</strong>
-                <span>Results</span>
-              </div>
-            </div>
-            <div className={`${styles.dashStat} ${styles.dashStatRose}`}>
-              <i className="fa-solid fa-heart" />
-              <div>
-                <strong>{favorites.length}</strong>
-                <span>Saved</span>
-              </div>
-            </div>
-            <div className={`${styles.dashStat} ${styles.dashStatIndigo}`}>
-              <i className="fa-solid fa-ruler" />
-              <div>
-                <strong>{radiusKm} km</strong>
-                <span>Radius</span>
-              </div>
-            </div>
-          </div>
 
           <form onSubmit={handleSearchSubmit} className={styles.findSearch}>
             <i className="fa-solid fa-magnifying-glass" aria-hidden />

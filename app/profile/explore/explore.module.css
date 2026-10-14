@@ -198,7 +198,8 @@
   cursor: pointer;
   text-align: left;
   font-family: inherit;
-  transition: background 0.15s ease;
+  transition: background 0.18s ease, transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: hsRiseIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .categoryRow:last-child {
@@ -207,6 +208,7 @@
 
 .categoryRow:hover {
   background: rgba(26, 138, 138, 0.04);
+  transform: translateX(3px);
 }
 
 .categoryRowIcon {
@@ -1067,6 +1069,7 @@
   min-width: 320px;
   max-width: 72%;
   min-height: 0;
+  height: 100%;
   padding: 22px 20px 8px;
   overflow: hidden;
   background:
@@ -1388,12 +1391,15 @@
 
 .resultList {
   flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
   padding-right: 4px;
   padding-bottom: 18px;
+  overscroll-behavior: contain;
 }
 
 .resultCard {
@@ -1408,13 +1414,25 @@
   box-shadow: 0 2px 10px rgba(15, 30, 35, 0.04);
   text-align: left;
   transform: none;
-  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: hsRiseIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+
+.resultList .resultCard:nth-child(1) { animation-delay: 0.03s; }
+.resultList .resultCard:nth-child(2) { animation-delay: 0.08s; }
+.resultList .resultCard:nth-child(3) { animation-delay: 0.13s; }
+.resultList .resultCard:nth-child(4) { animation-delay: 0.18s; }
+.resultList .resultCard:nth-child(5) { animation-delay: 0.23s; }
+.resultList .resultCard:nth-child(6) { animation-delay: 0.28s; }
+.resultList .resultCard:nth-child(7) { animation-delay: 0.33s; }
+.resultList .resultCard:nth-child(8) { animation-delay: 0.38s; }
+.resultList .resultCard:nth-child(n + 9) { animation-delay: 0.42s; }
 
 .resultCard:hover {
   background: #fff;
   border-color: var(--accent-primary);
   box-shadow: 0 6px 18px rgba(15, 118, 118, 0.14);
+  transform: translateY(-2px);
 }
 
 .resultThumb {

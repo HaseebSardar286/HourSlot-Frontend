@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { destinationAfterAuth } from '@/lib/auth-redirect';
+import { AuthFlipLink } from '../AuthFlip';
 import shared from '../auth-shared.module.css';
 
 function LoginForm() {
@@ -45,7 +46,12 @@ function LoginForm() {
     try {
       const session = await login({ email, password });
       document.cookie = `hourslot_user_session=${encodeURIComponent(JSON.stringify(session))}; path=/; max-age=86400`;
-      router.push(destinationAfterAuth(session.role, searchParams.get('returnUrl')));
+      router.push(destinationAfterAuth(session.role, searchParams.get('returnUrl'), {
+        listingMode: session.listingMode,
+        providerIntent: session.providerIntent,
+        onboardingState: session.onboardingState,
+        providerWorkspace: session.providerWorkspace,
+      }));
     } catch (err: unknown) {
       const e = err as { error?: { message?: string }; message?: string };
       setErrorMessage(e?.error?.message || e?.message || 'Login failed. Please check your credentials.');
@@ -63,7 +69,7 @@ function LoginForm() {
         <p className={shared.authSubtitle}>
           {isBookingReturn
             ? 'Sign in to confirm your appointment. Your selections are saved.'
-            : 'Sign in to manage appointments, bookings, and your account.'}
+            : 'Sign in to pick up where you left off — bookings, clients, and your calendar.'}
         </p>
       </div>
 
@@ -146,15 +152,16 @@ function LoginForm() {
       <div className={shared.authFooter}>
         <p>
           Don&apos;t have an account?{' '}
-          <Link
+          <AuthFlipLink
             href={
               searchParams.get('returnUrl')
                 ? `/auth/register?role=customer&returnUrl=${encodeURIComponent(searchParams.get('returnUrl') || '')}`
                 : '/auth/register'
             }
+            direction={1}
           >
             Create one
-          </Link>
+          </AuthFlipLink>
         </p>
       </div>
     </div>

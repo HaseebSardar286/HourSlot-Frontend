@@ -7,6 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import HeaderNav from '@/components/HeaderNav';
 import NotificationPanel from '@/components/NotificationPanel';
+import PageMotion from '@/components/PageMotion';
 import { loginHref, registerHref } from '@/lib/auth-redirect';
 import { apiFetch } from '@/lib/api';
 import styles from './profile-layout.module.css';
@@ -23,7 +24,6 @@ const CUSTOMER_NAV = [
   { href: '/profile/requests', icon: 'fa-file-lines', label: 'My Requests', short: 'Requests', accent: 'coral' },
   { href: '/profile/jobs', icon: 'fa-briefcase', label: 'Jobs', short: 'Jobs', accent: 'indigo' },
   { href: '/community', icon: 'fa-people-group', label: 'Community', short: 'Community', accent: 'violet' },
-  { href: '/profile/favorites', icon: 'fa-heart', label: 'Favorites', short: 'Saved', accent: 'rose' },
   { href: '/profile/packages', icon: 'fa-gift', label: 'Packages', short: 'Packages', accent: 'violet' },
   { href: '/profile/addresses', icon: 'fa-location-dot', label: 'Addresses', short: 'Addresses', accent: 'indigo' },
   { href: '/profile', icon: 'fa-gear', label: 'Settings', short: 'Account', exact: true, accent: 'sky' },
@@ -37,6 +37,8 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
   const [providerWorkspace, setProviderWorkspace] = useState(user?.role === 'BUSINESS_OWNER');
+  const [listingMode, setListingMode] = useState<string | null>(user?.listingMode || null);
+  const [providerIntent, setProviderIntent] = useState<string | null>(user?.providerIntent || null);
 
   const isActive = (href: string, exact?: boolean) => {
     if (href.startsWith('/#')) return false;
@@ -64,10 +66,14 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
       setProviderWorkspace(false);
       return;
     }
-    apiFetch<{ providerWorkspace?: boolean }>('/api/users/me')
-      .then((me) => setProviderWorkspace(Boolean(me.providerWorkspace) || user?.role === 'BUSINESS_OWNER'))
+    apiFetch<{ providerWorkspace?: boolean; listingMode?: string; providerIntent?: string }>('/api/users/me')
+      .then((me) => {
+        setProviderWorkspace(Boolean(me.providerWorkspace) || user?.role === 'BUSINESS_OWNER' || me.providerIntent === 'INDIVIDUAL');
+        setListingMode(me.listingMode || user?.listingMode || null);
+        setProviderIntent(me.providerIntent || user?.providerIntent || null);
+      })
       .catch(() => setProviderWorkspace(user?.role === 'BUSINESS_OWNER'));
-  }, [isAuthenticated, user?.role]);
+  }, [isAuthenticated, user?.role, user?.listingMode, user?.providerIntent]);
 
   if (loading) {
     return (
@@ -119,18 +125,24 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
                 href={item.href}
                 className={`${styles.sideLink} ${styles[`sideAccent${item.accent.charAt(0).toUpperCase()}${item.accent.slice(1)}`]} ${isActive(item.href, 'exact' in item ? item.exact : undefined) ? styles.sideLinkActive : ''}`}
                 onClick={() => setMenuOpen(false)}
-                title={sidebarCollapsed ? item.label : undefined}
+                aria-label={item.label}
               >
                 <span className={styles.sideLinkIcon}>
                   <i className={`fa-solid ${item.icon}`} aria-hidden />
                 </span>
                 {!sidebarCollapsed && <span>{item.label}</span>}
+                <span className={styles.sideTip} role="tooltip">
+                  {item.label}
+                </span>
               </Link>
             ))}
           </nav>
-          <button type="button" className={styles.sideLogout} onClick={handleLogout} title={sidebarCollapsed ? 'Sign out' : undefined}>
+          <button type="button" className={styles.sideLogout} onClick={handleLogout} aria-label="Sign out">
             <i className="fa-solid fa-right-from-bracket" />
             {!sidebarCollapsed && <span>Sign out</span>}
+            <span className={styles.sideTip} role="tooltip">
+              Sign out
+            </span>
           </button>
         </aside>
 
@@ -145,12 +157,27 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
               <i className="fa-solid fa-bars" />
             </button>
             <div className={styles.topbarRight}>
-              {(user.role === 'BUSINESS_OWNER' || providerWorkspace) && (
-                <Link href="/business/dashboard" className={styles.businessSwitch}>
+              {(user.role === 'BUSINESS_OWNER' || providerWorkspace || providerIntent === 'INDIVIDUAL') && (
+                <Link
+                  href={
+                    listingMode === 'INDIVIDUAL' || providerIntent === 'INDIVIDUAL'
+                      ? (listingMode === 'INDIVIDUAL' ? '/provider/dashboard' : '/provider/onboarding')
+                      : '/business/dashboard'
+                  }
+                  className={styles.businessSwitch}
+                >
                   <i className="fa-solid fa-briefcase" />
                   <span>Provider mode</span>
                 </Link>
               )}
+              <Link
+                href="/profile/favorites"
+                className={`${styles.topIconBtn} ${pathname.startsWith('/profile/favorites') ? styles.topIconBtnOn : ''}`}
+                aria-label="Saved favorites"
+                title="Saved"
+              >
+                <i className="fa-solid fa-heart" aria-hidden />
+              </Link>
               <NotificationPanel />
               <div className={styles.userWrap}>
                 <button type="button" className={styles.userBtn} onClick={() => setUserOpen((v) => !v)}>
@@ -169,7 +196,9 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
               </div>
             </div>
           </header>
-          <div className={isExplore ? styles.dashBodyFill : styles.dashBody}>{children}</div>
+          <div className={isExplore ? styles.dashBodyFill : styles.dashBody}>
+            <PageMotion>{children}</PageMotion>
+          </div>
           <nav className={styles.bottomNav} aria-label="Customer">
             {CUSTOMER_NAV.map((item) => (
               <Link
@@ -261,7 +290,9 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
         </>
       )}
 
-      <main className={isGuestBrowseRoute ? styles.mainWide : styles.main}>{children}</main>
+      <main className={isGuestBrowseRoute ? styles.mainWide : styles.main}>
+        <PageMotion>{children}</PageMotion>
+      </main>
 
       <footer className={styles.guestFooter}>
         <div className={styles.guestFooterInner}>
@@ -301,6 +332,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
                 <ul>
                   <li><Link href={loginHref(pathname)}>Sign in</Link></li>
                   <li><Link href={registerHref(pathname)}>Create account</Link></li>
+                  <li><Link href={registerHref(pathname, 'individual')}>List as individual</Link></li>
                   <li><Link href={registerHref(pathname, 'business')}>List your business</Link></li>
                 </ul>
               </div>

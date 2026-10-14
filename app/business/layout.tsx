@@ -101,10 +101,10 @@ function BusinessLayoutInner({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
-  const [listingMode, setListingMode] = useState<string | null>(null);
+  const [listingMode, setListingMode] = useState<string | null>(user?.listingMode || null);
 
   const isStaff = user?.role === 'BUSINESS_STAFF';
-  const isIndividual = listingMode === 'INDIVIDUAL';
+  const isIndividual = listingMode === 'INDIVIDUAL' || user?.listingMode === 'INDIVIDUAL';
   const navGroups = useMemo(
     () =>
       OWNER_NAV.map((group) => ({
@@ -114,6 +114,7 @@ function BusinessLayoutInner({ children }: { children: React.ReactNode }) {
               '/business/branches',
               '/business/staff',
               '/business/staff-services',
+              '/business/organization',
             ].includes(child.href))
           : group.children,
       })).filter((group) => group.children.length > 0),
@@ -125,9 +126,16 @@ function BusinessLayoutInner({ children }: { children: React.ReactNode }) {
       return;
     }
     apiFetch<{ business?: { listingMode?: string } }>('/api/provider/profile')
-      .then((profile) => setListingMode(profile.business?.listingMode || null))
+      .then((profile) => {
+        const mode = profile.business?.listingMode || null;
+        setListingMode(mode);
+        if (mode === 'INDIVIDUAL') {
+          const mapped = pathname.replace(/^\/business/, '/provider').replace('/onboarding/individual', '/onboarding');
+          router.replace(mapped === '/provider' ? '/provider/dashboard' : mapped);
+        }
+      })
       .catch(() => setListingMode(null));
-  }, [user?.role, pathname]);
+  }, [user?.role, pathname, router]);
 
   useEffect(() => {
     if (!loading) {

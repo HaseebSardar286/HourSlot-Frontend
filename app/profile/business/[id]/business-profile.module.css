@@ -4,6 +4,7 @@
   max-width: none;
   margin: 0;
   padding: 0 0 96px;
+  animation: hsSlideUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .flowBarWrap {

@@ -2,8 +2,7 @@ export type UserRole =
   | 'CUSTOMER'
   | 'BUSINESS_OWNER'
   | 'BUSINESS_STAFF'
-  | 'SUPER_ADMIN'
-  | 'ADMIN';
+  | 'SUPER_ADMIN';
 
 export type BusinessStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
 
@@ -53,6 +52,7 @@ export interface Business {
   listingMode?: string;
   serviceMode?: string;
   opsStatus?: string;
+  isOnline?: boolean;
 }
 
 export interface Branch {

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Roboto } from 'next/font/google';
 import './globals.css';
+import '../styles/motion.css';
 import { AuthProvider } from '@/lib/auth-context';
 import { ToastProvider } from '@/components/Toast';
 

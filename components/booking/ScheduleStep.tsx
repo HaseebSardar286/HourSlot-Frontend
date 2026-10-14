@@ -3,9 +3,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch } from '@/lib/api';
 import { parseSlots, type AvailableSlot } from '@/lib/slots';
-import { buildWeekDays, dedicatedStaffId, formatFriendlyTime, isAnyStaff, startOfWeekMonday, toLocalDateStr } from '@/lib/booking-flow';
+import {
+  buildWeekDays,
+  dedicatedStaffId,
+  formatFriendlyTime,
+  isAnyStaff,
+  startOfWeekMonday,
+  toLocalDateStr,
+} from '@/lib/booking-flow';
 import { formatMoney } from '@/lib/money';
 import Skeleton from '@/components/Skeleton';
+import CustomDatePicker from '@/components/CustomDatePicker';
 import styles from './booking.module.css';
 
 interface ScheduleStepProps {
@@ -49,6 +57,11 @@ export default function ScheduleStep({
   useEffect(() => {
     if (selectedDate) {
       autoPickedDate.current = true;
+      const selected = new Date(`${selectedDate}T12:00:00`);
+      if (!Number.isNaN(selected.getTime())) {
+        const monday = startOfWeekMonday(selected);
+        setWeekStart((prev) => (prev.getTime() === monday.getTime() ? prev : monday));
+      }
       return;
     }
     if (autoPickedDate.current || weekDays.length === 0) return;
@@ -107,6 +120,16 @@ export default function ScheduleStep({
       ? weekDays[0].dateObj.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
       : '';
 
+  const selectDate = (dateStr: string) => {
+    if (!dateStr || dateStr < todayStr) return;
+    const picked = new Date(`${dateStr}T12:00:00`);
+    if (!Number.isNaN(picked.getTime())) {
+      setWeekStart(startOfWeekMonday(picked));
+    }
+    onDateChange(dateStr);
+    onSlotChange('');
+  };
+
   const handlePrevWeek = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -138,7 +161,17 @@ export default function ScheduleStep({
       </div>
       <div className={styles.calendarCard}>
         <div className={styles.calHead}>
-          <h3>{monthLabel}</h3>
+          <div className={styles.calHeadLeft}>
+            <h3>{monthLabel}</h3>
+            <div className={styles.calPickerWrap}>
+              <CustomDatePicker
+                value={selectedDate}
+                min={todayStr}
+                placeholder="Pick a date"
+                onChange={selectDate}
+              />
+            </div>
+          </div>
           <div className={styles.calArrows}>
             <button type="button" onClick={handlePrevWeek} aria-label="Previous week">
               <i className="fa-solid fa-chevron-left" />
@@ -161,8 +194,7 @@ export default function ScheduleStep({
                 className={`${styles.dateCell} ${on ? styles.dateCellOn : ''} ${isPast ? styles.dateCellPast : ''}`}
                 onClick={() => {
                   if (isPast) return;
-                  onDateChange(d.dateStr);
-                  onSlotChange('');
+                  selectDate(d.dateStr);
                 }}
               >
                 <span>{d.label}</span>
