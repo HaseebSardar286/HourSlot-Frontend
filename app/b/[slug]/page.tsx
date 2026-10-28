@@ -7,6 +7,7 @@ import { useParams } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { buildBookingHref } from '@/lib/booking-flow';
 import { formatMoney } from '@/lib/money';
+import BrandLogo from '@/components/BrandLogo';
 import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
 import Reveal from '@/components/Reveal';
@@ -131,7 +132,7 @@ export default function PublicProviderPage() {
     apiFetch<PublicProvider>(`/api/providers/${encodeURIComponent(slug)}`, { skipAuth: true })
       .then((data) => {
         setProvider(data);
-        document.title = `${data.name} · HourSlot`;
+        document.title = `${data.name} · Duemet`;
       })
       .catch((err: { message?: string }) => setError(err?.message || 'This provider is not available.'))
       .finally(() => setLoading(false));
@@ -178,7 +179,7 @@ export default function PublicProviderPage() {
       <div className={styles.page}>
         <header className={styles.topNav}>
           <Link href="/" className={styles.brand}>
-            <Image src="/logo-hourslot.png" alt="HourSlot" width={148} height={44} className={styles.brandLogo} />
+            <BrandLogo kind="wordmark" variant="white" height={28} className={styles.brandLogo} />
           </Link>
           <Link href="/profile/explore" className={styles.navGhost}>
             Explore
@@ -241,7 +242,12 @@ export default function PublicProviderPage() {
     <div className={`${styles.page} ${individual ? styles.individualTheme : styles.businessTheme}`}>
       <header className={`${styles.topNav} ${scrolled ? styles.topNavSolid : ''}`}>
         <Link href="/" className={styles.brand}>
-          <Image src="/logo-hourslot.png" alt="HourSlot" width={148} height={44} className={styles.brandLogo} />
+          <BrandLogo
+            kind="wordmark"
+            variant={scrolled ? 'color' : 'white'}
+            height={28}
+            className={styles.brandLogo}
+          />
         </Link>
         <nav className={styles.topLinks} aria-label="Page">
           <a href="#about">About</a>
@@ -291,8 +297,8 @@ export default function PublicProviderPage() {
           <p className={styles.coverLead}>
             {provider.bio ||
               (individual
-                ? 'Book directly with this independent professional on HourSlot.'
-                : 'Browse services, pick a time, and book with this business on HourSlot.')}
+                ? 'Book directly with this independent professional on Duemet.'
+                : 'Browse services, pick a time, and book with this business on Duemet.')}
           </p>
           <div className={styles.coverCtas}>
             <Link href={bookHref} className={styles.primaryBtnLg}>
@@ -361,7 +367,7 @@ export default function PublicProviderPage() {
             </div>
             <p className={styles.aboutText}>
               {provider.bio ||
-                `${provider.name} is listed on HourSlot for appointment booking. Choose a service below to see live availability.`}
+                `${provider.name} is listed on Duemet for appointment booking. Choose a service below to see live availability.`}
             </p>
             <div className={styles.factGrid}>
               <div className={styles.fact}>
@@ -383,7 +389,7 @@ export default function PublicProviderPage() {
                   <i className="fa-solid fa-shield-halved" />
                   <div>
                     <strong>Verification</strong>
-                    <span>Verified on HourSlot</span>
+                    <span>Verified on Duemet</span>
                   </div>
                 </div>
               )}
@@ -458,7 +464,7 @@ export default function PublicProviderPage() {
                           </span>
                         </div>
                       </div>
-                      <p>{service.description || 'Book this service on HourSlot.'}</p>
+                      <p>{service.description || 'Book this service on Duemet.'}</p>
                       <div className={styles.serviceFoot}>
                         <strong className={styles.price}>
                           {quoteOnly
@@ -618,7 +624,7 @@ export default function PublicProviderPage() {
       <div className={styles.mobileBar}>
         <div>
           <strong>{provider.name}</strong>
-          <span>{rating > 0 ? `${rating.toFixed(1)} ★` : 'New on HourSlot'}</span>
+          <span>{rating > 0 ? `${rating.toFixed(1)} ★` : 'New on Duemet'}</span>
         </div>
         <Link href={bookHref} className={styles.primaryBtn}>
           Book

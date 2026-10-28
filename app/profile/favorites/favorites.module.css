@@ -28,9 +28,9 @@
 .favGrid .favCard:nth-child(n + 6) { animation-delay: 0.28s; }
 
 .favCard:hover {
-  border-color: rgba(26, 138, 138, 0.3);
+  border-color: rgba(var(--accent-primary-rgb), 0.3);
   transform: translateY(-3px);
-  box-shadow: 0 12px 28px rgba(15, 30, 35, 0.08);
+  box-shadow: 0 12px 28px rgba(17, 24, 39, 0.08);
 }
 
 .cardHeader {
@@ -46,7 +46,7 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--accent-primary);
-  background: rgba(26, 138, 138, 0.1);
+  background: rgba(var(--accent-primary-rgb), 0.1);
   padding: 3px 8px;
   border-radius: 6px;
 }

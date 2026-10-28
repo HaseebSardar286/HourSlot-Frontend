@@ -1,8 +1,9 @@
 'use client';
 
 import { type FormEvent } from 'react';
-import Image from 'next/image';
 import styles from './landing.module.css';
+
+const POPULAR = ['Haircut', 'Massage', 'Dentist', 'Nails', 'Home cleaning'];
 
 type Props = {
   service: string;
@@ -12,6 +13,7 @@ type Props = {
   onLocationChange: (value: string) => void;
   onSearch: (e: FormEvent) => void;
   onLocate: () => void;
+  onQuickSearch: (value: string) => void;
 };
 
 export default function LandingHero({
@@ -22,27 +24,20 @@ export default function LandingHero({
   onLocationChange,
   onSearch,
   onLocate,
+  onQuickSearch,
 }: Props) {
   return (
     <section className={styles.hero}>
-      <div className={styles.heroMedia} aria-hidden>
-        <Image
-          src="https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=2400&q=85"
-          alt=""
-          fill
-          priority
-          sizes="100vw"
-          className={styles.heroImg}
-        />
-        <div className={styles.heroFallback} />
-        <div className={styles.heroShade} />
-      </div>
-
       <div className={styles.heroContent}>
-        <p className={styles.brandHero}>HourSlot</p>
-        <h1 className={styles.heroTitle}>Book the hour that fits.</h1>
+        <span className={styles.heroPill}>
+          <b>New</b> Live availability from local pros
+        </span>
+
+        <h1 className={styles.heroTitle}>
+          Book the right person, <span className={styles.heroAccent}>at the right hour.</span>
+        </h1>
         <p className={styles.heroSub}>
-          Live openings for salons, clinics, and independents — claimed in seconds.
+          Search nearby salons, clinics, and independents. Pick an open slot in seconds, or ask for a quote.
         </p>
 
         <form className={styles.search} onSubmit={onSearch}>
@@ -80,9 +75,22 @@ export default function LandingHero({
             Search
           </button>
         </form>
-      </div>
 
-      <div className={styles.heroFade} aria-hidden />
+        <div className={styles.heroChips}>
+          <span>Popular:</span>
+          {POPULAR.map((term) => (
+            <button key={term} type="button" onClick={() => onQuickSearch(term)}>
+              {term}
+            </button>
+          ))}
+        </div>
+
+        <ul className={styles.heroTrust}>
+          <li><i className="fa-solid fa-bolt" aria-hidden /> Instant confirmation</li>
+          <li><i className="fa-solid fa-shield-halved" aria-hidden /> Verified providers</li>
+          <li><i className="fa-solid fa-calendar-xmark" aria-hidden /> Free to reschedule</li>
+        </ul>
+      </div>
     </section>
   );
 }

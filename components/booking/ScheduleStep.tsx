@@ -27,6 +27,8 @@ interface ScheduleStepProps {
   onDateChange: (date: string) => void;
   onSlotChange: (slot: string, quoted?: AvailableSlot) => void;
   compact?: boolean;
+  /** Offered when every slot on the chosen day is taken; resolves to a message to show. */
+  onJoinWaitlist?: () => Promise<string>;
 }
 
 export default function ScheduleStep({
@@ -40,7 +42,10 @@ export default function ScheduleStep({
   onDateChange,
   onSlotChange,
   compact = false,
+  onJoinWaitlist,
 }: ScheduleStepProps) {
+  const [waitlistNote, setWaitlistNote] = useState<string | null>(null);
+  const [joining, setJoining] = useState(false);
   const [weekStart, setWeekStart] = useState(() => startOfWeekMonday(new Date()));
   const [availableSlots, setAvailableSlots] = useState<AvailableSlot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
@@ -223,6 +228,34 @@ export default function ScheduleStep({
           <p className={styles.noSlots} style={{ color: 'var(--accent-red)', marginBottom: 12 }}>
             {slotError}
           </p>
+        )}
+
+        {!slotsLoading && onJoinWaitlist && availableSlots.length > 0 &&
+          availableSlots.every((slot) => slot.available === false) && (
+          <div className={styles.noSlots} style={{ marginBottom: 12 }}>
+            <p style={{ margin: '0 0 8px' }}>This day is fully booked.</p>
+            {waitlistNote ? (
+              <p style={{ margin: 0 }}>{waitlistNote}</p>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                disabled={joining}
+                onClick={async () => {
+                  setJoining(true);
+                  try {
+                    setWaitlistNote(await onJoinWaitlist());
+                  } catch (e: unknown) {
+                    setWaitlistNote((e as { message?: string })?.message || 'Sign in to join the waitlist.');
+                  } finally {
+                    setJoining(false);
+                  }
+                }}
+              >
+                <i className="fa-solid fa-bell" /> Notify me if a slot opens
+              </button>
+            )}
+          </div>
         )}
 
         {slotsLoading ? (

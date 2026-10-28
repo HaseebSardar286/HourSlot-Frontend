@@ -17,12 +17,12 @@
   font-size: 1.01rem;
   font-weight: 600;
   letter-spacing: -0.02em;
-  color: #062e2e;
+  color: var(--text-main);
   font-variant-numeric: tabular-nums;
 }
 
 .stepOf {
-  color: #9bb0b0;
+  color: #9ca3af;
   font-weight: 400;
   font-size: 0.86rem;
 }
@@ -31,7 +31,7 @@
   font-size: 0.86rem;
   font-weight: 500;
   letter-spacing: 0;
-  color: #1a8a8a;
+  color: var(--accent-primary);
 }
 
 .rail {
@@ -47,7 +47,7 @@
   right: 0;
   height: 3px;
   border-radius: 999px;
-  background: rgba(6, 46, 46, 0.08);
+  background: rgba(17, 24, 39, 0.08);
 }
 
 .railFill {
@@ -55,8 +55,8 @@
   left: 0;
   height: 3px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #0f6e6e, #1a8a8a 50%, #5bb88c);
-  box-shadow: 0 0 12px rgba(26, 138, 138, 0.35);
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-primary) 50%, #3b82f6);
+  box-shadow: 0 0 12px rgba(var(--accent-primary-rgb), 0.35);
   transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -73,8 +73,8 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #fff;
-  border: 2px solid rgba(6, 46, 46, 0.14);
+  background: var(--bg-card);
+  border: 2px solid rgba(17, 24, 39, 0.14);
   display: grid;
   place-items: center;
   font-size: 0.45rem;
@@ -83,15 +83,15 @@
 }
 
 .dotDone {
-  background: #1a8a8a;
-  border-color: #1a8a8a;
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
 }
 
 .dotOn {
   width: 16px;
   height: 16px;
-  border-color: #1a8a8a;
-  background: #fff;
-  box-shadow: 0 0 0 4px rgba(26, 138, 138, 0.16);
+  border-color: var(--accent-primary);
+  background: var(--bg-card);
+  box-shadow: 0 0 0 4px rgba(var(--accent-primary-rgb), 0.16);
   transform: scale(1.05);
 }

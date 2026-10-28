@@ -1,4 +1,4 @@
-/* HourSlot customer motion — intentional, calm, reduced-motion aware */
+/* Duemet customer motion — intentional, calm, reduced-motion aware */
 
 :root {
   --hs-ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -51,10 +51,10 @@
 @keyframes hsSoftPulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(26, 138, 138, 0.22);
+    box-shadow: 0 0 0 0 rgba(var(--accent-primary-rgb), 0.22);
   }
   50% {
-    box-shadow: 0 0 0 8px rgba(26, 138, 138, 0);
+    box-shadow: 0 0 0 8px rgba(var(--accent-primary-rgb), 0);
   }
 }
 

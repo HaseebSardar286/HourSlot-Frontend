@@ -11,27 +11,10 @@
   overflow: hidden;
   margin-bottom: 28px;
   padding: 24px 26px;
-  border-radius: 24px;
-  background: #fff;
+  border-radius: 10px;
+  background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   box-shadow: var(--card-shadow);
-  background-image:
-    radial-gradient(ellipse 70% 80% at 0% 0%, rgba(26, 138, 138, 0.08), transparent 55%),
-    radial-gradient(ellipse 60% 70% at 100% 0%, rgba(99, 102, 241, 0.07), transparent 50%),
-    radial-gradient(ellipse 50% 60% at 50% 100%, rgba(249, 115, 22, 0.04), transparent 50%);
-  animation: hsRiseIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.header::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--accent-primary), var(--accent-indigo), var(--accent-coral));
-  border-radius: 24px 24px 0 0;
-  pointer-events: none;
 }
 
 .backRow {
@@ -53,7 +36,7 @@
   font-size: 0.84rem;
   font-weight: 700;
   border: 1px solid var(--border-color);
-  background: #fff;
+  background: var(--bg-card);
   cursor: pointer;
   font-family: inherit;
   transition: var(--transition-fast);
@@ -61,7 +44,7 @@
 
 .backLink:hover {
   color: var(--accent-primary);
-  border-color: rgba(26, 138, 138, 0.3);
+  border-color: rgba(var(--accent-primary-rgb), 0.3);
 }
 
 .businessChip {
@@ -70,8 +53,8 @@
   gap: 10px;
   padding: 8px 16px 8px 8px;
   border-radius: 999px;
-  background: rgba(26, 138, 138, 0.06);
-  border: 1px solid rgba(26, 138, 138, 0.12);
+  background: rgba(var(--accent-primary-rgb), 0.06);
+  border: 1px solid rgba(var(--accent-primary-rgb), 0.12);
   font-size: 0.84rem;
   font-weight: 700;
   color: var(--text-main);
@@ -120,7 +103,7 @@
 }
 
 .main {
-  background: #fff;
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 24px;
   padding: 26px;
@@ -152,13 +135,13 @@
   font-weight: 700;
   font-size: 0.95rem;
   cursor: pointer;
-  box-shadow: 0 10px 28px rgba(26, 138, 138, 0.28);
+  box-shadow: 0 10px 28px rgba(var(--accent-primary-rgb), 0.28);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .continueBtn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 14px 32px rgba(26, 138, 138, 0.34);
+  box-shadow: 0 14px 32px rgba(var(--accent-primary-rgb), 0.34);
 }
 
 .continueBtn:disabled {
@@ -179,7 +162,7 @@
   background: rgba(255, 255, 255, 0.97);
   border-top: 1px solid var(--border-color);
   backdrop-filter: blur(12px);
-  box-shadow: 0 -12px 40px rgba(20, 40, 46, 0.1);
+  box-shadow: 0 -12px 40px rgba(17, 24, 39, 0.1);
 }
 
 .mobileBarInner {
@@ -209,7 +192,7 @@
 
 .progressTrack {
   height: 6px;
-  background: rgba(26, 138, 138, 0.1);
+  background: rgba(var(--accent-primary-rgb), 0.1);
   border-radius: 999px;
   overflow: hidden;
   margin-bottom: 18px;
@@ -220,7 +203,7 @@
   background: var(--accent-gradient);
   border-radius: 999px;
   transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 0 12px rgba(26, 138, 138, 0.35);
+  box-shadow: 0 0 12px rgba(var(--accent-primary-rgb), 0.35);
 }
 
 .steps {
@@ -252,7 +235,7 @@
   right: calc(-50% + 18px);
   top: 50%;
   height: 2px;
-  background: rgba(26, 138, 138, 0.15);
+  background: rgba(var(--accent-primary-rgb), 0.15);
   transform: translateY(-50%);
   z-index: 0;
 }
@@ -267,8 +250,8 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: #fff;
-  border: 2px solid rgba(26, 138, 138, 0.18);
+  background: var(--bg-card);
+  border: 2px solid rgba(var(--accent-primary-rgb), 0.18);
   color: var(--text-muted);
   display: grid;
   place-items: center;
@@ -287,7 +270,7 @@
   background: var(--accent-gradient);
   border-color: transparent;
   color: #fff;
-  box-shadow: 0 0 0 5px rgba(26, 138, 138, 0.15), 0 8px 20px rgba(26, 138, 138, 0.25);
+  box-shadow: 0 0 0 5px rgba(var(--accent-primary-rgb), 0.15), 0 8px 20px rgba(var(--accent-primary-rgb), 0.25);
 }
 
 .stepLabel {
@@ -307,7 +290,7 @@
 
 /* Summary */
 .summary {
-  background: #fff;
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 24px;
   padding: 22px;
@@ -337,7 +320,7 @@
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: rgba(26, 138, 138, 0.1);
+  background: rgba(var(--accent-primary-rgb), 0.1);
   color: var(--accent-primary);
   display: grid;
   place-items: center;
@@ -446,8 +429,8 @@
   align-items: baseline;
   padding: 16px;
   border-radius: 14px;
-  background: linear-gradient(135deg, rgba(26, 138, 138, 0.08), rgba(91, 184, 140, 0.1));
-  border: 1px solid rgba(26, 138, 138, 0.12);
+  background: linear-gradient(135deg, rgba(var(--accent-primary-rgb), 0.08), rgba(59, 130, 246, 0.1));
+  border: 1px solid rgba(var(--accent-primary-rgb), 0.12);
 }
 
 .summaryTotal span {
@@ -487,7 +470,7 @@
   padding: 18px 20px;
   border: 1.5px solid var(--border-color);
   border-radius: 18px;
-  background: #fff;
+  background: var(--bg-card);
   cursor: pointer;
   text-align: left;
   font: inherit;
@@ -497,22 +480,22 @@
 }
 
 .serviceCard:hover {
-  border-color: rgba(26, 138, 138, 0.35);
-  box-shadow: 0 8px 24px rgba(26, 138, 138, 0.08);
+  border-color: rgba(var(--accent-primary-rgb), 0.35);
+  box-shadow: 0 8px 24px rgba(var(--accent-primary-rgb), 0.08);
   transform: translateY(-1px);
 }
 
 .serviceCardOn {
   border-color: var(--accent-primary);
-  background: linear-gradient(135deg, rgba(26, 138, 138, 0.04), rgba(91, 184, 140, 0.06));
-  box-shadow: 0 12px 32px rgba(26, 138, 138, 0.12);
+  background: linear-gradient(135deg, rgba(var(--accent-primary-rgb), 0.04), rgba(59, 130, 246, 0.06));
+  box-shadow: 0 12px 32px rgba(var(--accent-primary-rgb), 0.12);
 }
 
 .serviceCardIcon {
   width: 52px;
   height: 52px;
   border-radius: 14px;
-  background: rgba(26, 138, 138, 0.1);
+  background: rgba(var(--accent-primary-rgb), 0.1);
   color: var(--accent-primary);
   display: grid;
   place-items: center;
@@ -587,7 +570,7 @@
   padding: 16px 18px;
   border: 1.5px solid var(--border-color);
   border-radius: 16px;
-  background: #fff;
+  background: var(--bg-card);
   cursor: pointer;
   text-align: left;
   font: inherit;
@@ -598,14 +581,14 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  border: 2px solid rgba(26, 138, 138, 0.25);
+  border: 2px solid rgba(var(--accent-primary-rgb), 0.25);
   display: grid;
   place-items: center;
 }
 
 .serviceRowOn {
   border-color: var(--accent-primary);
-  background: rgba(26, 138, 138, 0.05);
+  background: rgba(var(--accent-primary-rgb), 0.05);
 }
 
 .serviceRowOn .radio {
@@ -643,7 +626,7 @@
   border-radius: 14px;
   padding: 12px 16px;
   font: inherit;
-  background: #fff;
+  background: var(--bg-card);
   transition: border-color 0.15s ease;
 }
 
@@ -666,7 +649,7 @@
   padding: 16px 18px;
   border: 1.5px solid var(--border-color);
   border-radius: 18px;
-  background: #fff;
+  background: var(--bg-card);
   cursor: pointer;
   text-align: left;
   font: inherit;
@@ -675,15 +658,15 @@
 }
 
 .staffCard:hover {
-  border-color: rgba(26, 138, 138, 0.35);
-  box-shadow: 0 6px 20px rgba(26, 138, 138, 0.08);
+  border-color: rgba(var(--accent-primary-rgb), 0.35);
+  box-shadow: 0 6px 20px rgba(var(--accent-primary-rgb), 0.08);
   transform: translateY(-1px);
 }
 
 .staffCardOn {
   border-color: var(--accent-primary);
-  background: linear-gradient(135deg, rgba(26, 138, 138, 0.05), rgba(91, 184, 140, 0.08));
-  box-shadow: 0 10px 28px rgba(26, 138, 138, 0.12);
+  background: linear-gradient(135deg, rgba(var(--accent-primary-rgb), 0.05), rgba(59, 130, 246, 0.08));
+  box-shadow: 0 10px 28px rgba(var(--accent-primary-rgb), 0.12);
 }
 
 .staffAvatar {
@@ -779,7 +762,7 @@
   height: 36px;
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  background: #fff;
+  background: var(--bg-card);
   color: var(--text-secondary);
   cursor: pointer;
   transition: var(--transition-fast);
@@ -803,18 +786,18 @@
   align-items: center;
   gap: 5px;
   border: 1.5px solid transparent;
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 14px;
   padding: 12px 6px;
   cursor: pointer;
   font: inherit;
   color: var(--text-secondary);
   transition: var(--transition-fast);
-  box-shadow: 0 2px 8px rgba(20, 40, 46, 0.04);
+  box-shadow: 0 2px 8px rgba(17, 24, 39, 0.04);
 }
 
 .dateCell:hover:not(:disabled) {
-  border-color: rgba(26, 138, 138, 0.25);
+  border-color: rgba(var(--accent-primary-rgb), 0.25);
 }
 
 .dateCell span {
@@ -833,7 +816,7 @@
   background: var(--accent-gradient);
   border-color: transparent;
   color: #fff;
-  box-shadow: 0 8px 20px rgba(26, 138, 138, 0.28);
+  box-shadow: 0 8px 20px rgba(var(--accent-primary-rgb), 0.28);
 }
 
 .dateCellPast {
@@ -849,7 +832,7 @@
   margin-bottom: 14px;
   padding: 10px 12px;
   border-radius: 12px;
-  background: rgba(26, 138, 138, 0.05);
+  background: rgba(var(--accent-primary-rgb), 0.05);
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-muted);
@@ -884,7 +867,7 @@
 
 .slotBtn {
   border: 1.5px solid var(--border-color);
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 14px;
   padding: 14px 10px;
   font: inherit;
@@ -911,7 +894,7 @@
 .slotBtn:hover {
   border-color: var(--accent-primary);
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(26, 138, 138, 0.1);
+  box-shadow: 0 6px 16px rgba(var(--accent-primary-rgb), 0.1);
 }
 
 .slotPrice {
@@ -938,24 +921,24 @@
 }
 
 .slotBtnOn {
-  background: var(--accent-gradient);
-  border-color: transparent;
-  color: #fff;
-  box-shadow: 0 8px 22px rgba(26, 138, 138, 0.28);
+  background: var(--mint);
+  border-color: var(--emerald);
+  color: var(--forest);
+  box-shadow: 0 0 0 3px rgba(var(--accent-primary-rgb), 0.12);
 }
 
 .slotBtnOn .slotPrice,
 .slotBtnOn .slotBadge {
-  color: rgba(255, 255, 255, 0.92);
+  color: var(--emerald);
 }
 
 .slotBtnBooked,
 .slotBtnBooked:hover {
   cursor: not-allowed;
   opacity: 0.72;
-  background: #f1f5f9;
-  border-color: #e2e8f0;
-  color: #64748b;
+  background: var(--bg-elevated);
+  border-color: var(--border-color);
+  color: var(--text-muted);
   transform: none;
   box-shadow: none;
 }
@@ -976,15 +959,15 @@
 }
 
 .slotBtnOn .slotStaff {
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--forest);
 }
 
 .staffChoiceBanner {
   margin-bottom: 12px;
   padding: 12px 14px;
   border-radius: 12px;
-  background: rgba(26, 138, 138, 0.08);
-  border: 1px solid rgba(26, 138, 138, 0.16);
+  background: rgba(var(--accent-primary-rgb), 0.08);
+  border: 1px solid rgba(var(--accent-primary-rgb), 0.16);
 }
 
 .staffChoiceBanner p {
@@ -1002,7 +985,7 @@
   margin: 14px 0 0;
   padding: 10px 12px;
   border-radius: 10px;
-  background: rgba(15, 118, 118, 0.08);
+  background: rgba(var(--accent-primary-rgb), 0.08);
   font-size: 0.84rem;
   font-weight: 600;
   color: var(--text-main);
@@ -1028,7 +1011,7 @@
   font-weight: 700;
   padding: 3px 8px;
   border-radius: 999px;
-  background: rgba(26, 138, 138, 0.1);
+  background: rgba(var(--accent-primary-rgb), 0.1);
   color: var(--accent-primary);
 }
 
@@ -1076,7 +1059,7 @@
   width: 100%;
   text-align: left;
   border: 1.5px solid var(--border-color);
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 18px;
   padding: 16px 18px;
   cursor: pointer;
@@ -1086,21 +1069,21 @@
 }
 
 .payOption:hover {
-  border-color: rgba(26, 138, 138, 0.35);
-  box-shadow: 0 6px 20px rgba(26, 138, 138, 0.08);
+  border-color: rgba(var(--accent-primary-rgb), 0.35);
+  box-shadow: 0 6px 20px rgba(var(--accent-primary-rgb), 0.08);
 }
 
 .payOptionOn {
   border-color: var(--accent-primary);
-  background: linear-gradient(135deg, rgba(26, 138, 138, 0.06), rgba(91, 184, 140, 0.08));
-  box-shadow: 0 10px 28px rgba(26, 138, 138, 0.14);
+  background: linear-gradient(135deg, rgba(var(--accent-primary-rgb), 0.06), rgba(59, 130, 246, 0.08));
+  box-shadow: 0 10px 28px rgba(var(--accent-primary-rgb), 0.14);
 }
 
 .payIcon {
   width: 48px;
   height: 48px;
   border-radius: 14px;
-  background: rgba(26, 138, 138, 0.1);
+  background: rgba(var(--accent-primary-rgb), 0.1);
   color: var(--accent-primary);
   display: grid;
   place-items: center;
@@ -1127,7 +1110,7 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  border: 2px solid rgba(26, 138, 138, 0.25);
+  border: 2px solid rgba(var(--accent-primary-rgb), 0.25);
 }
 
 .payOptionOn .payRadio {
@@ -1147,7 +1130,7 @@
   justify-content: space-between;
   gap: 10px;
   border: 1.5px solid var(--border-color);
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 14px;
   padding: 14px 16px;
   cursor: pointer;
@@ -1159,7 +1142,7 @@
 
 .packageChipOn {
   border-color: var(--accent-primary);
-  background: rgba(26, 138, 138, 0.06);
+  background: rgba(var(--accent-primary-rgb), 0.06);
 }
 
 .notesBlock {
@@ -1214,8 +1197,8 @@
 .signInPanel {
   padding: 32px 28px;
   border-radius: 20px;
-  background: linear-gradient(145deg, rgba(26, 138, 138, 0.08), rgba(91, 184, 140, 0.12));
-  border: 1px solid rgba(26, 138, 138, 0.15);
+  background: linear-gradient(145deg, rgba(var(--accent-primary-rgb), 0.08), rgba(59, 130, 246, 0.12));
+  border: 1px solid rgba(var(--accent-primary-rgb), 0.15);
   text-align: center;
 }
 
@@ -1263,7 +1246,7 @@
   color: #fff !important;
   font-weight: 700;
   text-decoration: none;
-  box-shadow: 0 10px 28px rgba(26, 138, 138, 0.28);
+  box-shadow: 0 10px 28px rgba(var(--accent-primary-rgb), 0.28);
   transition: transform 0.15s ease;
 }
 
@@ -1276,7 +1259,7 @@
   padding: 15px !important;
   border-radius: 14px !important;
   font-size: 0.95rem !important;
-  box-shadow: 0 10px 28px rgba(26, 138, 138, 0.25);
+  box-shadow: 0 10px 28px rgba(var(--accent-primary-rgb), 0.25);
 }
 
 .stepTitle {
@@ -1396,7 +1379,7 @@
   margin-bottom: 16px;
   border-radius: 14px;
   background: var(--tint-indigo);
-  border: 1px solid rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.15);
 }
 
 .prefillLabel {
@@ -1423,7 +1406,7 @@
   gap: 8px;
   padding: 6px 12px;
   border-radius: 999px;
-  background: #fff;
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
   font-size: 0.82rem;
   font-weight: 600;

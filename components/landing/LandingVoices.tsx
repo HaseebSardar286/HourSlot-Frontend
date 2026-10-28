@@ -6,12 +6,14 @@ export default function LandingVoices() {
   return (
     <Reveal as="section" className={styles.voices} id="stories">
       <div className={styles.wrap}>
-        <div className={styles.sectionHeadCenter}>
-          <p className={styles.eyebrow}>Stories</p>
-          <h2 className={styles.displayTitle}>What people notice first</h2>
-          <p className={styles.sectionSub}>
-            Clear openings, fewer missed appointments, and a quieter booking flow.
-          </p>
+        <div className={styles.sectionHead}>
+          <div>
+            <p className={styles.eyebrow}>Stories</p>
+            <h2 className={styles.displayTitle}>What people notice first</h2>
+            <p className={styles.sectionSub}>
+              Clear openings, fewer missed appointments, and a quieter booking flow.
+            </p>
+          </div>
         </div>
 
         <div className={`${styles.voiceGrid} hs-stagger`}>

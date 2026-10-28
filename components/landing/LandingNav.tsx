@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import BrandLogo from '@/components/BrandLogo';
 import styles from './landing.module.css';
 
 const LINKS = [
   { href: '/profile/explore', label: 'Explore', external: true },
   { href: '#how', label: 'How it works' },
-  { href: '#paths', label: 'Get started' },
+  { href: '#providers', label: 'For providers' },
   { href: '#faq', label: 'FAQ' },
 ];
 
@@ -27,14 +27,7 @@ export default function LandingNav() {
     <header className={`${styles.nav} ${scrolled ? styles.navScrolled : ''}`}>
       <div className={styles.navInner}>
         <Link href="/" className={styles.brand}>
-          <Image
-            src="/logo-hourslot.png"
-            alt="HourSlot"
-            width={192}
-            height={57}
-            priority
-            className={styles.logo}
-          />
+          <BrandLogo kind="wordmark" variant="color" height={28} priority className={styles.logo} />
         </Link>
         <nav className={styles.navCenter} aria-label="Primary">
           {LINKS.map((link) =>

@@ -33,7 +33,7 @@ const PROVIDER_NAV: NavGroup[] = [
     icon: 'fa-chart-pie',
     children: [
       { href: '/provider/dashboard', icon: 'fa-house', label: 'Dashboard' },
-      { href: '/provider/analytics', icon: 'fa-chart-line', label: 'Analytics' },
+      { href: '/provider/analytics', icon: 'fa-chart-line', label: 'Reports' },
       { href: '/provider/plan', icon: 'fa-crown', label: 'Subscription' },
       { href: '/provider/verification', icon: 'fa-file-shield', label: 'Verification' },
     ],
@@ -50,6 +50,8 @@ const PROVIDER_NAV: NavGroup[] = [
       { href: '/provider/jobs', icon: 'fa-briefcase', label: 'Jobs' },
       { href: '/provider/customers', icon: 'fa-users', label: 'Customers' },
       { href: '/provider/availability', icon: 'fa-clock', label: 'Availability' },
+      { href: '/provider/booking-tools', icon: 'fa-sliders', label: 'Booking tools' },
+      { href: '/provider/queue', icon: 'fa-people-line', label: 'Walk-in queue' },
       { href: '/provider/payments', icon: 'fa-wallet', label: 'Payments' },
     ],
   },
@@ -228,7 +230,7 @@ function ProviderLayoutInner({ children }: { children: React.ReactNode }) {
           type="button"
           aria-label="Close menu"
           onClick={() => setMobileOpen(false)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', border: 'none', zIndex: 1090 }}
+          style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', border: 'none', zIndex: 1090 }}
         />
       )}
 
@@ -236,12 +238,18 @@ function ProviderLayoutInner({ children }: { children: React.ReactNode }) {
         <div className={styles.sidebarHeader}>
           {!collapsed && (
             <Link href="/provider/dashboard" className={styles.logoArea}>
-              <img src="/logo-hourslot.png" alt="HourSlot Logo" style={{ height: 39, width: 'auto', objectFit: 'contain' }} />
+              <img src="/duemet-logo-nav.png" alt="Duemet Logo" style={{ height: 26, width: 'auto', objectFit: 'contain', display: 'block' }} />
             </Link>
           )}
-          <button type="button" className={styles.toggleBtn} onClick={() => setCollapsed(!collapsed)} title={collapsed ? 'Expand' : 'Collapse'}>
-            <i className={`fa-solid ${collapsed ? 'fa-chevron-right' : 'fa-chevron-left'}`} />
-          </button>
+          {collapsed ? (
+            <button type="button" className={styles.logoIcon} style={{ cursor: 'pointer', border: 'none', background: 'transparent', padding: 0 }} onClick={() => setCollapsed(false)} title="Expand sidebar">
+              <img src="/duemet-mark.png" alt="Duemet" style={{ width: 29, height: 29, objectFit: 'contain', display: 'block' }} />
+            </button>
+          ) : (
+            <button type="button" className={styles.toggleBtn} onClick={() => setCollapsed(true)} title="Collapse sidebar">
+              <i className="fa-solid fa-angles-left" />
+            </button>
+          )}
         </div>
 
         <nav className={styles.sidebarNav}>
@@ -287,7 +295,7 @@ function ProviderLayoutInner({ children }: { children: React.ReactNode }) {
             <h1 className={styles.pageTitle}>{getPageTitle()}</h1>
           </div>
 
-          <div className={styles.topbarActions} style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div className={styles.topbarActions}>
             <button
               type="button"
               className={styles.roleSwitchBtn}
@@ -295,9 +303,10 @@ function ProviderLayoutInner({ children }: { children: React.ReactNode }) {
               disabled={presenceBusy || user?.listingMode !== 'INDIVIDUAL'}
               title={online ? 'Go offline' : 'Go online'}
             >
-              <span style={{
-                width: 8, height: 8, borderRadius: '50%',
-                background: online ? '#22c55e' : '#94a3b8', display: 'inline-block',
+              <i aria-hidden style={{
+                width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                background: online ? '#22c55e' : '#9ca3af', display: 'inline-block',
+                boxShadow: online ? '0 0 0 3px #dcfce7' : 'none',
               }} />
               <span>{online ? 'Online' : 'Offline'}</span>
             </button>

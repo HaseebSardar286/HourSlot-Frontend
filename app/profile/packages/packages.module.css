@@ -26,9 +26,9 @@
 .grid .card:nth-child(n + 5) { animation-delay: 0.23s; }
 
 .card:hover {
-  border-color: rgba(26, 138, 138, 0.3);
+  border-color: rgba(var(--accent-primary-rgb), 0.3);
   transform: translateY(-3px);
-  box-shadow: 0 12px 28px rgba(15, 30, 35, 0.08);
+  box-shadow: 0 12px 28px rgba(17, 24, 39, 0.08);
 }
 
 .cardTop {

@@ -172,7 +172,6 @@ function BusinessLayoutInner({ children }: { children: React.ReactNode }) {
   }
 
   const handleLogout = () => {
-    document.cookie = 'hourslot_user_session=; path=/; max-age=0';
     logout();
     router.push('/auth/login');
   };
@@ -218,7 +217,7 @@ function BusinessLayoutInner({ children }: { children: React.ReactNode }) {
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.35)',
+            background: 'var(--overlay)',
             border: 'none',
             zIndex: 1090,
           }}
@@ -232,31 +231,32 @@ function BusinessLayoutInner({ children }: { children: React.ReactNode }) {
           {!collapsed && (
             <Link href={isStaff ? '/business/bookings' : '/business/dashboard'} className={styles.logoArea}>
               <img
-                src="/logo-hourslot.png"
-                alt="HourSlot Logo"
-                style={{ height: '39px', width: 'auto', objectFit: 'contain' }}
+                src="/duemet-logo-nav.png"
+                alt="Duemet Logo"
+                style={{ height: 26, width: 'auto', objectFit: 'contain', display: 'block' }}
               />
             </Link>
           )}
-          {collapsed && (
+          {collapsed ? (
             <button
               type="button"
               className={styles.logoIcon}
-              style={{ marginLeft: '-25px', marginTop: '8px', cursor: 'pointer', background: 'none', border: 'none' }}
-              onClick={() => setCollapsed(!collapsed)}
+              style={{ cursor: 'pointer', border: 'none', background: 'transparent', padding: 0 }}
+              onClick={() => setCollapsed(false)}
               title="Expand sidebar"
             >
-              <img src="/logo-hourslot.png" alt="HourSlot Logo" style={{ height: '39px', width: 'auto' }} />
+              <img src="/duemet-mark.png" alt="Duemet" style={{ width: 29, height: 29, objectFit: 'contain', display: 'block' }} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              className={styles.toggleBtn}
+              onClick={() => setCollapsed(true)}
+              title="Collapse sidebar"
+            >
+              <i className="fa-solid fa-angles-left"></i>
             </button>
           )}
-          <button
-            type="button"
-            className={styles.toggleBtn}
-            onClick={() => setCollapsed(!collapsed)}
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            <i className={`fa-solid ${collapsed ? 'fa-chevron-right' : 'fa-chevron-left'}`}></i>
-          </button>
         </div>
 
         <nav className={styles.sidebarNav}>
@@ -321,7 +321,7 @@ function BusinessLayoutInner({ children }: { children: React.ReactNode }) {
             <h1 className={styles.pageTitle}>{getPageTitle()}</h1>
           </div>
 
-          <div className={styles.topbarActions} style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          <div className={styles.topbarActions}>
             {!isStaff && (
               <Link href="/profile" className={styles.roleSwitchBtn} title="Switch to customer view">
                 <i className="fa-solid fa-users"></i>

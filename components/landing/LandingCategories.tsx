@@ -46,10 +46,13 @@ export default function LandingCategories({ categories, loading, onSelect }: Pro
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={cat.imageUrl} alt="" className={styles.catImg} />
                 ) : (
-                  <span className={styles.catFallback} />
+                  <span className={styles.catFallback} aria-hidden />
                 )}
-                <span className={styles.catShade} />
+                <span className={styles.catShade} aria-hidden />
                 <span className={styles.catMeta}>
+                  {cat.icon ? (
+                    <i className={`${cat.icon} ${styles.catIcon}`} aria-hidden />
+                  ) : null}
                   <strong>{cat.name}</strong>
                   <em>
                     {cat.listingCount} listing{cat.listingCount === 1 ? '' : 's'}

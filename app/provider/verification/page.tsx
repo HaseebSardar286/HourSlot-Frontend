@@ -1,13 +1,20 @@
 ﻿'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, openAuthedFile } from '@/lib/api';
 import PageHeader from '@/components/PageHeader';
 import Skeleton from '@/components/Skeleton';
 import StatusBadge from '@/components/StatusBadge';
 
 type DocType = { code: string; label?: string; name?: string };
-type Doc = { id: number; documentType: string; status: string; fileUrl?: string };
+type Doc = {
+  id: number;
+  documentType: string;
+  status: string;
+  url?: string;
+  rejectionReason?: string;
+  reviewNotes?: string;
+};
 type Payload = {
   documents?: Doc[];
   requiredTypes?: DocType[];
@@ -23,12 +30,18 @@ export default function SoloVerificationPage() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [listingStatus, setListingStatus] = useState<string | null>(null);
+  const [resubmitting, setResubmitting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiFetch<Payload>('/api/provider/verification-documents');
+      const [data, workspace] = await Promise.all([
+        apiFetch<Payload>('/api/provider/verification-documents'),
+        apiFetch<{ status?: string }>('/api/provider/workspace').catch(() => null),
+      ]);
       setPayload(data);
+      setListingStatus(workspace?.status || null);
       const first = data.tier1Types?.[0]?.code || data.requiredTypes?.[0]?.code || '';
       setDocType(first);
     } catch (e: unknown) {
@@ -62,6 +75,21 @@ export default function SoloVerificationPage() {
     }
   };
 
+  const resubmit = async () => {
+    setResubmitting(true);
+    setMessage(null);
+    setError(null);
+    try {
+      await apiFetch('/api/provider/resubmit', { method: 'POST' });
+      setMessage('Listing submitted for review again.');
+      await load();
+    } catch (e: unknown) {
+      setError((e as { message?: string })?.message || 'Could not resubmit. Re-upload rejected documents first.');
+    } finally {
+      setResubmitting(false);
+    }
+  };
+
   if (loading) return <Skeleton variant="card" height={240} />;
 
   const types = payload?.tier1Types?.length ? payload.tier1Types : payload?.requiredTypes || [];
@@ -70,10 +98,22 @@ export default function SoloVerificationPage() {
     <div style={{ maxWidth: 800, margin: '0 auto', paddingBottom: 40 }}>
       <PageHeader
         title="Verification"
-        subtitle="Upload identity / professional documents for your solo listing."
+        subtitle="Upload identity documents for your solo listing. Tier 1 gets you approved; Tier 2 unlocks the Verified badge."
       />
       {message && <div className="success-alert" style={{ marginBottom: 14 }}>{message}</div>}
       {error && <div className="error-alert" style={{ marginBottom: 14 }}>{error}</div>}
+
+      {listingStatus === 'REJECTED' && (
+        <div className="error-alert" style={{ marginBottom: 14, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+          <div style={{ flex: 1 }}>
+            <strong>Listing rejected</strong>
+            <div>Re-upload rejected documents, then resubmit for review.</div>
+          </div>
+          <button type="button" className="btn btn-primary btn-sm" disabled={resubmitting} onClick={() => void resubmit()}>
+            {resubmitting ? 'Submitting…' : 'Resubmit for review'}
+          </button>
+        </div>
+      )}
 
       <div className="card" style={{ padding: 16, marginBottom: 16, display: 'grid', gap: 10 }}>
         <strong>Upload document</strong>
@@ -92,14 +132,19 @@ export default function SoloVerificationPage() {
 
       <div style={{ display: 'grid', gap: 10 }}>
         {(payload?.documents || []).map((d) => (
-          <article key={d.id} className="card" style={{ padding: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <article key={d.id} className="card" style={{ padding: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
             <div>
               <strong>{d.documentType}</strong>
-              {d.fileUrl && (
-                <div>
-                  <a href={d.fileUrl} target="_blank" rel="noreferrer">
+              {(d.reviewNotes || d.rejectionReason) && (
+                <div style={{ marginTop: 4, opacity: 0.85, fontSize: 13 }}>
+                  Note: {d.reviewNotes || d.rejectionReason}
+                </div>
+              )}
+              {d.url && (
+                <div style={{ marginTop: 6 }}>
+                  <button type="button" className="btn btn-sm btn-outline" onClick={() => openAuthedFile(d.url!).catch(() => {})}>
                     View file
-                  </a>
+                  </button>
                 </div>
               )}
             </div>

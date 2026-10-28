@@ -37,6 +37,23 @@ export const CAPABILITIES = [
     title: 'Solo or multi-branch',
     text: 'Individuals list their craft. Businesses run teams, packages, and peak pricing together.',
   },
+  {
+    icon: 'fa-comments',
+    title: 'Requests & quotes',
+    text: 'Ask for custom work, compare quotes, and turn accepted offers into booked jobs.',
+  },
+  {
+    icon: 'fa-circle-check',
+    title: 'Verified listings',
+    text: 'Businesses go through verification so customers can book with clearer trust signals.',
+  },
+];
+
+export const TRUST_STATS = [
+  { value: 'Live', label: 'Calendar openings' },
+  { value: '3', label: 'Account paths' },
+  { value: 'Safe', label: 'Conflict-free slots' },
+  { value: '1', label: 'Shared workspace' },
 ];
 
 export const PATHS = [
@@ -83,12 +100,12 @@ export const VOICES = [
 
 export const FAQ = [
   {
-    q: 'Is HourSlot free for customers?',
+    q: 'Is Duemet free for customers?',
     a: 'Yes — browsing, booking, rescheduling, and reviews are free for customers. Businesses and individuals can list and start filling slots at no upfront cost.',
   },
   {
     q: 'What is the difference between individual and business?',
-    a: 'Individuals offer their own services without a staffed venue. Businesses manage branches, teams, and shared operations — both use HourSlot booking tools.',
+    a: 'Individuals offer their own services without a staffed venue. Businesses manage branches, teams, and shared operations — both use Duemet booking tools.',
   },
   {
     q: 'Can I pay at the venue?',
@@ -108,7 +125,9 @@ export const PROVIDER_POINTS = [
   'Live availability & staff calendars',
   'Peak pricing shown before checkout',
   'Packages, gallery, and service areas',
+  'Requests, quotes, and job tracking',
   'Online pay or pay at the venue',
+  'Verification for trusted listings',
 ];
 
 export const STORY_POINTS = [
@@ -116,4 +135,5 @@ export const STORY_POINTS = [
   'Verified businesses and independents',
   'Pay online or at the venue',
   'Reschedule without the phone tag',
+  'Favorites, history, and reminders in one place',
 ];

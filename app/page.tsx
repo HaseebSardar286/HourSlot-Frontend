@@ -1,23 +1,16 @@
-import { Syne, Figtree } from 'next/font/google';
+import { Source_Serif_4 } from 'next/font/google';
 import LandingPage from '@/components/landing/LandingPage';
 
-const syne = Syne({
+const sourceSerif = Source_Serif_4({
   subsets: ['latin'],
-  weight: ['600', '700', '800'],
+  weight: ['500', '600', '700'],
   variable: '--font-hs-display',
-  display: 'swap',
-});
-
-const figtree = Figtree({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-hs-body',
   display: 'swap',
 });
 
 export default function HomePage() {
   return (
-    <div className={`${syne.variable} ${figtree.variable}`}>
+    <div className={sourceSerif.variable}>
       <LandingPage />
     </div>
   );

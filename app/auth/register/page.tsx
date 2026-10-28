@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { apiFetch } from '@/lib/api';
 import type { Category } from '@/lib/types';
-import { destinationAfterAuth } from '@/lib/auth-redirect';
 import GeoFields, { type GeoSelection } from '@/components/GeoFields';
 import CustomSelect from '@/components/CustomSelect';
 import AuthProgress from '../AuthProgress';
@@ -68,21 +67,6 @@ function roleFromQuery(raw: string | null): 'CUSTOMER' | 'BUSINESS_OWNER' | 'IND
   return 'CUSTOMER';
 }
 
-async function uploadVerificationDoc(token: string, documentType: string, file: File) {
-  const body = new FormData();
-  body.append('documentType', documentType);
-  body.append('file', file);
-  const res = await fetch('/api/business/verification-documents', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-    body,
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err as { message?: string }).message || 'Document upload failed.');
-  }
-}
-
 function FileChip({
   id,
   label,
@@ -122,7 +106,7 @@ function FileChip({
 }
 
 function RegisterForm() {
-  const { register, login } = useAuth();
+  const { register } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get('returnUrl');
@@ -391,24 +375,13 @@ function RegisterForm() {
     }
 
     try {
-      await register(payload);
-      const session = await login({ email: formData.email, password: formData.password });
-      document.cookie = `hourslot_user_session=${encodeURIComponent(JSON.stringify(session))}; path=/; max-age=86400`;
-
-      if (isProvider && govIdFile && session.token) {
-        await uploadVerificationDoc(session.token, 'OWNER_GOVERNMENT_ID', govIdFile);
-      }
-      if (isBusiness && tradeLicenseFile && session.token) {
-        await uploadVerificationDoc(session.token, 'TRADE_LICENSE', tradeLicenseFile);
-      }
-
-      const dest = destinationAfterAuth(session.role, returnUrl, {
-        listingMode: session.listingMode,
-        providerIntent: session.providerIntent || (isIndividual ? 'INDIVIDUAL' : null),
-        onboardingState: session.onboardingState || (isProvider ? 'PROFILE_COMPLETE' : null),
-        providerWorkspace: session.providerWorkspace || isProvider,
+      await register(payload, {
+        governmentId: isProvider ? govIdFile : null,
+        tradeLicense: isBusiness ? tradeLicenseFile : null,
       });
-      router.push(dest);
+      const params = new URLSearchParams({ registered: '1', email: formData.email });
+      if (returnUrl) params.set('returnUrl', returnUrl);
+      router.push(`/auth/login?${params.toString()}`);
     } catch (err: unknown) {
       const e = err as { error?: { message?: string }; message?: string };
       setLoading(false);
@@ -497,7 +470,7 @@ function RegisterForm() {
     <div className={styles.frame}>
       <header className={styles.head}>
         <div className={styles.headCopy}>
-          <p className={styles.eyebrow}>Join HourSlot</p>
+          <p className={styles.eyebrow}>Join Duemet</p>
           <h1 className={styles.title}>Create your account</h1>
           <p className={styles.subtitle}>
             {isCustomer

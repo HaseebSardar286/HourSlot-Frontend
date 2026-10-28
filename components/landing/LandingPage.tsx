@@ -7,7 +7,9 @@ import LandingHero from './LandingHero';
 import LandingCategories from './LandingCategories';
 import LandingHowItWorks from './LandingHowItWorks';
 import LandingMarketplace from './LandingMarketplace';
-import LandingPaths from './LandingPaths';
+import LandingTrust from './LandingTrust';
+import LandingProviders from './LandingProviders';
+import LandingVoices from './LandingVoices';
 import LandingFaq from './LandingFaq';
 import LandingFinalCta from './LandingFinalCta';
 import LandingFooter from './LandingFooter';
@@ -24,11 +26,11 @@ export default function LandingPage() {
   const persistSearch = (query: string, geo?: { lat: number; lon: number }) => {
     try {
       sessionStorage.setItem(
-        'hourslot_explore_q',
+        'duemet_explore_q',
         JSON.stringify({ q: query.trim(), location: location.trim() })
       );
       if (geo) {
-        sessionStorage.setItem('hourslot_explore_coords', JSON.stringify(geo));
+        sessionStorage.setItem('duemet_explore_coords', JSON.stringify(geo));
       }
     } catch {
       /* ignore */
@@ -86,6 +88,10 @@ export default function LandingPage() {
         onLocationChange={setLocation}
         onSearch={handleSearch}
         onLocate={locateMe}
+        onQuickSearch={(term) => {
+          setService(term);
+          goSearch(term);
+        }}
       />
       <LandingCategories
         categories={categories}
@@ -97,7 +103,9 @@ export default function LandingPage() {
       />
       <LandingHowItWorks />
       <LandingMarketplace listings={featuredListings} total={liveListings.length} loading={loading} />
-      <LandingPaths />
+      <LandingProviders />
+      <LandingTrust />
+      <LandingVoices />
       <LandingFaq />
       <LandingFinalCta />
       <LandingFooter />

@@ -2,8 +2,8 @@
 
 import { ReactNode } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname } from 'next/navigation';
+import BrandLogo from '@/components/BrandLogo';
 import AuthFlipStage from './AuthFlip';
 import styles from './auth-layout.module.css';
 
@@ -37,7 +37,7 @@ export default function AuthShell({
 
   return (
     <div className={`${styles.shell} ${className} ${isRegister ? styles.shellRegister : ''}`}>
-      <aside className={styles.brandPanel} aria-label="HourSlot">
+      <aside className={styles.brandPanel} aria-label="Duemet">
         <div className={styles.brandGlow} aria-hidden />
         <div className={styles.brandOrbA} aria-hidden />
         <div className={styles.brandOrbB} aria-hidden />
@@ -45,14 +45,7 @@ export default function AuthShell({
 
         <div className={styles.brandInner}>
           <Link href="/" className={styles.brandMark}>
-            <Image
-              src="/logo-hourslot.png"
-              alt="HourSlot"
-              width={200}
-              height={62}
-              className={styles.brandLogo}
-              priority
-            />
+            <BrandLogo kind="wordmark" variant="white" height={36} priority className={styles.brandLogo} />
           </Link>
 
           <p className={styles.brandEyebrow}>Appointment platform</p>
@@ -90,14 +83,7 @@ export default function AuthShell({
         <div className={styles.formAtmosphere} aria-hidden />
         <div className={styles.mobileBrand}>
           <Link href="/">
-            <Image
-              src="/logo-hourslot.png"
-              alt="HourSlot"
-              width={148}
-              height={44}
-              className={styles.mobileLogo}
-              priority
-            />
+            <BrandLogo kind="wordmark" variant="color" height={28} priority className={styles.mobileLogo} />
           </Link>
         </div>
         <div className={`${styles.formInner} ${isRegister ? styles.formInnerWide : ''}`}>
@@ -105,7 +91,7 @@ export default function AuthShell({
         </div>
         {!isRegister && (
           <p className={styles.formFooter}>
-            <Link href="/">← Back to HourSlot home</Link>
+            <Link href="/">← Back to Duemet home</Link>
           </p>
         )}
       </div>

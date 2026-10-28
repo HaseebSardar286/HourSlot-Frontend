@@ -8,6 +8,7 @@ import { fetchPresence, pushPresence } from '@/lib/provider-presence';
 import PageHeader from '@/components/PageHeader';
 import Skeleton from '@/components/Skeleton';
 import StatusBadge from '@/components/StatusBadge';
+import AppAccessCard from '@/components/AppAccessCard';
 import styles from './dashboard.module.css';
 
 type Checklist = {
@@ -26,6 +27,8 @@ type Workspace = {
   onboardingState?: string;
   opsStatus?: string;
   isOnline?: boolean;
+  availableNow?: boolean;
+  availableNowUntil?: string | null;
   serviceMode?: string;
   checklist?: Checklist;
   checklistComplete?: number;
@@ -110,17 +113,72 @@ export default function SoloDashboardPage() {
     }
   };
 
+  const setAvailableNow = async (minutes: number) => {
+    setBusy(true);
+    setMessage(null);
+    setError(null);
+    try {
+      await apiFetch('/api/provider/ops/available-now', {
+        method: 'PUT',
+        body: JSON.stringify({ minutes }),
+      });
+      setMessage(
+        minutes > 0
+          ? `You're taking urgent jobs for the next ${minutes >= 60 ? `${minutes / 60} h` : `${minutes} min`}.`
+          : 'Urgent jobs turned off.'
+      );
+      await load();
+    } catch (e: unknown) {
+      const err = e as { message?: string };
+      setError(err?.message || 'Could not update urgent availability.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const publish = async () => {
     setBusy(true);
     setMessage(null);
     setError(null);
     try {
       await apiFetch('/api/provider/publish', { method: 'POST' });
-      setMessage('Listing published.');
+      setMessage('Your listing is live on Explore.');
       await load();
     } catch (e: unknown) {
       const err = e as { message?: string };
       setError(err?.message || 'Could not publish listing.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const unpublish = async () => {
+    setBusy(true);
+    setMessage(null);
+    setError(null);
+    try {
+      await apiFetch('/api/provider/unpublish', { method: 'POST' });
+      setMessage('Listing hidden from Explore.');
+      await load();
+    } catch (e: unknown) {
+      const err = e as { message?: string };
+      setError(err?.message || 'Could not unpublish listing.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const resubmit = async () => {
+    setBusy(true);
+    setMessage(null);
+    setError(null);
+    try {
+      await apiFetch('/api/provider/resubmit', { method: 'POST' });
+      setMessage('Listing submitted for review again.');
+      await load();
+    } catch (e: unknown) {
+      const err = e as { message?: string };
+      setError(err?.message || 'Could not resubmit. Re-upload rejected documents first.');
     } finally {
       setBusy(false);
     }
@@ -139,6 +197,20 @@ export default function SoloDashboardPage() {
   const checklist = workspace?.checklist || {};
   const complete = workspace?.checklistComplete ?? 0;
   const total = workspace?.checklistTotal ?? CHECKLIST_ITEMS.length;
+  const status = (workspace?.status || 'PENDING').toUpperCase();
+  const isLive = status === 'APPROVED' && (workspace?.publishStatus || '').toUpperCase() === 'PUBLISHED';
+  const listingStatusLabel =
+    status === 'PENDING'
+      ? 'Hidden while in review'
+      : status === 'REJECTED'
+        ? 'Rejected — fix documents and resubmit'
+        : status === 'SUSPENDED'
+          ? 'Suspended — hidden from customers'
+          : isLive
+            ? 'Live on Explore'
+            : status === 'APPROVED'
+              ? 'Approved — hidden until you publish'
+              : status;
   const customerName = (b: NonNullable<TodayPayload['bookings']>[number]) => {
     const u = b.customer?.user || b.customer;
     const name = `${u?.firstName || ''} ${u?.lastName || ''}`.trim();
@@ -163,6 +235,40 @@ export default function SoloDashboardPage() {
         </div>
       )}
 
+      <div className="surface" style={{ padding: 16, marginBottom: 14, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+        <i className={`fa-solid ${isLive ? 'fa-circle-check' : status === 'REJECTED' ? 'fa-circle-xmark' : 'fa-clock-rotate-left'}`} />
+        <div style={{ flex: 1 }}>
+          <strong>{listingStatusLabel}</strong>
+          <p style={{ margin: '6px 0 0', opacity: 0.85 }}>
+            {status === 'PENDING' && 'Complete setup and verification so Super Admin can approve your listing.'}
+            {status === 'REJECTED' && 'Re-upload rejected documents, then resubmit for review.'}
+            {status === 'SUSPENDED' && 'Your listing is hidden. Contact support for help.'}
+            {status === 'APPROVED' && !isLive && 'Publish when services, hours, and a service area are ready.'}
+            {isLive && 'Customers can find and book you on Explore.'}
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+            {status === 'REJECTED' && (
+              <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => void resubmit()}>
+                Resubmit for review
+              </button>
+            )}
+            {status === 'APPROVED' && !isLive && (
+              <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => void publish()}>
+                Publish listing
+              </button>
+            )}
+            {isLive && (
+              <button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => void unpublish()}>
+                Unpublish
+              </button>
+            )}
+            <Link href="/provider/verification" className="btn btn-outline btn-sm">
+              Verification
+            </Link>
+          </div>
+        </div>
+      </div>
+
       <section className={styles.heroCard}>
         <div>
           <span className={styles.kicker}>Individual professional</span>
@@ -171,7 +277,7 @@ export default function SoloDashboardPage() {
             {workspace?.serviceMode?.replaceAll('_', ' ') || 'Service mode'} ·{' '}
             {workspace?.publishStatus || 'DRAFT'} · {workspace?.opsStatus || 'AVAILABLE'}
           </p>
-          {workspace?.slug && (
+          {isLive && workspace?.slug && (
             <Link href={`/b/${encodeURIComponent(workspace.slug)}`} className={styles.publicLink}>
               View public profile <i className="fa-solid fa-arrow-up-right-from-square" />
             </Link>
@@ -182,13 +288,48 @@ export default function SoloDashboardPage() {
             <span className={online ? styles.dotOn : styles.dotOff} />
             {online ? 'Online' : 'Offline'}
           </button>
-          {workspace?.publishStatus !== 'PUBLISHED' && (
+          {workspace?.availableNow ? (
+            <button
+              type="button"
+              className={styles.presenceBtn}
+              onClick={() => void setAvailableNow(0)}
+              disabled={busy}
+              title="Customers can book you for urgent jobs with the urgent fee"
+            >
+              <span className={styles.dotOn} />
+              Urgent jobs until{' '}
+              {workspace.availableNowUntil
+                ? new Date(workspace.availableNowUntil).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+                : 'later'}{' '}
+              · Stop
+            </button>
+          ) : (
+            <select
+              className={styles.presenceBtn}
+              value=""
+              disabled={busy}
+              aria-label="Take urgent jobs"
+              onChange={(e) => {
+                const minutes = Number(e.target.value);
+                if (minutes > 0) void setAvailableNow(minutes);
+              }}
+            >
+              <option value="">Take urgent jobs…</option>
+              <option value="60">For 1 hour</option>
+              <option value="120">For 2 hours</option>
+              <option value="240">For 4 hours</option>
+              <option value="480">For 8 hours</option>
+            </select>
+          )}
+          {status === 'APPROVED' && !isLive && (
             <button type="button" className={styles.primaryBtn} onClick={() => void publish()} disabled={busy}>
               Publish listing
             </button>
           )}
         </div>
       </section>
+
+      <AppAccessCard />
 
       <section className={styles.stats}>
         <div className={styles.stat}>
@@ -227,7 +368,7 @@ export default function SoloDashboardPage() {
                   <i className={`fa-solid ${done ? 'fa-circle-check' : item.icon}`} />
                   <div>
                     <strong>{item.label}</strong>
-                    {!done && item.key === 'published' ? (
+                    {!done && item.key === 'published' && status === 'APPROVED' ? (
                       <button type="button" className={styles.linkBtn} onClick={() => void publish()} disabled={busy}>
                         Publish now
                       </button>

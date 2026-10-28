@@ -2,9 +2,9 @@
 
 import React, { useState, Suspense, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import BrandLogo from '@/components/BrandLogo';
 import HeaderNav from '@/components/HeaderNav';
 import NotificationPanel from '@/components/NotificationPanel';
 import PageMotion from '@/components/PageMotion';
@@ -19,15 +19,22 @@ const GUEST_NAV = [
 ];
 
 const CUSTOMER_NAV = [
-  { href: '/profile/explore', icon: 'fa-compass', label: 'Explore', short: 'Explore', accent: 'teal' },
-  { href: '/profile/bookings', icon: 'fa-calendar-check', label: 'My Bookings', short: 'Bookings', accent: 'indigo' },
-  { href: '/profile/requests', icon: 'fa-file-lines', label: 'My Requests', short: 'Requests', accent: 'coral' },
-  { href: '/profile/jobs', icon: 'fa-briefcase', label: 'Jobs', short: 'Jobs', accent: 'indigo' },
-  { href: '/community', icon: 'fa-people-group', label: 'Community', short: 'Community', accent: 'violet' },
-  { href: '/profile/packages', icon: 'fa-gift', label: 'Packages', short: 'Packages', accent: 'violet' },
-  { href: '/profile/addresses', icon: 'fa-location-dot', label: 'Addresses', short: 'Addresses', accent: 'indigo' },
-  { href: '/profile', icon: 'fa-gear', label: 'Settings', short: 'Account', exact: true, accent: 'sky' },
+  { href: '/profile/explore', icon: 'fa-compass', label: 'Explore', short: 'Explore' },
+  { href: '/profile/bookings', icon: 'fa-calendar-check', label: 'Bookings', short: 'Bookings' },
+  { href: '/profile/requests', icon: 'fa-file-lines', label: 'Requests', short: 'Requests' },
+  { href: '/profile/jobs', icon: 'fa-briefcase', label: 'Jobs', short: 'Jobs' },
+  { href: '/community', icon: 'fa-people-group', label: 'Community', short: 'Community' },
+  { href: '/profile/packages', icon: 'fa-gift', label: 'Packages', short: 'Packages' },
+  { href: '/profile/addresses', icon: 'fa-location-dot', label: 'Addresses', short: 'Addresses' },
+  { href: '/profile', icon: 'fa-user', label: 'Account', short: 'Account', exact: true },
 ] as const;
+
+const MOBILE_NAV = [
+  CUSTOMER_NAV[0],
+  CUSTOMER_NAV[1],
+  CUSTOMER_NAV[2],
+  CUSTOMER_NAV[7],
+];
 
 export default function ProfileLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -56,7 +63,6 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
   };
 
   const handleLogout = () => {
-    document.cookie = 'hourslot_user_session=; path=/; max-age=0';
     logout();
     router.push('/profile/explore');
   };
@@ -101,10 +107,10 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
           <div className={styles.sidebarHeader}>
             {!sidebarCollapsed ? (
               <Link href="/" className={styles.sideBrand}>
-                <Image src="/logo-hourslot.png" alt="HourSlot" width={132} height={40} priority className={styles.sideLogo} />
+                <BrandLogo kind="wordmark" variant="color" height={26} priority className={styles.sideLogo} />
               </Link>
             ) : (
-              <Link href="/" className={styles.sideBrandIcon} title="HourSlot home">
+              <Link href="/" className={styles.sideBrandIcon} title="Duemet home">
                 <i className="fa-solid fa-calendar-check" />
               </Link>
             )}
@@ -123,7 +129,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
               <Link
                 key={item.href}
                 href={item.href}
-                className={`${styles.sideLink} ${styles[`sideAccent${item.accent.charAt(0).toUpperCase()}${item.accent.slice(1)}`]} ${isActive(item.href, 'exact' in item ? item.exact : undefined) ? styles.sideLinkActive : ''}`}
+                className={`${styles.sideLink} ${isActive(item.href, 'exact' in item ? item.exact : undefined) ? styles.sideLinkActive : ''}`}
                 onClick={() => setMenuOpen(false)}
                 aria-label={item.label}
               >
@@ -200,7 +206,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
             <PageMotion>{children}</PageMotion>
           </div>
           <nav className={styles.bottomNav} aria-label="Customer">
-            {CUSTOMER_NAV.map((item) => (
+            {MOBILE_NAV.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -210,6 +216,10 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
                 <span>{item.short}</span>
               </Link>
             ))}
+            <button type="button" className={styles.bottomLink} onClick={() => setMenuOpen(true)}>
+              <i className="fa-solid fa-ellipsis" aria-hidden />
+              <span>More</span>
+            </button>
           </nav>
         </div>
       </div>
@@ -236,7 +246,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
               <i className="fa-solid fa-bars" />
             </button>
             <Link href="/" className={styles.brand}>
-              <Image src="/logo-hourslot.png" alt="HourSlot" width={156} height={47} priority className={styles.logo} />
+              <BrandLogo kind="wordmark" variant="color" height={28} priority className={styles.logo} />
             </Link>
             <nav className={styles.nav} aria-label="Customer">
               {GUEST_NAV.map((item) => (
@@ -264,7 +274,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
           <button type="button" className={styles.guestMenuBackdrop} aria-label="Close menu" onClick={() => setMenuOpen(false)} />
           <nav className={styles.guestMenuSheet} aria-label="Mobile">
             <div className={styles.guestMenuHead}>
-              <strong>HourSlot</strong>
+              <strong>Duemet</strong>
               <button type="button" className={styles.guestMenuClose} aria-label="Close" onClick={() => setMenuOpen(false)}>
                 <i className="fa-solid fa-xmark" />
               </button>
@@ -299,14 +309,14 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
           <div className={styles.guestFooterMain}>
             <div className={styles.guestFooterBrand}>
               <Link href="/" className={styles.guestFooterLogo}>
-                <Image src="/logo-hourslot.png" alt="HourSlot" width={166} height={49} className={styles.logo} />
+                <BrandLogo kind="wordmark" variant="white" height={28} className={styles.logo} />
               </Link>
               <p>
                 The live marketplace for local services — browse businesses, compare packages, and book real open
                 slots.
               </p>
               <div className={styles.guestFooterSocials}>
-                <a href="mailto:support@hourslot.app" aria-label="Email support">
+                <a href="mailto:support@duemet.app" aria-label="Email support">
                   <i className="fa-solid fa-envelope" />
                 </a>
                 <Link href="/profile/explore" aria-label="Explore marketplace">
@@ -324,7 +334,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
                 <ul>
                   <li><Link href="/profile/explore">Explore businesses</Link></li>
                   <li><Link href="/profile/explore">Search by category</Link></li>
-                  <li><Link href="/">HourSlot home</Link></li>
+                  <li><Link href="/">Duemet home</Link></li>
                 </ul>
               </div>
               <div className={styles.guestFooterCol}>
@@ -348,11 +358,11 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
           </div>
 
           <div className={styles.guestFooterBottom}>
-            <p>© {new Date().getFullYear()} HourSlot. All rights reserved.</p>
+            <p>© {new Date().getFullYear()} Duemet. All rights reserved.</p>
             <div className={styles.guestFooterLinks}>
               <Link href="/">Home</Link>
               <Link href="/profile/explore">Explore</Link>
-              <a href="mailto:support@hourslot.app">Support</a>
+              <a href="mailto:support@duemet.app">Support</a>
             </div>
           </div>
         </div>

@@ -5,8 +5,8 @@ import styles from './landing.module.css';
 export default function LandingFinalCta() {
   return (
     <Reveal as="section" className={styles.finalCta}>
-      <div className={styles.wrapNarrow}>
-        <p className={styles.brandWord}>HourSlot</p>
+      <div className={styles.finalPanel}>
+        <p className={styles.brandWord}>Duemet</p>
         <h2 className={styles.finalTitle}>Ready when you are.</h2>
         <p>Find an opening, claim it, and keep the visit in one place.</p>
         <div className={styles.inlineActions}>

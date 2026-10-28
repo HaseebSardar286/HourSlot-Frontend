@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import Image from 'next/image';
+import BrandLogo from '@/components/BrandLogo';
 import styles from './landing.module.css';
 
 export default function LandingFooter() {
@@ -7,20 +7,15 @@ export default function LandingFooter() {
     <footer className={styles.footer}>
       <div className={styles.footerGrid}>
         <div className={styles.footerBrand}>
-          <Image
-            src="/logo-hourslot.png"
-            alt="HourSlot"
-            width={156}
-            height={47}
-            className={styles.footerLogo}
-          />
+          <BrandLogo kind="wordmark" variant="white" height={26} className={styles.footerLogo} />
           <p>Book the hour that fits — for customers, individuals, and businesses.</p>
         </div>
         <div>
           <h4>Product</h4>
           <Link href="/profile/explore">Explore</Link>
           <a href="#how">How it works</a>
-          <a href="#paths">Get started</a>
+          <a href="#marketplace">Featured</a>
+          <a href="#providers">For providers</a>
         </div>
         <div>
           <h4>Account</h4>
@@ -30,10 +25,10 @@ export default function LandingFooter() {
         </div>
         <div>
           <h4>Connect</h4>
-          <a href="mailto:hello@hourslot.app">hello@hourslot.app</a>
+          <a href="mailto:hello@duemet.app">hello@duemet.app</a>
         </div>
       </div>
-      <p className={styles.copy}>© 2026 HourSlot. All rights reserved.</p>
+      <p className={styles.copy}>© 2026 Duemet. All rights reserved.</p>
     </footer>
   );
 }

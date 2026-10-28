@@ -19,7 +19,7 @@ export default function LandingMarketplace({ listings, total, loading }: Props) 
         <div className={styles.sectionHead}>
           <div>
             <p className={styles.eyebrow}>Marketplace</p>
-            <h2 className={styles.displayTitle}>Live on HourSlot</h2>
+            <h2 className={styles.displayTitle}>Live on Duemet</h2>
             <p className={styles.sectionSub}>
               {!loading && total > 0
                 ? `${listings.length} of ${total} approved listings`

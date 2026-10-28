@@ -1,14 +1,14 @@
 /* Auth visual system — coastal ink + mist form plane */
 
 .shell {
-  --auth-ink: #062e2e;
-  --auth-ink-mid: #0d4a4a;
-  --auth-teal: #1a8a8a;
-  --auth-mint: #5bb88c;
-  --auth-mist: #eef5f4;
-  --auth-paper: #fbfcfc;
-  --auth-line: rgba(6, 46, 46, 0.08);
-  --auth-soft: rgba(26, 138, 138, 0.09);
+  --auth-ink: var(--text-main);
+  --auth-ink-mid: #1f2937;
+  --auth-teal: var(--accent-primary);
+  --auth-mint: #3b82f6;
+  --auth-mist: var(--bg-primary);
+  --auth-paper: var(--bg-card);
+  --auth-line: rgba(17, 24, 39, 0.08);
+  --auth-soft: rgba(var(--accent-primary-rgb), 0.09);
 
   min-height: 100vh;
   min-height: 100dvh;
@@ -33,7 +33,6 @@
 .shell :global(textarea),
 .shell :global(strong),
 .shell :global(small) {
-  font-family: Roboto, sans-serif !important;
   text-transform: none;
 }
 
@@ -53,19 +52,13 @@
   padding: 36px clamp(24px, 3vw, 44px);
   overflow: hidden;
   color: #fff;
-  background:
-    linear-gradient(155deg, #041f1f 0%, #0a3d3d 42%, #146060 78%, #1a8a8a 100%);
+  background: linear-gradient(160deg, #3b82f6 0%, #2563eb 100%);
 }
 
-.brandGlow {
-  position: absolute;
-  inset: -20% -10% auto auto;
-  width: 70%;
-  height: 70%;
-  background: radial-gradient(circle, rgba(91, 184, 140, 0.35), transparent 65%);
-  filter: blur(8px);
-  animation: authGlow 10s ease-in-out infinite alternate;
-  pointer-events: none;
+.brandGlow,
+.brandOrbA,
+.brandOrbB {
+  display: none;
 }
 
 .brandOrbA,
@@ -90,20 +83,12 @@
   height: 160px;
   top: 18%;
   right: 8%;
-  background: radial-gradient(circle at 40% 40%, rgba(91, 184, 140, 0.25), transparent 70%);
+  background: radial-gradient(circle at 40% 40%, rgba(59, 130, 246, 0.25), transparent 70%);
   animation: authFloat 11s ease-in-out infinite reverse;
 }
 
 .brandGrid {
-  position: absolute;
-  inset: 0;
-  opacity: 0.22;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(ellipse 80% 70% at 40% 40%, #000 20%, transparent 75%);
-  pointer-events: none;
+  display: none;
 }
 
 .brandInner {
@@ -124,13 +109,11 @@
 }
 
 .brandLogo {
-  height: 46px;
+  height: 36px;
   width: auto;
   object-fit: contain;
-  background: #fff;
-  padding: 8px 14px;
-  border-radius: 14px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+  object-position: left center;
+  display: block;
 }
 
 .brandEyebrow {
@@ -138,7 +121,7 @@
   font-size: 0.82rem;
   font-weight: 500;
   letter-spacing: 0.01em;
-  color: rgba(167, 232, 198, 0.95);
+  color: rgba(255, 255, 255, 0.62);
 }
 
 .brandTitle {
@@ -152,10 +135,7 @@
 
 .brandTitleAccent {
   display: block;
-  background: linear-gradient(105deg, #b8f0d0 0%, #7ec8a3 45%, #e8fff4 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: #93c5fd;
 }
 
 .brandCopy {
@@ -199,12 +179,12 @@
   width: 42px;
   height: 42px;
   border-radius: 12px;
-  background: linear-gradient(145deg, rgba(91, 184, 140, 0.35), rgba(26, 138, 138, 0.2));
+  background: rgba(255, 255, 255, 0.08);
   display: flex !important;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: #e8fff4;
+  color: #eff6ff;
   line-height: 0;
   overflow: hidden;
 }
@@ -267,13 +247,7 @@
 }
 
 .formAtmosphere {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse 70% 50% at 85% 10%, rgba(91, 184, 140, 0.14), transparent 55%),
-    radial-gradient(ellipse 60% 45% at 10% 90%, rgba(26, 138, 138, 0.1), transparent 50%),
-    linear-gradient(180deg, #f2f8f7 0%, #e8f1f0 100%);
+  display: none;
 }
 
 .formInner {
@@ -297,8 +271,7 @@
 }
 
 .formPanelRegister .mobileLogo {
-  height: 34px;
-  padding: 5px 12px;
+  height: 28px;
 }
 
 .formInnerWide {
@@ -319,12 +292,10 @@
 }
 
 .mobileLogo {
-  height: 42px;
+  height: 28px;
   width: auto;
-  background: #fff;
-  padding: 7px 14px;
-  border-radius: 12px;
-  box-shadow: 0 10px 28px rgba(6, 46, 46, 0.08);
+  object-fit: contain;
+  display: block;
 }
 
 .formFooter {
@@ -333,7 +304,7 @@
   margin-top: 24px;
   text-align: center;
   font-size: 0.9rem;
-  color: #6b8a8a;
+  color: var(--text-muted);
 }
 
 .formFooter a {

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 const AUTH_ROUTES = ['/auth/login', '/auth/register', '/auth/forgot-password', '/auth/reset-password'];
-const STORAGE_KEY = 'hourslot_user_session';
+const STORAGE_KEY = 'duemet_user_session';
 
 function isPublicBrowse(pathname: string): boolean {
   return (
@@ -52,7 +52,7 @@ export function middleware(request: NextRequest) {
   if (sessionCookie) {
     try {
       const session = JSON.parse(decodeURIComponent(sessionCookie));
-      isAuthenticated = !!session?.token;
+      isAuthenticated = !!session?.id;
       userRole = session?.role ?? null;
       listingMode = session?.listingMode ?? null;
       providerIntent = session?.providerIntent ?? null;
@@ -128,6 +128,6 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|logo-hourslot.png|uploads).*)',
+    '/((?!_next/static|_next/image|favicon.ico|favicon-.*\\.png|duemet.*\\.png|icons/|brand/|uploads).*)',
   ],
 };

@@ -4,7 +4,7 @@ import styles from './landing.module.css';
 
 export default function LandingHowItWorks() {
   return (
-    <Reveal as="section" className={styles.band} id="how">
+    <Reveal as="section" className={`${styles.band} ${styles.bandAlt}`} id="how">
       <div className={styles.wrap}>
         <div className={styles.sectionHead}>
           <div>
@@ -15,12 +15,11 @@ export default function LandingHowItWorks() {
         </div>
 
         <ol className={`${styles.stepTrack} hs-stagger`}>
-          {STEPS.map((step, i) => (
+          {STEPS.map((step) => (
             <li key={step.num} className={styles.stepItem}>
               <span className={styles.stepNum}>{step.num}</span>
               <h3>{step.title}</h3>
               <p>{step.text}</p>
-              {i < STEPS.length - 1 ? <span className={styles.stepRule} aria-hidden /> : null}
             </li>
           ))}
         </ol>

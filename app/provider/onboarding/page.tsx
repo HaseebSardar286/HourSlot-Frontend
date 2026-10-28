@@ -8,6 +8,7 @@ import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import FormField from '@/components/FormField';
 import CustomSelect from '@/components/CustomSelect';
+import SoloServicesEditor from '@/components/provider/SoloServicesEditor';
 import Skeleton from '@/components/Skeleton';
 import styles from '@/app/phase1.module.css';
 
@@ -47,7 +48,8 @@ export default function ProviderOnboardingPage() {
   const [latitude, setLatitude] = useState(31.5204);
   const [longitude, setLongitude] = useState(74.3587);
   const [radiusKm, setRadiusKm] = useState('10');
-  const [step, setStep] = useState<'areas' | 'finish'>('areas');
+  const [step, setStep] = useState<'areas' | 'services' | 'finish'>('areas');
+  const [serviceCount, setServiceCount] = useState(0);
 
   const refreshAreas = async () => {
     try {
@@ -253,18 +255,51 @@ export default function ProviderOnboardingPage() {
           )}
           <div className={styles.actions}>
             <button type="submit" className="btn btn-outline" disabled={saving}>{saving ? 'Saving…' : 'Add area'}</button>
-            <button type="button" className="btn btn-primary" disabled={saving} onClick={() => void markServicesComplete()}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={saving}
+              onClick={() => {
+                setMessage(null);
+                setStep('services');
+              }}
+            >
               Continue
             </button>
           </div>
         </form>
       )}
 
+      {step === 'services' && (
+        <div className={styles.formCard}>
+          <h2>What do you offer?</h2>
+          <p className={styles.muted}>
+            Add at least one service with a price, e.g. &ldquo;Fan installation — 1,500&rdquo;. You can add more later.
+          </p>
+          <div style={{ marginTop: 16 }}>
+            <SoloServicesEditor onCountChange={setServiceCount} />
+          </div>
+          <div className={styles.actions}>
+            <button type="button" className="btn btn-outline" onClick={() => setStep('areas')}>
+              Back
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={saving || serviceCount === 0}
+              onClick={() => void markServicesComplete()}
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      )}
+
       {step === 'finish' && (
         <div className={styles.formCard}>
-          <h2>Services, hours, and publish</h2>
+          <h2>Hours and publish</h2>
           <p className={styles.muted}>
-            Add the services you offer and set availability. Publish after an administrator approves your Tier‑1 documents.
+            Set your working hours and upload verification documents. Publish after an administrator approves your Tier‑1 documents.
           </p>
           <div className={styles.actions} style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
             <Link href="/provider/services" className="btn btn-outline"><i className="fa-solid fa-tags" /> Services</Link>

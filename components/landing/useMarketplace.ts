@@ -56,26 +56,26 @@ export function useMarketplace() {
 
         const flat: LandingCategory[] = [];
         for (const root of roots || []) {
+          let childListings = 0;
+          for (const child of root.subcategories || []) {
+            childListings += counts.get(child.id) || 0;
+          }
+          const listingCount = (counts.get(root.id) || 0) + childListings;
           flat.push({
             id: root.id,
             name: root.name,
             slug: root.slug,
             icon: categoryIconClass(root.name, root.icon),
             imageUrl: root.imageUrl || coverByCategory.get(root.id) || null,
-            listingCount: counts.get(root.id) || 0,
+            listingCount,
           });
-          for (const child of root.subcategories || []) {
-            flat.push({
-              id: child.id,
-              name: child.name,
-              slug: child.slug,
-              icon: categoryIconClass(child.name, child.icon),
-              imageUrl: child.imageUrl || coverByCategory.get(child.id) || null,
-              listingCount: counts.get(child.id) || 0,
-            });
-          }
         }
-        flat.sort((a, b) => b.listingCount - a.listingCount || a.name.localeCompare(b.name));
+        // Prefer categories that have a cover image, then by listing activity.
+        flat.sort((a, b) => {
+          const img = Number(Boolean(b.imageUrl)) - Number(Boolean(a.imageUrl));
+          if (img !== 0) return img;
+          return b.listingCount - a.listingCount || a.name.localeCompare(b.name);
+        });
         setCategories(flat.slice(0, 8));
       })
       .finally(() => {

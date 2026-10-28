@@ -12,9 +12,9 @@
   flex-wrap: wrap;
   padding: 22px 24px;
   border-radius: 20px;
-  border: 1px solid rgba(26, 138, 138, 0.18);
+  border: 1px solid rgba(var(--accent-primary-rgb), 0.18);
   background:
-    linear-gradient(135deg, rgba(26, 138, 138, 0.1), rgba(14, 165, 233, 0.06)),
+    linear-gradient(135deg, rgba(var(--accent-primary-rgb), 0.1), rgba(14, 165, 233, 0.06)),
     #fff;
   margin-bottom: 18px;
 }
@@ -72,7 +72,7 @@
   padding: 10px 14px;
   border-radius: 12px;
   border: 1px solid var(--border-color);
-  background: #fff;
+  background: var(--bg-card);
   color: var(--text-main);
 }
 
@@ -104,7 +104,7 @@
   padding: 16px;
   border-radius: 16px;
   border: 1px solid var(--border-color);
-  background: #fff;
+  background: var(--bg-card);
 }
 
 .stat strong {
@@ -131,7 +131,7 @@
 .panel {
   border: 1px solid var(--border-color);
   border-radius: 18px;
-  background: #fff;
+  background: var(--bg-card);
   padding: 16px 18px 18px;
   min-height: 280px;
 }
@@ -174,7 +174,7 @@
   align-items: flex-start;
   padding: 12px;
   border-radius: 12px;
-  background: var(--bg-elevated, #f7fbfb);
+  background: var(--bg-elevated, var(--bg-card-hover));
 }
 
 .checklist li i {
@@ -183,7 +183,7 @@
   border-radius: 8px;
   display: grid;
   place-items: center;
-  background: rgba(26, 138, 138, 0.12);
+  background: rgba(var(--accent-primary-rgb), 0.12);
   color: var(--accent-primary);
 }
 
