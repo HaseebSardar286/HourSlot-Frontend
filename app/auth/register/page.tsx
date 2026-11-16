@@ -49,7 +49,7 @@ const slugify = (value: string) =>
 function getPasswordStrength(password: string): { level: number; text: string; color: string } {
   if (!password) return { level: 0, text: '', color: '' };
   let score = 0;
-  if (password.length >= 6) score++;
+  if (password.length >= 8) score++;
   if (password.length >= 10) score++;
   if (/[A-Z]/.test(password)) score++;
   if (/[0-9]/.test(password)) score++;
@@ -200,7 +200,7 @@ function RegisterForm() {
   }
   if (touched.password) {
     if (!formData.password) errors.password = 'Password is required.';
-    else if (formData.password.length < 6) errors.password = 'At least 6 characters.';
+    else if (formData.password.length < 8) errors.password = 'At least 8 characters.';
   }
   if (touched.confirmPassword) {
     if (!formData.confirmPassword) errors.confirmPassword = 'Please confirm.';
@@ -226,7 +226,7 @@ function RegisterForm() {
         formData.phoneNumber &&
         /^[0-9+ ]{10,15}$/.test(formData.phoneNumber) &&
         formData.password &&
-        formData.password.length >= 6 &&
+        formData.password.length >= 8 &&
         formData.password === formData.confirmPassword
     );
 

@@ -1,0 +1,19 @@
+name: CI
+on:
+  push:
+  pull_request:
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      # Pre-existing lint debt (e.g. ref-in-render in LocationMap); make blocking once cleaned up.
+      - run: npm run lint
+        continue-on-error: true
+      - run: npm run build

@@ -73,13 +73,24 @@ function userLocationIcon() {
   });
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Labels contain business-controlled text. Split on the <br> separators our callers add
+// FIRST, then escape every part, so provider-supplied HTML can never execute.
 function infoWindowHtml(label: string) {
   const parts = label
     .split(/<br\s*\/?>/i)
-    .map((part) => part.trim())
+    .map((part) => part.replace(/<\/?strong>/gi, '').trim())
     .filter(Boolean);
-  const title = parts[0] || label;
-  const lines = parts.slice(1);
+  const title = escapeHtml(parts[0] || label);
+  const lines = parts.slice(1).map(escapeHtml);
   return `<div class="${styles.infoCard}">
     <p class="${styles.infoTitle}">${title}</p>
     ${lines.map((line) => `<p class="${styles.infoLine}">${line}</p>`).join('')}
@@ -135,7 +146,9 @@ export default function LocationMap({
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
   const clickRef = useRef(onMarkerClick);
-  clickRef.current = onMarkerClick;
+  useEffect(() => {
+    clickRef.current = onMarkerClick;
+  }, [onMarkerClick]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -399,7 +412,7 @@ export function LocationPicker({
       setGeocoding(true);
       setGeoHint(null);
       try {
-        const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query.trim())}`;
+        const url = `/api/public/geocode?q=${encodeURIComponent(query.trim())}`;
         const res = await fetch(url, {
           headers: { Accept: 'application/json' },
         });
@@ -433,7 +446,7 @@ export function LocationPicker({
     if (geocodeTimer.current) clearTimeout(geocodeTimer.current);
     geocodeTimer.current = setTimeout(() => {
       geocodeAddress(address);
-    }, 900);
+    }, 1200);
     return () => {
       if (geocodeTimer.current) clearTimeout(geocodeTimer.current);
     };

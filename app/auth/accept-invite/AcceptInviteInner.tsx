@@ -170,7 +170,7 @@ export default function AcceptInviteInner() {
                   onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
                   placeholder="Min 6 characters"
                   required
-                  minLength={6}
+                  minLength={8}
                 />
                 <button
                   type="button"

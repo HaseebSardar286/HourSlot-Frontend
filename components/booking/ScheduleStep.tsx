@@ -224,6 +224,10 @@ export default function ScheduleStep({
           </span>
         </div>
 
+        <p style={{ fontSize: 12, color: 'var(--text-muted, #6B7280)', margin: '0 0 8px' }}>
+          Times are shown in the business&apos;s local time.
+        </p>
+
         {slotError && (
           <p className={styles.noSlots} style={{ color: 'var(--accent-red)', marginBottom: 12 }}>
             {slotError}

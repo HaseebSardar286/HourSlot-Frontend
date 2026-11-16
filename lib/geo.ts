@@ -66,7 +66,7 @@ export async function geocodePlace(
 ): Promise<{ lat: number; lon: number; displayName: string } | null> {
   if (!query.trim()) return null;
   try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
+    const url = `/api/public/geocode?q=${encodeURIComponent(query.trim())}`;
     const res = await fetch(url, { headers: { Accept: 'application/json' } });
     if (!res.ok) return null;
     const data = (await res.json()) as { lat: string; lon: string; display_name: string }[];

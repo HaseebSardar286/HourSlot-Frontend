@@ -25,9 +25,38 @@ function readCoords(): Promise<{ latitude?: number; longitude?: number }> {
   });
 }
 
+const SHARE_KEY = 'duemet_share_location';
+
+function hasOptedIn(): boolean {
+  try {
+    return window.localStorage.getItem(SHARE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function setOptedIn(value: boolean) {
+  try {
+    if (value) window.localStorage.setItem(SHARE_KEY, '1');
+    else window.localStorage.removeItem(SHARE_KEY);
+  } catch {
+    /* storage unavailable: treated as not opted in */
+  }
+}
+
+/** Provider chose to stop sharing location (e.g. from settings). */
+export function stopSharingLocation() {
+  setOptedIn(false);
+}
+
 export async function pushPresence(online: boolean, source: string): Promise<PresenceSnapshot | null> {
   try {
-    const coords = online ? await readCoords() : {};
+    // Location is only read automatically at login if the provider already shared it by going online
+    // themselves; an explicit action (any non-LOGIN source) is the opt-in.
+    const explicit = source !== 'LOGIN';
+    const mayRead = online && (explicit || hasOptedIn());
+    if (online && explicit) setOptedIn(true);
+    const coords = mayRead ? await readCoords() : {};
     return await apiFetch<PresenceSnapshot>('/api/provider/presence', {
       method: 'POST',
       body: JSON.stringify({
