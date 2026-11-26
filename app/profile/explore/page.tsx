@@ -54,8 +54,6 @@ function discoveryFilterQs(filters: {
   return encoded ? `&${encoded}` : '';
 }
 
-const CATEGORY_ACCENTS = ['teal', 'coral', 'violet', 'sky', 'rose', 'indigo', 'amber', 'emerald'] as const;
-
 export default function ExplorePage() {
   const router = useRouter();
   const { isAuthenticated, loading: authLoading, user } = useAuth();
@@ -68,7 +66,9 @@ export default function ExplorePage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [locationLabel, setLocationLabel] = useState('Near you');
-  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [coords, setCoords] = useState<{ lat: number; lon: number; accuracy?: number } | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locNotice, setLocNotice] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [radiusKm, setRadiusKm] = useState(50);
   const [sortBy, setSortBy] = useState<'recommended' | 'rating'>('recommended');
@@ -146,42 +146,74 @@ export default function ExplorePage() {
     }
   }, [isAuthenticated, serviceMode, listingMode, verifiedOnly, geoAreaId]);
 
-  const loadCategoriesOnly = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const catData = await apiFetch<Category[]>('/api/discover/categories', { skipAuth: true });
-      setCategories(catData);
-    } catch (err: unknown) {
-      const e = err as { message?: string };
-      setError(e?.message || 'Failed to load categories.');
-    } finally {
-      setLoading(false);
+  /**
+   * Ask the browser for a fresh position (never a cached one). Tries high accuracy first,
+   * then falls back to a quicker network fix. `silent` skips the error notice (used on page load).
+   */
+  const locateMe = useCallback((query: string, radius = radiusKm, silent = false) => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      if (!silent) setLocNotice('This browser cannot share your location. Showing all providers instead.');
+      loadSearch(query, query !== '');
+      return;
     }
-  }, []);
+    if (!window.isSecureContext) {
+      if (!silent) setLocNotice('Location only works over https. Showing all providers instead.');
+      loadSearch(query, query !== '');
+      return;
+    }
+
+    setLocating(true);
+    setLocNotice(null);
+
+    const onSuccess = (pos: GeolocationPosition) => {
+      setLocating(false);
+      const next = { lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy };
+      setCoords(next);
+      loadNearby(next.lat, next.lon, query, radius);
+    };
+
+    const onFail = (err: GeolocationPositionError) => {
+      setLocating(false);
+      if (!silent) {
+        setLocNotice(
+          err.code === err.PERMISSION_DENIED
+            ? 'Location is blocked. Allow it from the icon at the left of the address bar (and in Windows Settings › Privacy › Location), then try again.'
+            : err.code === err.TIMEOUT
+              ? 'Finding your location took too long. Check your connection and try again.'
+              : 'Your device could not work out where you are. Turn on location services and try again.'
+        );
+      }
+      if (coords) {
+        loadNearby(coords.lat, coords.lon, query, radius);
+      } else {
+        loadSearch(query, query !== '');
+      }
+    };
+
+    navigator.geolocation.getCurrentPosition(
+      onSuccess,
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) {
+          onFail(err);
+          return;
+        }
+        // High accuracy failed or timed out (common on desktops without GPS): retry with a network fix.
+        navigator.geolocation.getCurrentPosition(onSuccess, onFail, {
+          enableHighAccuracy: false,
+          timeout: 15000,
+          maximumAge: 120000,
+        });
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  }, [coords, loadNearby, loadSearch, radiusKm]);
 
   const triggerSearchOrNearby = useCallback((query: string, radius = radiusKm) => {
     if (coords) {
       loadNearby(coords.lat, coords.lon, query, radius);
       return;
     }
-
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const next = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-          setCoords(next);
-          loadNearby(next.lat, next.lon, query, radius);
-        },
-        (err) => {
-          console.warn('Geolocation failed or denied:', err);
-          loadSearch(query, true);
-        },
-        { timeout: 8000 }
-      );
-    } else {
-      loadSearch(query, true);
-    }
+    loadSearch(query, query !== '');
   }, [coords, loadNearby, loadSearch, radiusKm]);
 
   useEffect(() => {
@@ -261,12 +293,13 @@ export default function ExplorePage() {
     }
 
     if (isAuthenticated) {
-      triggerSearchOrNearby('');
+      locateMe('', radiusKm, true);
       return;
     }
 
-    loadCategoriesOnly();
-  }, [authLoading, isAuthenticated, loadCategoriesOnly, loadNearby, radiusKm, triggerSearchOrNearby]);
+    // Guests see every listing straight away; "Use my location" narrows it to nearby.
+    loadSearch('', false);
+  }, [authLoading, isAuthenticated, loadNearby, loadSearch, locateMe, radiusKm, triggerSearchOrNearby]);
 
   useEffect(() => {
     try {
@@ -275,6 +308,7 @@ export default function ExplorePage() {
       const n = Number(stored);
       if (Number.isFinite(n) && n >= 32 && n <= 72) {
         listPctRef.current = n;
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO derive this instead of syncing it into state (one extra render, not a bug)
         setListPct(n);
       }
     } catch {
@@ -421,7 +455,8 @@ export default function ExplorePage() {
           id: b.id,
           lat: b.latitude as number,
           lng: b.longitude as number,
-          label: `<strong>${b.business?.name || b.name}</strong><br/>${b.address || b.name}`,
+          icon: getCategoryIcon(b.business?.primaryCategory?.name || ''),
+          badge: b.averageRating && b.averageRating > 0 ? b.averageRating.toFixed(1) : undefined,
         })),
     [sortedBranches]
   );
@@ -437,219 +472,220 @@ export default function ExplorePage() {
     );
   }
 
-  const renderGuestCard = (b: ExploreBranch) => {
-    if (!b.business) return null;
-    const isFav = favorites.includes(b.business.id);
-    const cover = coverFor(b);
-    const cat = b.business.primaryCategory?.name || 'Service';
-    return (
-      <Link href={branchProfileHref(b)} key={b.id} className={styles.popularCard}>
-        <div className={styles.popularCardImageWrapper}>
-          {cover ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={cover} alt={b.business.name} />
-          ) : (
-            <div className={styles.coverFallback}>{b.business.name.slice(0, 1)}</div>
-          )}
-          <span className={styles.cardCatPill}>{cat}</span>
-          {typeof b.averageRating === 'number' && b.averageRating > 0 && (
-            <div className={styles.ratingBadge}>
-              <i className="fa-solid fa-star" /> {b.averageRating.toFixed(1)}
-            </div>
-          )}
-          <button
-            type="button"
-            className={`${styles.cardFavBtn} ${isFav ? styles.isFav : ''}`}
-            aria-label={isFav ? 'Remove from favorites' : 'Add to favorites'}
-            onClick={(e) => handleToggleFavorite(e, b.business.id)}
-          >
-            <i className={`fa-${isFav ? 'solid' : 'regular'} fa-heart`} />
-          </button>
-        </div>
-        <div className={styles.popularCardContent}>
-          <h4>
-            {b.business.name}
-            {b.business.isOnline ? (
-              <span title="Online now" style={{ marginLeft: 6, color: '#16a34a', fontSize: '0.75em' }}>
-                <i className="fa-solid fa-circle" style={{ fontSize: '0.55em', verticalAlign: 'middle' }} /> Online
-              </span>
-            ) : null}
-            {b.business.verified ? (
-              <i
-                className="fa-solid fa-circle-check"
-                title="Verified business"
-                style={{ marginLeft: 6, color: 'var(--accent-primary)', fontSize: '0.85em' }}
-              />
-            ) : null}
-          </h4>
-          <p className={styles.categorySub}>{b.name}</p>
-          <p className={styles.distanceText}>
-            <i className="fa-solid fa-location-dot" />{' '}
-            {[b.address, typeof b.distanceKm === 'number' ? `${b.distanceKm.toFixed(1)} km away` : [b.city, b.region].filter(Boolean).join(', ')]
-              .filter(Boolean)
-              .join(' · ') || b.name}
-          </p>
-          <span className={styles.cardCta}>
-            View profile <i className="fa-solid fa-arrow-right" />
-          </span>
-        </div>
-      </Link>
-    );
-  };
-
-  const renderDashCard = (b: ExploreBranch) => {
+  const renderCard = (b: ExploreBranch) => {
     if (!b.business) return null;
     const isFav = favorites.includes(b.business.id);
     const cover = coverFor(b);
     const cat = b.business.primaryCategory?.name || 'Service';
     const href = branchProfileHref(b);
+    const active = previewId === b.id;
+    const rating = typeof b.averageRating === 'number' && b.averageRating > 0 ? b.averageRating : null;
     return (
       <article
         key={b.id}
-        className={styles.resultCard}
+        className={`${styles.resultCard} ${active ? styles.resultCardOn : ''}`}
         onMouseEnter={() => setHoveredId(b.id)}
         onMouseLeave={() => setHoveredId((current) => (current === b.id ? null : current))}
-        onClick={() => router.push(href)}
       >
-        <div className={styles.resultThumb}>
+        <Link href={href} className={styles.resultThumb} tabIndex={-1} aria-hidden>
           {cover ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={cover} alt="" />
+            <img src={cover} alt="" loading="lazy" />
           ) : (
             <div className={styles.coverFallback}>{b.business.name.slice(0, 1)}</div>
           )}
-          {typeof b.averageRating === 'number' && b.averageRating > 0 && (
-            <span className={styles.thumbRating}>
-              <i className="fa-solid fa-star" /> {b.averageRating.toFixed(1)}
-            </span>
-          )}
-        </div>
+        </Link>
         <div className={styles.resultBody}>
           <div className={styles.resultTop}>
-            <span className={styles.catPill}>{cat}</span>
+            <span className={styles.catPill}>
+              <i className={getCategoryIcon(cat)} aria-hidden /> {cat}
+            </span>
             <button
               type="button"
               className={`${styles.heartBtn} ${isFav ? styles.isFav : ''}`}
-              aria-label={isFav ? 'Remove from favorites' : 'Add to favorites'}
+              aria-label={isFav ? 'Remove from favorites' : 'Save to favorites'}
               onClick={(e) => handleToggleFavorite(e, b.business.id)}
             >
               <i className={`fa-${isFav ? 'solid' : 'regular'} fa-heart`} />
             </button>
           </div>
-          <Link href={href} className={styles.resultName} onClick={(e) => e.stopPropagation()}>
+          <Link href={href} className={styles.resultName}>
             {b.business.name}
-            {b.business.isOnline ? (
-              <span title="Online now" style={{ marginLeft: 6, color: '#16a34a', fontSize: '0.75em' }}>
-                <i className="fa-solid fa-circle" style={{ fontSize: '0.55em', verticalAlign: 'middle' }} /> Online
-              </span>
-            ) : null}
             {b.business.verified ? (
-              <i
-                className="fa-solid fa-circle-check"
-                title="Verified business"
-                style={{ marginLeft: 6, color: 'var(--accent-primary)', fontSize: '0.85em' }}
-              />
+              <i className={`fa-solid fa-circle-check ${styles.verifiedTick}`} title="Verified business" aria-label="Verified" />
             ) : null}
           </Link>
           <p className={styles.resultAddr}>
-            <strong>{b.name}</strong>
-            {b.address ? ` · ${b.address}` : ''}
-            {typeof b.distanceKm === 'number' ? ` · ${b.distanceKm.toFixed(1)} km` : ''}
+            <i className="fa-solid fa-location-dot" aria-hidden />
+            {[b.address || b.name, typeof b.distanceKm === 'number' ? `${b.distanceKm.toFixed(1)} km` : null]
+              .filter(Boolean)
+              .join(' · ')}
           </p>
           <div className={styles.resultMeta}>
-            <Link
-              href={href}
-              className={styles.bookLink}
-              onClick={(e) => e.stopPropagation()}
-            >
-              View this location
+            <span className={styles.ratingLine}>
+              {rating ? (
+                <>
+                  <i className="fa-solid fa-star" aria-hidden /> <strong>{rating.toFixed(1)}</strong>
+                  {b.business.isOnline ? <em className={styles.onlineDot}>Online now</em> : null}
+                </>
+              ) : (
+                <em>New on Duemet</em>
+              )}
+            </span>
+            <Link href={href} className={styles.bookLink}>
+              View &amp; book
             </Link>
-            <span className={styles.nextSlot}>Choose a service</span>
           </div>
         </div>
       </article>
     );
   };
 
-  if (isAuthenticated) {
-    const firstName = user?.firstName || 'there';
-    return (
-      <div
-        ref={splitRef}
-        className={`${styles.dashExplore} ${splitting ? styles.dashExploreSplitting : ''}`}
-        style={{ ['--find-pane-width' as string]: `${listPct}%` }}
-      >
-        <section className={styles.findPane}>
-          <header className={styles.findHead}>
-            <div>
-              <span className={styles.findEyebrow}>
-                <i className="fa-solid fa-sparkles" /> Marketplace
-              </span>
-              <h1>Hi {firstName}, explore nearby</h1>
-              <p>Search businesses, compare services, and book open slots.</p>
-            </div>
-            <span className={styles.locChip}>
-              <i className="fa-solid fa-location-dot" aria-hidden />
-              {locationLabel}
-            </span>
-          </header>
+  const firstName = user?.firstName;
+  const heading = isSearchActive && searchQuery.trim()
+    ? `Results for “${searchQuery.trim()}”`
+    : isAuthenticated && firstName
+      ? `Hi ${firstName}, what are you booking?`
+      : 'Book local services near you';
+  const moreFiltersOn = Boolean(serviceMode || listingMode || geoAreaId);
 
-          <form onSubmit={handleSearchSubmit} className={styles.findSearch}>
-            <i className="fa-solid fa-magnifying-glass" aria-hidden />
-            <input
-              type="text"
-              placeholder="Search businesses, services, or categories"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              aria-label="Search businesses and services"
-            />
-            <button type="button" className={styles.micBtn} onClick={startVoice} aria-label="Voice search">
-              <i className="fa-solid fa-microphone" />
-            </button>
-            <button type="submit" className={styles.searchGo}>
-              Search
-            </button>
-          </form>
+  return (
+    <div
+      ref={splitRef}
+      className={`${styles.dashExplore} ${isAuthenticated ? '' : styles.dashExploreGuest} ${splitting ? styles.dashExploreSplitting : ''}`}
+      style={{ ['--find-pane-width' as string]: `${listPct}%` }}
+    >
+      <section className={styles.findPane}>
+        <header className={styles.findHead}>
+          <div>
+            <h1>{heading}</h1>
+            <p>
+              {loading
+                ? 'Loading providers…'
+                : `${sortedBranches.length} ${sortedBranches.length === 1 ? 'provider' : 'providers'} ${coords ? 'near you' : 'on Duemet'}`}
+            </p>
+          </div>
+          <button
+            type="button"
+            className={styles.locChip}
+            onClick={() => locateMe(searchQuery)}
+            disabled={locating}
+            aria-busy={locating}
+          >
+            <i className={`fa-solid ${locating ? 'fa-spinner fa-spin' : 'fa-location-crosshairs'}`} aria-hidden />
+            {locating ? 'Finding you…' : coords ? locationLabel : 'Use my location'}
+          </button>
+        </header>
 
-          <div className={styles.filterRow}>
+        {locNotice && (
+          <div className={styles.locNotice} role="status">
+            <i className="fa-solid fa-location-dot" aria-hidden />
+            <span>{locNotice}</span>
+            <button type="button" onClick={() => setLocNotice(null)} aria-label="Dismiss">
+              <i className="fa-solid fa-xmark" />
+            </button>
+          </div>
+        )}
+
+        <form onSubmit={handleSearchSubmit} className={styles.findSearch}>
+          <i className="fa-solid fa-magnifying-glass" aria-hidden />
+          <input
+            type="text"
+            placeholder="Search a service, business or category"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="Search businesses and services"
+          />
+          {searchQuery && (
+            <button type="button" className={styles.micBtn} onClick={handleClearSearch} aria-label="Clear search">
+              <i className="fa-solid fa-xmark" />
+            </button>
+          )}
+          <button type="button" className={styles.micBtn} onClick={startVoice} aria-label="Search by voice">
+            <i className="fa-solid fa-microphone" />
+          </button>
+          <button type="submit" className={styles.searchGo}>
+            Search
+          </button>
+        </form>
+
+        {categories.length > 0 && (
+          <div className={styles.chipScroller} role="list" aria-label="Categories">
             <button
               type="button"
-              className={`${styles.filterMain} ${filtersOpen ? styles.filterMainOn : ''}`}
-              onClick={() => setFiltersOpen((v) => !v)}
+              role="listitem"
+              className={`${styles.categoryChip} ${!activeCategory ? styles.categoryChipActive : ''}`}
+              onClick={handleClearSearch}
             >
-              <i className="fa-solid fa-sliders" /> Filters
+              <i className="fa-solid fa-border-all" /> All
             </button>
+            {categories.map((cat) => (
+              <button
+                type="button"
+                role="listitem"
+                key={cat.id}
+                className={`${styles.categoryChip} ${activeCategory === cat.name ? styles.categoryChipActive : ''}`}
+                onClick={() => handleCategoryClick(cat.name)}
+              >
+                <i className={getCategoryIcon(cat.name)} />
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className={styles.filterRow}>
+          <label className={styles.filterPill}>
+            <span>Distance</span>
+            <CustomSelect
+              variant="compact"
+              searchable={false}
+              value={String(radiusKm)}
+              onChange={(value) => {
+                const next = Number(value);
+                setRadiusKm(next);
+                triggerSearchOrNearby(searchQuery, next);
+              }}
+              options={DISTANCES.map((d) => ({ value: String(d), label: `${d} km` }))}
+              placeholder="Distance"
+            />
+          </label>
+          <label className={styles.filterPill}>
+            <span>Sort</span>
+            <CustomSelect
+              variant="compact"
+              searchable={false}
+              value={sortBy}
+              onChange={(value) => setSortBy(value as 'recommended' | 'rating')}
+              options={[
+                { value: 'recommended', label: 'Recommended' },
+                { value: 'rating', label: 'Top rated' },
+              ]}
+              placeholder="Sort by"
+            />
+          </label>
+          <button
+            type="button"
+            className={`${styles.filterMain} ${verifiedOnly ? styles.filterMainOn : ''}`}
+            onClick={() => setVerifiedOnly((v) => !v)}
+            aria-pressed={verifiedOnly}
+          >
+            <i className="fa-solid fa-circle-check" /> Verified
+          </button>
+          <button
+            type="button"
+            className={`${styles.filterMain} ${filtersOpen || moreFiltersOn ? styles.filterMainOn : ''}`}
+            onClick={() => setFiltersOpen((v) => !v)}
+            aria-expanded={filtersOpen}
+          >
+            <i className="fa-solid fa-sliders" /> More filters
+          </button>
+        </div>
+
+        {filtersOpen && (
+          <div className={styles.moreFilters}>
             <label className={styles.filterPill}>
-              Distance
-              <CustomSelect
-                variant="compact"
-                searchable={false}
-                value={String(radiusKm)}
-                onChange={(value) => {
-                  const next = Number(value);
-                  setRadiusKm(next);
-                  triggerSearchOrNearby(searchQuery, next);
-                }}
-                options={DISTANCES.map((d) => ({ value: String(d), label: `${d} km` }))}
-                placeholder="Distance"
-              />
-            </label>
-            <label className={styles.filterPill}>
-              Sort
-              <CustomSelect
-                variant="compact"
-                searchable={false}
-                value={sortBy}
-                onChange={(value) => setSortBy(value as 'recommended' | 'rating')}
-                options={[
-                  { value: 'recommended', label: 'Recommended' },
-                  { value: 'rating', label: 'Rating' },
-                ]}
-                placeholder="Sort by"
-              />
-            </label>
-            <label className={styles.filterPill}>
-              Service
+              <span>Where</span>
               <CustomSelect
                 variant="compact"
                 searchable={false}
@@ -657,31 +693,31 @@ export default function ExplorePage() {
                 onChange={(value) => setServiceMode(value)}
                 options={[
                   { value: '', label: 'Any place' },
-                  { value: 'AT_PROVIDER', label: 'At provider' },
-                  { value: 'CUSTOMER_LOCATION', label: 'At your location' },
-                  { value: 'HYBRID', label: 'Hybrid' },
+                  { value: 'AT_PROVIDER', label: 'At the provider' },
+                  { value: 'CUSTOMER_LOCATION', label: 'At my location' },
+                  { value: 'HYBRID', label: 'Either' },
                 ]}
                 placeholder="Service mode"
               />
             </label>
             <label className={styles.filterPill}>
-              Listing
+              <span>Provider</span>
               <CustomSelect
                 variant="compact"
                 searchable={false}
                 value={listingMode}
                 onChange={(value) => setListingMode(value)}
                 options={[
-                  { value: '', label: 'All listings' },
-                  { value: 'BUSINESS', label: 'Business' },
-                  { value: 'INDIVIDUAL', label: 'Individual' },
+                  { value: '', label: 'All providers' },
+                  { value: 'BUSINESS', label: 'Businesses' },
+                  { value: 'INDIVIDUAL', label: 'Independents' },
                 ]}
-                placeholder="Listing"
+                placeholder="Provider type"
               />
             </label>
             {geoAreas.length > 0 && (
               <label className={styles.filterPill}>
-                Area
+                <span>Area</span>
                 <CustomSelect
                   variant="compact"
                   searchable
@@ -698,397 +734,94 @@ export default function ExplorePage() {
                 />
               </label>
             )}
-            <button
-              type="button"
-              className={`${styles.filterMain} ${verifiedOnly ? styles.filterMainOn : ''}`}
-              onClick={() => setVerifiedOnly((v) => !v)}
-            >
-              <i className="fa-solid fa-circle-check" /> Verified
-            </button>
           </div>
+        )}
 
-          {filtersOpen && categories.length > 0 && (
-            <div className={styles.categoryRow}>
-              {categories.map((cat, idx) => {
-                const accent = CATEGORY_ACCENTS[idx % CATEGORY_ACCENTS.length];
-                return (
-                  <button
-                    type="button"
-                    key={cat.id}
-                    className={`${styles.categoryChip} ${styles[`chipAccent${accent.charAt(0).toUpperCase()}${accent.slice(1)}`]} ${activeCategory === cat.name ? styles.categoryChipActive : ''}`}
-                    onClick={() => handleCategoryClick(cat.name)}
-                  >
-                    <i className={getCategoryIcon(cat.name)} />
-                    {cat.name}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          <div className={styles.resultsBar}>
-            <span>Showing {sortedBranches.length} results</span>
-            <span>
-              Sort by: {sortBy === 'rating' ? 'Rating' : 'Recommended'}
-              {isSearchActive && (
-                <button type="button" className={styles.clearInline} onClick={handleClearSearch}>
-                  Clear
-                </button>
-              )}
-            </span>
-          </div>
-
-          {error && (
-            <div className="error-alert" style={{ marginBottom: 12 }}>
-              <i className="fa-solid fa-triangle-exclamation" /> {error}
-            </div>
-          )}
-          {success && (
-            <div className="success-alert" style={{ marginBottom: 12 }}>
-              <i className="fa-solid fa-circle-check" /> {success}
-            </div>
-          )}
-
-          <div
-            className={styles.resultList}
-            onMouseLeave={() => setHoveredId(null)}
-          >
-            {loading ? (
-              [1, 2, 3, 4].map((n) => (
-                <div key={n} className={styles.resultCard}>
-                  <Skeleton variant="card" height={92} />
-                </div>
-              ))
-            ) : sortedBranches.length === 0 ? (
-              <EmptyState
-                icon="fa-store-slash"
-                title="No businesses found"
-                description="Try another search or a wider distance."
-                actionLabel="Refresh"
-                onAction={() => triggerSearchOrNearby(searchQuery)}
-              />
-            ) : (
-              sortedBranches.map(renderDashCard)
-            )}
-          </div>
-        </section>
-
-        <button
-          type="button"
-          className={`${styles.splitHandle} ${splitting ? styles.splitDragging : ''}`}
-          aria-label="Resize explore list and map"
-          title="Drag to resize"
-          onPointerDown={onSplitPointerDown}
-          onPointerMove={onSplitPointerMove}
-          onPointerUp={onSplitPointerUp}
-          onPointerCancel={onSplitPointerUp}
-        />
-
-        <section className={styles.mapPane}>
-          <div className={styles.mapPaneHead}>
-            <span><i className="fa-solid fa-map" /> Map view</span>
-            <button type="button" className={styles.mapLocateBtn} onClick={() => triggerSearchOrNearby(searchQuery)}>
-              <i className="fa-solid fa-crosshairs" /> Re-center
-            </button>
-          </div>
-          <LocationMap
-            markers={mapMarkers}
-            userLocation={coords ? { lat: coords.lat, lng: coords.lon } : null}
-            height="100%"
-            selectedId={previewId}
-            onMarkerClick={(id) => setSelectedId(Number(id))}
-            showControls
-            onLocate={() => triggerSearchOrNearby(searchQuery)}
-            scrollWheelZoom
-            className={styles.fillMap}
-          />
-          {selected?.business && (
-            <div className={styles.mapCard}>
-              <div className={styles.mapCardThumb}>
-                {coverFor(selected) ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={coverFor(selected) || ''} alt="" />
-                ) : (
-                  <div className={styles.coverFallback}>{selected.business.name.slice(0, 1)}</div>
-                )}
-              </div>
-              <div className={styles.mapCardBody}>
-                <Link href={branchProfileHref(selected)}>{selected.business.name}</Link>
-                <p>
-                  <strong>{selected.name}</strong>
-                  {selected.address ? ` · ${selected.address}` : ''}
-                </p>
-                <span>
-                  {typeof selected.averageRating === 'number' && selected.averageRating > 0
-                    ? `${selected.averageRating.toFixed(1)} · `
-                    : ''}
-                  {typeof selected.distanceKm === 'number' ? `${selected.distanceKm.toFixed(1)} km` : 'Nearby'}
-                </span>
-              </div>
-              <Link href={branchProfileHref(selected)} className={styles.mapCardBook}>
-                View
-              </Link>
-              <button type="button" className={styles.mapCardClose} onClick={() => setSelectedId(null)} aria-label="Close">
-                <i className="fa-solid fa-xmark" />
-              </button>
-            </div>
-          )}
-        </section>
-      </div>
-    );
-  }
-
-  const isInitialState = !activeCategory && !isSearchActive;
-
-  if (isInitialState) {
-    return (
-      <div className={styles.exploreApp}>
         {error && (
-          <div className="error-alert" style={{ marginBottom: 16 }}>
+          <div className="error-alert" style={{ marginBottom: 12 }}>
             <i className="fa-solid fa-triangle-exclamation" /> {error}
           </div>
         )}
-
-        <header className={styles.appHeader}>
-          <div className={styles.appHeaderMain}>
-            <span className={styles.appKicker}>
-              <i className="fa-solid fa-compass" /> Directory
-            </span>
-            <h1 className={styles.appTitle}>Explore</h1>
-            <p className={styles.appSub}>
-              Live marketplace — search, filter, and open a business profile to book.
-            </p>
+        {success && (
+          <div className="success-alert" style={{ marginBottom: 12 }}>
+            <i className="fa-solid fa-circle-check" /> {success}
           </div>
-          <div className={styles.appHeaderMeta}>
-            <span className={styles.guestBadge}>
-              <i className="fa-solid fa-user" /> Guest
-            </span>
-            <button
-              type="button"
-              className={styles.locBtn}
-              onClick={() => triggerSearchOrNearby('')}
-              disabled={loading}
-            >
-              <i className="fa-solid fa-location-crosshairs" />
-              {loading ? 'Locating…' : 'Use my location'}
+        )}
+
+        <div className={styles.resultList} onMouseLeave={() => setHoveredId(null)}>
+          {loading ? (
+            [1, 2, 3, 4].map((n) => (
+              <div key={n} className={styles.resultCard}>
+                <Skeleton variant="card" height={112} />
+              </div>
+            ))
+          ) : sortedBranches.length === 0 ? (
+            <EmptyState
+              icon="fa-store-slash"
+              title="No providers match yet"
+              description="Try another word, a different category or a wider distance."
+              actionLabel="Show all providers"
+              onAction={handleClearSearch}
+            />
+          ) : (
+            sortedBranches.map(renderCard)
+          )}
+        </div>
+      </section>
+
+      <button
+        type="button"
+        className={`${styles.splitHandle} ${splitting ? styles.splitDragging : ''}`}
+        aria-label="Resize list and map"
+        title="Drag to resize"
+        onPointerDown={onSplitPointerDown}
+        onPointerMove={onSplitPointerMove}
+        onPointerUp={onSplitPointerUp}
+        onPointerCancel={onSplitPointerUp}
+      />
+
+      <section className={styles.mapPane} aria-label="Map of providers">
+        <LocationMap
+          markers={mapMarkers}
+          userLocation={coords ? { lat: coords.lat, lng: coords.lon, accuracy: coords.accuracy } : null}
+          height="100%"
+          selectedId={previewId}
+          onMarkerClick={(id) => setSelectedId(Number(id))}
+          showControls
+          locating={locating}
+          onLocate={() => locateMe(searchQuery)}
+          scrollWheelZoom
+          className={styles.fillMap}
+        />
+        {selected?.business && (
+          <div className={styles.mapCard}>
+            <div className={styles.mapCardThumb}>
+              {coverFor(selected) ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={coverFor(selected) || ''} alt="" />
+              ) : (
+                <div className={styles.coverFallback}>{selected.business.name.slice(0, 1)}</div>
+              )}
+            </div>
+            <div className={styles.mapCardBody}>
+              <Link href={branchProfileHref(selected)}>{selected.business.name}</Link>
+              <p>{selected.address || selected.name}</p>
+              <span>
+                {typeof selected.averageRating === 'number' && selected.averageRating > 0
+                  ? `★ ${selected.averageRating.toFixed(1)} · `
+                  : ''}
+                {selected.business.primaryCategory?.name || 'Service'}
+              </span>
+            </div>
+            <Link href={branchProfileHref(selected)} className={styles.mapCardBook}>
+              View &amp; book
+            </Link>
+            <button type="button" className={styles.mapCardClose} onClick={() => setSelectedId(null)} aria-label="Close">
+              <i className="fa-solid fa-xmark" />
             </button>
           </div>
-        </header>
-
-        <form onSubmit={handleSearchSubmit} className={styles.appSearchPanel}>
-          <label className={styles.appSearchField}>
-            <i className="fa-solid fa-magnifying-glass" />
-            <input
-              type="text"
-              placeholder="Business name, service, or keyword…"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              aria-label="Search marketplace"
-            />
-          </label>
-          <button type="submit" className="btn btn-primary">
-            Search
-          </button>
-        </form>
-
-        <div className={styles.appLayout}>
-          <section className={styles.categoryPanel} aria-label="Categories">
-            <div className={styles.panelHead}>
-              <h2>Categories</h2>
-              <span>{categories.length} listed</span>
-            </div>
-
-            {loading && categories.length === 0 ? (
-              <div className={styles.categoryList}>
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <div key={n} className={styles.categoryRow} style={{ pointerEvents: 'none' }}>
-                    <Skeleton width={40} height={40} />
-                    <Skeleton variant="title" width="60%" />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className={styles.categoryList}>
-                {categories.map((cat, idx) => {
-                  const accent = CATEGORY_ACCENTS[idx % CATEGORY_ACCENTS.length];
-                  return (
-                    <button
-                      type="button"
-                      key={cat.id}
-                      className={styles.categoryRow}
-                      data-accent={accent}
-                      onClick={() => handleCategoryClick(cat.name)}
-                    >
-                      <span className={styles.categoryRowIcon}>
-                        <i className={getCategoryIcon(cat.name)} />
-                      </span>
-                      <span className={styles.categoryRowBody}>
-                        <strong>{cat.name}</strong>
-                        <span>Browse {cat.name.toLowerCase()} near you</span>
-                      </span>
-                      <i className={`fa-solid fa-chevron-right ${styles.categoryRowChev}`} />
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          <aside className={styles.browsePanel}>
-            <div className={styles.browseEmpty}>
-              <div className={styles.browseEmptyIcon}>
-                <i className="fa-solid fa-map-location-dot" />
-              </div>
-              <h3>Results appear here</h3>
-              <p>
-                Pick a category or run a search to load businesses on the map and in the list below.
-              </p>
-              <ul className={styles.browseTips}>
-                <li>
-                  <i className="fa-solid fa-check" /> View services &amp; packages without signing in
-                </li>
-                <li>
-                  <i className="fa-solid fa-check" /> Sign in only when you confirm a booking
-                </li>
-                <li>
-                  <i className="fa-solid fa-heart" />{' '}
-                  <button type="button" className={styles.inlineLink} onClick={() => router.push(loginHref('/profile/explore'))}>
-                    Sign in
-                  </button>{' '}
-                  to save favorites
-                </li>
-              </ul>
-            </div>
-          </aside>
-        </div>
-
-        <footer className={styles.appFootnote}>
-          <Link href="/" className={styles.homeLink}>
-            <i className="fa-solid fa-arrow-left" /> Duemet home
-          </Link>
-          <span>New here? Read about the product on the landing page.</span>
-        </footer>
-      </div>
-    );
-  }
-
-  return (
-    <div className={styles.exploreContainer}>
-      <div className={`${styles.browseCompose} ${styles.resultsToolbar}`}>
-        <div className={styles.browseComposeTop}>
-          <div>
-            <span className={styles.resultsEyebrow}>
-              <i className="fa-solid fa-list-ul" /> Marketplace results
-            </span>
-            <h1>
-              {isSearchActive ? `“${searchQuery}”` : `Businesses ${locationLabel.toLowerCase()}`}
-            </h1>
-            <p>Tap a listing to view services, packages, and book a slot.</p>
-          </div>
-          <div className={styles.resultsToolbarActions}>
-            {!loading && branches.length > 0 && (
-              <span className={styles.resultCount}>
-                {branches.length} found
-              </span>
-            )}
-            {isSearchActive && (
-              <button type="button" onClick={handleClearSearch} className={styles.clearSearchBtn}>
-                <i className="fa-solid fa-xmark" /> Clear
-              </button>
-            )}
-          </div>
-        </div>
-
-        <form onSubmit={handleSearchSubmit} className={styles.searchBar}>
-          <div className={styles.searchInputWrapper}>
-            <i className="fa-solid fa-magnifying-glass" />
-            <input
-              type="text"
-              placeholder="Salons, studios, clinics, repairs…"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              aria-label="Search services"
-            />
-          </div>
-          <button type="submit" className="btn btn-primary btn-sm">
-            Search
-          </button>
-        </form>
-
-        {categories.length > 0 && (
-          <div className={styles.categoryRow}>
-            {categories.map((cat) => (
-              <button
-                type="button"
-                key={cat.id}
-                className={`${styles.categoryChip} ${activeCategory === cat.name ? styles.categoryChipActive : ''}`}
-                onClick={() => handleCategoryClick(cat.name)}
-              >
-                <i className={getCategoryIcon(cat.name)} />
-                {cat.name}
-              </button>
-            ))}
-          </div>
         )}
-      </div>
-
-      {error && (
-        <div className="error-alert" style={{ marginBottom: 20 }}>
-          <i className="fa-solid fa-triangle-exclamation" /> {error}
-        </div>
-      )}
-      {success && (
-        <div className="success-alert" style={{ marginBottom: 20 }}>
-          <i className="fa-solid fa-circle-check" /> {success}
-        </div>
-      )}
-
-      <div className={styles.sectionArea}>
-        <div className={styles.sectionHead}>
-          <h2 className={styles.sectionTitle}>
-            {isSearchActive ? 'Matching listings' : 'Nearby listings'}
-          </h2>
-        </div>
-
-        {!loading && (mapMarkers.length > 0 || coords) && (
-          <div className={styles.exploreMap}>
-            <LocationMap
-              markers={mapMarkers}
-              userLocation={coords ? { lat: coords.lat, lng: coords.lon } : null}
-              height={300}
-            />
-            <p className={styles.mapLegend}>
-              <span className={styles.youDot} aria-hidden /> You are here
-              {mapMarkers.length > 0 ? ' · Pins are nearby businesses' : ''}
-            </p>
-          </div>
-        )}
-
-        {loading ? (
-          <div className={styles.popularGrid}>
-            {[1, 2, 3].map((n) => (
-              <div key={n} className={styles.skeletonCard}>
-                <Skeleton variant="card" height={150} />
-                <div className={styles.skeletonBody}>
-                  <Skeleton variant="title" width="70%" />
-                  <Skeleton width="50%" />
-                  <Skeleton width="80%" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : branches.length === 0 ? (
-          <EmptyState
-            icon="fa-store-slash"
-            title="No businesses found"
-            description="Try another search, or check back after more businesses are approved."
-            actionLabel="Refresh"
-            onAction={() => (coords ? loadNearby(coords.lat, coords.lon) : loadSearch(''))}
-          />
-        ) : (
-          <div className={styles.popularGrid}>{sortedBranches.map(renderGuestCard)}</div>
-        )}
-      </div>
+      </section>
     </div>
   );
 }

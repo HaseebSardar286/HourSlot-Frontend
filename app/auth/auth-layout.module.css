@@ -4,7 +4,7 @@
   --auth-ink: var(--text-main);
   --auth-ink-mid: #1f2937;
   --auth-teal: var(--accent-primary);
-  --auth-mint: #3b82f6;
+  --auth-mint: #2563eb;
   --auth-mist: var(--bg-primary);
   --auth-paper: var(--bg-card);
   --auth-line: rgba(17, 24, 39, 0.08);
@@ -52,7 +52,10 @@
   padding: 36px clamp(24px, 3vw, 44px);
   overflow: hidden;
   color: #fff;
-  background: linear-gradient(160deg, #3b82f6 0%, #2563eb 100%);
+  background:
+    radial-gradient(ellipse 80% 55% at 100% 0%, rgba(37, 99, 235, 0.45), transparent 65%),
+    radial-gradient(ellipse 60% 45% at 0% 100%, rgba(37, 99, 235, 0.2), transparent 70%),
+    var(--ink-800);
 }
 
 .brandGlow,
@@ -83,12 +86,89 @@
   height: 160px;
   top: 18%;
   right: 8%;
-  background: radial-gradient(circle at 40% 40%, rgba(59, 130, 246, 0.25), transparent 70%);
+  background: radial-gradient(circle at 40% 40%, rgba(37, 99, 235, 0.25), transparent 70%);
   animation: authFloat 11s ease-in-out infinite reverse;
 }
 
 .brandGrid {
-  display: none;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(180deg, #000, transparent 85%);
+  -webkit-mask-image: linear-gradient(180deg, #000, transparent 85%);
+}
+
+/* Today's schedule preview card */
+.agenda {
+  position: relative;
+  z-index: 1;
+  margin-top: 28px;
+  max-width: 360px;
+  padding: 16px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+}
+
+.agendaHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.agendaHead strong {
+  color: #fff;
+  font-size: 0.9rem;
+}
+
+.agendaRow {
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.05);
+  border-left: 3px solid #60a5fa;
+  font-size: 0.84rem;
+}
+
+.agendaRow + .agendaRow {
+  margin-top: 6px;
+}
+
+.agendaRow time {
+  font-weight: 700;
+  color: #fff;
+}
+
+.agendaRow span {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.agendaRow em {
+  font-style: normal;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.18);
+  color: #6ee7b7;
+}
+
+.agendaRowAlt {
+  border-left-color: #fbbf24;
+}
+
+.agendaRowAlt em {
+  background: rgba(251, 191, 36, 0.16);
+  color: #fcd34d;
 }
 
 .brandInner {
@@ -135,7 +215,7 @@
 
 .brandTitleAccent {
   display: block;
-  color: #93c5fd;
+  color: #93b4ff;
 }
 
 .brandCopy {
@@ -161,7 +241,7 @@
   gap: 12px;
   align-items: center;
   padding: 10px 12px;
-  border-radius: 14px;
+  border-radius: 5px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(10px);
@@ -178,13 +258,13 @@
 .featureIcon {
   width: 42px;
   height: 42px;
-  border-radius: 12px;
+  border-radius: 5px;
   background: rgba(255, 255, 255, 0.08);
   display: flex !important;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: #eff6ff;
+  color: #eef4ff;
   line-height: 0;
   overflow: hidden;
 }
@@ -347,6 +427,12 @@
   to {
     opacity: 1;
     transform: scale(1.08);
+  }
+}
+
+@media (max-height: 760px) {
+  .agenda {
+    display: none;
   }
 }
 

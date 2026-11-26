@@ -48,7 +48,7 @@
   color: var(--accent-primary);
   background: rgba(var(--accent-primary-rgb), 0.1);
   padding: 3px 8px;
-  border-radius: 6px;
+  border-radius: 5px;
 }
 
 .cardHeader h4 {
@@ -99,4 +99,84 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 18px;
+}
+
+/* ---------- Favorites v2 ---------- */
+.favsContainer {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.favCard {
+  padding: 0 !important;
+  overflow: hidden;
+  border-radius: 5px;
+  min-height: 0;
+}
+
+.favCard > *:not(.favThumb) {
+  margin-left: 18px;
+  margin-right: 18px;
+}
+
+.favCard .cardHeader {
+  margin-top: 16px;
+}
+
+.favCard .cardFooter {
+  margin-top: 14px;
+  margin-bottom: 18px;
+}
+
+.favThumb {
+  display: block;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--bg-elevated, #f6f8fb);
+}
+
+.favThumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.favCard:hover .favThumb img {
+  transform: scale(1.03);
+}
+
+.favCard:hover {
+  transform: translateY(-2px);
+}
+
+.categoryTag {
+  background: none;
+  padding: 0;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+
+.cardHeader h4 {
+  margin-top: 4px;
+}
+
+.removeBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  opacity: 1;
+  color: #e11d48;
+}
+
+.removeBtn:hover {
+  background: #fff1f2;
+  border-color: #fecdd3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .favThumb img {
+    transition: none;
+  }
 }

@@ -22,14 +22,14 @@ type OrgLocaleContextValue = {
   format: (amount: number | string | null | undefined) => string;
 };
 
-const DEFAULT_LOCALE: OrgLocale = { defaultCurrency: 'USD' };
+const DEFAULT_LOCALE: OrgLocale = { defaultCurrency: 'PKR' };
 
 const OrgLocaleContext = createContext<OrgLocaleContextValue>({
   locale: DEFAULT_LOCALE,
-  currency: 'USD',
+  currency: 'PKR',
   loaded: false,
   refresh: async () => undefined,
-  format: (amount) => formatMoneyUtil(amount, 'USD'),
+  format: (amount) => formatMoneyUtil(amount, 'PKR'),
 });
 
 export function OrgLocaleProvider({ children }: { children: React.ReactNode }) {
@@ -37,14 +37,16 @@ export function OrgLocaleProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocale] = useState<OrgLocale>(DEFAULT_LOCALE);
   const [loaded, setLoaded] = useState(false);
 
+  const role = user?.role;
+  const listingMode = user?.listingMode;
   const refresh = useCallback(async () => {
-    if (user?.role !== 'BUSINESS_OWNER' && user?.role !== 'BUSINESS_STAFF') {
+    if (role !== 'BUSINESS_OWNER' && role !== 'BUSINESS_STAFF') {
       setLocale(DEFAULT_LOCALE);
       setLoaded(true);
       return;
     }
     try {
-      if (user?.listingMode === 'INDIVIDUAL') {
+      if (listingMode === 'INDIVIDUAL') {
         const data = await apiFetch<{
           defaultCurrency?: string;
           countryCode?: string;
@@ -62,10 +64,10 @@ export function OrgLocaleProvider({ children }: { children: React.ReactNode }) {
           timezone: data.timezone,
         });
       } else {
-        const data = await apiFetch<OrgLocale>('/api/business/organization');
+        const data = await apiFetch<OrgLocale>('/api/business/organization/locale');
         setLocale({
           id: data.id,
-          defaultCurrency: data.defaultCurrency || 'USD',
+          defaultCurrency: data.defaultCurrency || 'PKR',
           countryCode: data.countryCode,
           region: data.region,
           city: data.city,
@@ -77,13 +79,14 @@ export function OrgLocaleProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoaded(true);
     }
-  }, [user?.role, user?.listingMode]);
+  }, [role, listingMode]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     void refresh();
   }, [refresh]);
 
-  const currency = locale.defaultCurrency || 'USD';
+  const currency = locale.defaultCurrency || 'PKR';
   const value = useMemo(
     () => ({
       locale,

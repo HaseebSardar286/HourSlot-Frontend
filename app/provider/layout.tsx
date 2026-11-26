@@ -11,71 +11,7 @@ import { apiFetch } from '@/lib/api';
 import NotificationPanel from '@/components/NotificationPanel';
 import { fetchPresence, pushPresence } from '@/lib/provider-presence';
 import styles from './provider-layout.module.css';
-
-type NavLeaf = {
-  href: string;
-  icon: string;
-  label: string;
-  entitlement?: string;
-};
-
-type NavGroup = {
-  id: string;
-  label: string;
-  icon: string;
-  children: NavLeaf[];
-};
-
-const PROVIDER_NAV: NavGroup[] = [
-  {
-    id: 'overview',
-    label: 'Overview',
-    icon: 'fa-chart-pie',
-    children: [
-      { href: '/provider/dashboard', icon: 'fa-house', label: 'Dashboard' },
-      { href: '/provider/analytics', icon: 'fa-chart-line', label: 'Reports' },
-      { href: '/provider/plan', icon: 'fa-crown', label: 'Subscription' },
-      { href: '/provider/verification', icon: 'fa-file-shield', label: 'Verification' },
-    ],
-  },
-  {
-    id: 'operations',
-    label: 'Operations',
-    icon: 'fa-calendar-check',
-    children: [
-      { href: '/provider/bookings', icon: 'fa-calendar-check', label: 'Bookings' },
-      { href: '/provider/calendar', icon: 'fa-calendar-days', label: 'Calendar' },
-      { href: '/provider/requests', icon: 'fa-inbox', label: 'Requests' },
-      { href: '/provider/quotes', icon: 'fa-file-invoice-dollar', label: 'Quotes' },
-      { href: '/provider/jobs', icon: 'fa-briefcase', label: 'Jobs' },
-      { href: '/provider/customers', icon: 'fa-users', label: 'Customers' },
-      { href: '/provider/availability', icon: 'fa-clock', label: 'Availability' },
-      { href: '/provider/booking-tools', icon: 'fa-sliders', label: 'Booking tools' },
-      { href: '/provider/queue', icon: 'fa-people-line', label: 'Walk-in queue' },
-      { href: '/provider/payments', icon: 'fa-wallet', label: 'Payments' },
-    ],
-  },
-  {
-    id: 'coverage',
-    label: 'Coverage & catalog',
-    icon: 'fa-map-location-dot',
-    children: [
-      { href: '/provider/service-areas', icon: 'fa-map-location-dot', label: 'Service areas', entitlement: 'home_service' },
-      { href: '/provider/services', icon: 'fa-tags', label: 'Services' },
-      { href: '/provider/gallery', icon: 'fa-images', label: 'Gallery' },
-    ],
-  },
-];
-
-const BLOCKED_PREFIXES = [
-  '/provider/staff',
-  '/provider/staff-services',
-  '/provider/staff-profile',
-  '/provider/branches',
-  '/provider/organization',
-  '/provider/packages',
-  '/provider/peak-pricing',
-];
+import { BUSINESS_BLOCKED_PROVIDER_PREFIXES, PROVIDER_BLOCKED_PREFIXES, PROVIDER_NAV, flatten, type NavItem } from '@/lib/nav';
 
 export default function ProviderLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -94,12 +30,41 @@ function ProviderLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  // Only one menu group is open at a time. Until the user picks one (on this page), the group holding the
+  // current page is open; `id: null` means the user closed everything.
+  const [openPick, setOpenPick] = useState<{ path: string; id: string | null } | null>(null);
   const [online, setOnline] = useState(Boolean(user?.isOnline));
   const [presenceBusy, setPresenceBusy] = useState(false);
 
   const isOnboarding = pathname.startsWith('/provider/onboarding');
-  const flatLeaves = useMemo(() => PROVIDER_NAV.flatMap((g) => g.children), []);
+  const flatLeaves = useMemo(() => flatten(PROVIDER_NAV), []);
+  // Owners whose session doesn't say INDIVIDUAL are checked against the server first,
+  // so a business owner never sees the individual-provider menu.
+  const [modeChecked, setModeChecked] = useState(user?.listingMode === 'INDIVIDUAL');
+
+  useEffect(() => {
+    if (loading || !isAuthenticated) return;
+    if (user?.listingMode === 'INDIVIDUAL' || isOnboarding) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setModeChecked(true);
+      return;
+    }
+    if (user?.role !== 'BUSINESS_OWNER') {
+      setModeChecked(true);
+      return;
+    }
+    apiFetch<{ business?: { listingMode?: string } }>('/api/provider/profile')
+      .then((profile) => {
+        const mode = profile.business?.listingMode;
+        if (mode && mode !== 'INDIVIDUAL') {
+          router.replace(BUSINESS_BLOCKED_PROVIDER_PREFIXES.some((p) => pathname.startsWith(p)) ? '/business/dashboard' : pathname.replace(/^\/provider/, '/business'));
+          return;
+        }
+        if (mode === 'INDIVIDUAL') updateSession({ listingMode: 'INDIVIDUAL' });
+        setModeChecked(true);
+      })
+      .catch(() => setModeChecked(true));
+  }, [loading, isAuthenticated, user?.listingMode, user?.role, isOnboarding, pathname, router, updateSession]);
 
   useEffect(() => {
     if (loading) return;
@@ -118,7 +83,12 @@ function ProviderLayoutInner({ children }: { children: React.ReactNode }) {
       router.replace('/business/dashboard');
       return;
     }
-    if (BLOCKED_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+    // Signed up as "individual" but no listing yet: only onboarding exists for them.
+    if (!isOwner && !listingIndividual && !pathname.startsWith('/provider/onboarding')) {
+      router.replace('/provider/onboarding');
+      return;
+    }
+    if (PROVIDER_BLOCKED_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
       router.replace('/provider/dashboard');
     }
   }, [loading, isAuthenticated, user, router, pathname]);
@@ -166,7 +136,8 @@ function ProviderLayoutInner({ children }: { children: React.ReactNode }) {
     });
   }, [isAuthenticated, user?.listingMode]);
 
-  if (loading || !isAuthenticated) {
+  const notYetProvider = user?.role !== 'BUSINESS_OWNER' && user?.listingMode !== 'INDIVIDUAL';
+  if (loading || !isAuthenticated || (!isOnboarding && (!modeChecked || notYetProvider))) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
         <div className="spinner" style={{ width: 40, height: 40, borderTopColor: 'var(--accent-primary)', borderWidth: 4 }} />
@@ -199,7 +170,7 @@ function ProviderLayoutInner({ children }: { children: React.ReactNode }) {
 
   const initials = `${user?.firstName?.charAt(0) || ''}${user?.lastName?.charAt(0) || ''}`;
 
-  const renderLeaf = (link: NavLeaf, forceShowLabel = false) => {
+  const renderLeaf = (link: NavItem, forceShowLabel = false) => {
     const locked = !!link.entitlement && planLoaded && !hasFeature(plan, link.entitlement);
     return (
       <Link
@@ -238,12 +209,12 @@ function ProviderLayoutInner({ children }: { children: React.ReactNode }) {
         <div className={styles.sidebarHeader}>
           {!collapsed && (
             <Link href="/provider/dashboard" className={styles.logoArea}>
-              <img src="/duemet-logo-nav.png" alt="Duemet Logo" style={{ height: 26, width: 'auto', objectFit: 'contain', display: 'block' }} />
+              <img src="/duemet-logo-nav-white.png" alt="Duemet Logo" style={{ height: 26, width: 'auto', objectFit: 'contain', display: 'block' }} />
             </Link>
           )}
           {collapsed ? (
             <button type="button" className={styles.logoIcon} style={{ cursor: 'pointer', border: 'none', background: 'transparent', padding: 0 }} onClick={() => setCollapsed(false)} title="Expand sidebar">
-              <img src="/duemet-mark.png" alt="Duemet" style={{ width: 29, height: 29, objectFit: 'contain', display: 'block' }} />
+              <img src="/duemet-mark-white.png" alt="Duemet" style={{ width: 29, height: 29, objectFit: 'contain', display: 'block' }} />
             </button>
           ) : (
             <button type="button" className={styles.toggleBtn} onClick={() => setCollapsed(true)} title="Collapse sidebar">
@@ -254,14 +225,17 @@ function ProviderLayoutInner({ children }: { children: React.ReactNode }) {
 
         <nav className={styles.sidebarNav}>
           {PROVIDER_NAV.map((group) => {
-            const open = !collapsed && (openGroups[group.id] ?? group.children.some((child) => pathname.startsWith(child.href)));
+            const picked = openPick && openPick.path === pathname ? openPick.id : undefined;
+            const open = !collapsed && (picked === undefined
+              ? group.children.some((child) => pathname.startsWith(child.href))
+              : picked === group.id);
             const shouldRenderChildren = collapsed || open;
             return (
-              <div key={group.id} className={styles.navGroup}>
+              <div key={group.id} className={`${styles.navGroup} ${open ? styles.navGroupOpen : ''}`}>
                 <button
                   type="button"
                   className={styles.navGroupBtn}
-                  onClick={() => !collapsed && setOpenGroups((prev) => ({ ...prev, [group.id]: !prev[group.id] }))}
+                  onClick={() => !collapsed && setOpenPick({ path: pathname, id: open ? null : group.id })}
                   title={group.label}
                 >
                   <span className={styles.navIcon}><i className={`fa-solid ${group.icon}`} /></span>
@@ -310,6 +284,11 @@ function ProviderLayoutInner({ children }: { children: React.ReactNode }) {
               }} />
               <span>{online ? 'Online' : 'Offline'}</span>
             </button>
+
+            <Link href="/community" target="_blank" className={styles.roleSwitchBtn} title="Open the Duemet Community in a new tab">
+              <i className="fa-solid fa-people-group" />
+              <span>Community</span>
+            </Link>
 
             <Link href="/profile" className={styles.roleSwitchBtn} title="Switch to customer view">
               <i className="fa-solid fa-users" />

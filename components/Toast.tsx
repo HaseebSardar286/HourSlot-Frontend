@@ -24,7 +24,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setItems((prev) => [...prev, { id, kind, message }]);
     setTimeout(() => {
       setItems((prev) => prev.filter((t) => t.id !== id));
-    }, 3500);
+    }, 5000);
   }, []);
 
   const value = useMemo(() => ({ push }), [push]);
@@ -33,10 +33,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={value}>
       {children}
       <div
+        data-flash-skip
         style={{
           position: 'fixed',
-          right: 16,
-          bottom: 16,
+          right: 20,
+          top: 72,
           zIndex: 3000,
           display: 'flex',
           flexDirection: 'column',
@@ -48,7 +49,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={t.id}
             className={t.kind === 'error' ? 'error-alert' : t.kind === 'success' ? 'success-alert' : 'glass-card'}
-            style={{ padding: '12px 14px', margin: 0 }}
+            style={{ padding: '12px 14px', margin: 0, animation: 'flashIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) both', boxShadow: '0 10px 30px rgba(15, 23, 42, 0.16)' }}
             role="status"
           >
             {t.message}

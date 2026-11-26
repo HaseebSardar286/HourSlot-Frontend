@@ -107,6 +107,7 @@ export default function VerificationPage() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     void load();
   }, []);
 
@@ -185,38 +186,46 @@ export default function VerificationPage() {
       )}
 
       <div className={styles.tierRow}>
-        <div className={`surface ${styles.readiness}`}>
-          <div>
-            <strong>Get listed (Tier 1)</strong>
-            <p>
-              {data?.readiness?.tier1ApprovedCount ?? 0}/{data?.readiness?.tier1RequiredCount ?? 3} approved — Owner ID,
-              trade license, and address proof (utility bill/lease or shop photos).
-            </p>
-            <p>
-              {data?.readiness?.readyForListing
-                ? 'Ready for Super Admin to approve your listing.'
-                : 'Upload and wait for admin approval of all Tier 1 files.'}
-            </p>
+        {[
+          {
+            step: 1,
+            title: 'Get listed',
+            done: data?.readiness?.tier1ApprovedCount ?? 0,
+            need: data?.readiness?.tier1RequiredCount ?? 3,
+            what: 'Owner ID, trade licence, and proof of address (utility bill, lease or shop photos).',
+            ready: !!data?.readiness?.readyForListing,
+            readyText: 'All approved. Your listing can go live.',
+            waitText: 'Required to appear on Explore and maps.',
+          },
+          {
+            step: 2,
+            title: 'Verified badge',
+            done: data?.readiness?.tier2ApprovedCount ?? 0,
+            need: data?.readiness?.tier2RequiredCount ?? 2,
+            what: 'Tax ID and a bank statement (you can hide the amounts).',
+            ready: !!data?.readiness?.readyForVerifiedBadge,
+            readyText: 'All approved. The Verified badge can be granted.',
+            waitText: 'Optional. Adds a trust badge to your profile.',
+          },
+        ].map((t) => (
+          <div key={t.step} className={`surface ${styles.readiness} ${t.ready ? styles.readinessDone : ''}`}>
+            <span className={styles.stepNo}>{t.ready ? <i className="fa-solid fa-check" /> : t.step}</span>
+            <div className={styles.readinessBody}>
+              <div className={styles.readinessHead}>
+                <strong>{t.title}</strong>
+                <span className={styles.readinessCount}>
+                  {t.done} of {t.need} approved
+                </span>
+              </div>
+              <div className={styles.readinessBar} aria-hidden>
+                <span style={{ width: `${Math.min(100, (t.done / Math.max(1, t.need)) * 100)}%` }} />
+              </div>
+              <p>{t.what}</p>
+              <p className={styles.readinessNote}>{t.ready ? t.readyText : t.waitText}</p>
+            </div>
           </div>
-          <StatusBadge status={data?.readiness?.readyForListing ? 'APPROVED' : 'PENDING'} />
-        </div>
-        <div className={`surface ${styles.readiness}`}>
-          <div>
-            <strong>Verified badge (Tier 2)</strong>
-            <p>
-              {data?.readiness?.tier2ApprovedCount ?? 0}/{data?.readiness?.tier2RequiredCount ?? 2} approved — Tax ID and
-              bank statement (you may redact amounts).
-            </p>
-            <p>
-              {data?.readiness?.readyForVerifiedBadge
-                ? 'Ready for Super Admin to grant the Verified badge.'
-                : 'Optional after listing — builds customer trust.'}
-            </p>
-          </div>
-          <StatusBadge status={data?.readiness?.readyForVerifiedBadge ? 'APPROVED' : 'PENDING'} />
-        </div>
+        ))}
       </div>
-
       <div className={styles.grid}>
         <form className={`surface ${styles.uploadCard}`} onSubmit={handleUpload}>
           <h3>Upload a document</h3>
@@ -257,7 +266,11 @@ export default function VerificationPage() {
         <div className={`surface ${styles.listCard}`}>
           <h3>Submitted files</h3>
           {(data?.documents || []).length === 0 ? (
-            <p className={styles.empty}>No documents uploaded yet.</p>
+            <div className={styles.empty}>
+              <i className="fa-regular fa-folder-open" />
+              <strong>Nothing sent yet</strong>
+              <span>Start with your owner ID. Our team reviews each file and you will see its status here.</span>
+            </div>
           ) : (
             <>
               <h4 className={styles.tierHeading}>Tier 1 — Get listed</h4>

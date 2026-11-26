@@ -7,7 +7,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { loginHref } from '@/lib/auth-redirect';
-import type { ServicePackage } from '@/lib/types';
+import type { CustomerPackage, ServicePackage } from '@/lib/types';
 import Modal from '@/components/Modal';
 import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
@@ -149,16 +149,16 @@ export default function BusinessProfilePage() {
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [purchaseLoading, setPurchaseLoading] = useState(false);
 
-  const [customerPackage, setCustomerPackage] = useState<any | null>(null);
+  const [customerPackage, setCustomerPackage] = useState<CustomerPackage | null>(null);
 
   const pkgId = searchParams.get('customerPackageId') || searchParams.get('packageId');
   useEffect(() => {
     if (!pkgId || !isAuthenticated) return;
-    apiFetch<any[]>('/api/customer/packages')
+    apiFetch<CustomerPackage[]>('/api/customer/packages')
       .then((pkgs) => {
         const match = pkgs.find((p) => String(p.id) === pkgId);
         if (match) {
-          setCustomerPackage((prev: any) => (prev?.id === match.id ? prev : match));
+          setCustomerPackage((prev) => (prev?.id === match.id ? prev : match));
         }
       })
       .catch(() => {});
@@ -217,12 +217,14 @@ export default function BusinessProfilePage() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, isAuthenticated]);
 
   useEffect(() => {
     if (!selectedBranchId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     loadHours(Number.parseInt(selectedBranchId, 10)).catch(() => setWorkingHours([]));
   }, [selectedBranchId]);
 
@@ -230,6 +232,7 @@ export default function BusinessProfilePage() {
     if (!profile) return;
     const requested = searchParams.get('branchId');
     if (requested && profile.branches.some((b) => String(b.id) === requested)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO derive this instead of syncing it into state (one extra render, not a bug)
       setSelectedBranchId(requested);
     }
   }, [searchParams, profile]);
@@ -289,29 +292,19 @@ export default function BusinessProfilePage() {
     setShowPurchaseModal(true);
   };
 
-  const handlePurchaseSubmit = async (method: 'ONLINE' | 'VENUE') => {
+  /** The customer asks for the package; the business activates it once it has the money. */
+  const handlePurchaseSubmit = async () => {
     if (!selectedPackage) return;
     setPurchaseLoading(true);
     setError(null);
     setSuccess(null);
     try {
-      if (method === 'ONLINE') {
-        const data = await apiFetch<{ url: string }>(
-          `/api/payments/checkout?packageId=${selectedPackage.id}`,
-          { method: 'POST' }
-        );
-        if (data?.url) window.location.href = data.url;
-        else throw new Error('Failed to generate payment url');
-      } else {
-        await apiFetch(`/api/packages/${selectedPackage.id}/purchase?paymentMethod=VENUE`, {
-          method: 'POST',
-        });
-        setSuccess(`Package "${selectedPackage.name}" purchased. Available in your wallet.`);
-        setShowPurchaseModal(false);
-      }
+      await apiFetch(`/api/packages/${selectedPackage.id}/purchase?paymentMethod=VENUE`, { method: 'POST' });
+      setSuccess(`Request sent. Pay ${business?.name || 'the business'}; "${selectedPackage.name}" becomes usable once they confirm your payment.`);
+      setShowPurchaseModal(false);
     } catch (err: unknown) {
       const e = err as { message?: string };
-      setError(e?.message || 'Package purchase failed.');
+      setError(e?.message || 'Could not send the package request.');
       setShowPurchaseModal(false);
     } finally {
       setPurchaseLoading(false);
@@ -645,7 +638,7 @@ export default function BusinessProfilePage() {
                   <div className={styles.serviceList}>
                     {services.slice(0, 4).map((s) => {
                       const isIncludedInPackage = customerPackage?.servicePackage?.services?.some(
-                        (ps: any) => ps.id === s.id
+                        (ps) => ps.id === s.id
                       );
                       return (
                         <div key={s.id} className={styles.serviceCatalogRow}>
@@ -715,7 +708,7 @@ export default function BusinessProfilePage() {
                 <div className={styles.serviceList}>
                   {filteredServices.map((s) => {
                     const isIncludedInPackage = customerPackage?.servicePackage?.services?.some(
-                      (ps: any) => ps.id === s.id
+                      (ps) => ps.id === s.id
                     );
                     return (
                       <div key={s.id} className={styles.serviceCatalogRow}>
@@ -951,15 +944,13 @@ export default function BusinessProfilePage() {
         {selectedPackage && (
           <div>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', margin: 0, lineHeight: 1.5 }}>
-              Choose payment for <strong>{selectedPackage.name}</strong> ({selectedPackage.sessionsCount} sessions) —{' '}
-              <strong>{money(selectedPackage.price, selectedPackage.currency)}</strong>.
+              <strong>{selectedPackage.name}</strong> ({selectedPackage.sessionsCount} sessions) costs{' '}
+              <strong>{money(selectedPackage.price, selectedPackage.currency)}</strong>. You pay {business.name} directly,
+              at the venue or by bank or wallet. Your sessions become usable as soon as they confirm your payment.
             </p>
             <div className={styles.purchaseChoices}>
-              <button type="button" className="btn btn-primary" onClick={() => handlePurchaseSubmit('ONLINE')} disabled={purchaseLoading}>
-                <i className="fa-solid fa-credit-card" /> Pay online
-              </button>
-              <button type="button" className="btn btn-secondary" onClick={() => handlePurchaseSubmit('VENUE')} disabled={purchaseLoading}>
-                <i className="fa-solid fa-store" /> Pay at venue
+              <button type="button" className="btn btn-primary" onClick={() => handlePurchaseSubmit()} disabled={purchaseLoading}>
+                <i className="fa-solid fa-paper-plane" /> {purchaseLoading ? 'Sending…' : 'Request this package'}
               </button>
             </div>
           </div>

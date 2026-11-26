@@ -65,6 +65,7 @@ export default function ScheduleStep({
       const selected = new Date(`${selectedDate}T12:00:00`);
       if (!Number.isNaN(selected.getTime())) {
         const monday = startOfWeekMonday(selected);
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO derive this instead of syncing it into state (one extra render, not a bug)
         setWeekStart((prev) => (prev.getTime() === monday.getTime() ? prev : monday));
       }
       return;

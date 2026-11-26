@@ -1,15 +1,16 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
 import { parseSlots, slotTimes } from '@/lib/slots';
 import PageHeader from '@/components/PageHeader';
 import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
 import StatusBadge from '@/components/StatusBadge';
-import FilterBar from '@/components/FilterBar';
 import Tabs from '@/components/Tabs';
 import Modal from '@/components/Modal';
+import DataTable from '@/components/DataTable';
 import CalendarView, { CalendarEvent } from '@/components/CalendarView';
 import CustomSelect from '@/components/CustomSelect';
 import CustomDatePicker from '@/components/CustomDatePicker';
@@ -39,6 +40,17 @@ interface Service {
 interface Staff {
   id: number;
   name: string;
+  displayName?: string;
+  designation?: string;
+  branch?: { id: number };
+}
+
+/** A customer account as listed by /api/business/customers. */
+interface CustomerAccount {
+  id: number;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
 }
 
 interface Booking {
@@ -51,7 +63,11 @@ interface Booking {
   endTime: string;
   status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW' | 'IN_PROGRESS' | 'RESCHEDULED';
   price: number;
+  paymentMethod?: string;
 }
+
+/** A pay-now booking is confirmed by confirming its payment on the Payments page. */
+const paysFirst = (b: { status: string; paymentMethod?: string }) => b.status === 'PENDING' && b.paymentMethod === 'TRANSFER';
 
 function bookingDateKey(iso: string) {
   return iso.split('T')[0];
@@ -95,7 +111,7 @@ export default function BookingsPage() {
   const [walkinSubmitting, setWalkinSubmitting] = useState(false);
   const [services, setServices] = useState<Service[]>([]);
   const [staffList, setStaffList] = useState<Staff[]>([]);
-  const [customers, setCustomers] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<CustomerAccount[]>([]);
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [customerSearch, setCustomerSearch] = useState('');
@@ -174,12 +190,12 @@ export default function BookingsPage() {
       const [servicesData, staffData, customersData] = await Promise.all([
         apiFetch<Service[]>('/api/business/services'),
         apiFetch<Staff[]>('/api/business/staff'),
-        apiFetch<any[]>('/api/business/customers').catch(() => []),
+        apiFetch<CustomerAccount[]>('/api/business/customers').catch(() => []),
       ]);
       setServices(servicesData);
       setStaffList(staffData);
       setCustomers(customersData);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to load walk-in data', err);
     }
   };
@@ -222,8 +238,8 @@ export default function BookingsPage() {
       if (selectedBranchId) {
         await loadBookings(selectedBranchId);
       }
-    } catch (err: any) {
-      setError(err?.message || 'Failed to reschedule appointment.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to reschedule appointment.');
     } finally {
       setRescheduleSubmitting(false);
     }
@@ -250,7 +266,7 @@ export default function BookingsPage() {
         if (!newCustomer.firstName || !newCustomer.lastName || !newCustomer.email) {
           throw new Error('Please fill out all required customer fields.');
         }
-        const createdUser = await apiFetch<any>('/api/business/customers', {
+        const createdUser = await apiFetch<CustomerAccount>('/api/business/customers', {
           method: 'POST',
           body: JSON.stringify(newCustomer),
         });
@@ -275,8 +291,8 @@ export default function BookingsPage() {
       if (selectedBranchId) {
         await loadBookings(selectedBranchId);
       }
-    } catch (err: any) {
-      setError(err?.message || 'Failed to create offline booking.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to create offline booking.');
     } finally {
       setWalkinSubmitting(false);
     }
@@ -291,8 +307,8 @@ export default function BookingsPage() {
       if (branchData.length > 0) {
         setSelectedBranchId(branchData[0].id.toString());
       }
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load branches.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to load branches.');
     } finally {
       setLoading(false);
     }
@@ -305,14 +321,15 @@ export default function BookingsPage() {
     try {
       const data = await apiFetch<Booking[]>(`/api/bookings/branch/${branchId}`);
       setBookings(data);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load bookings.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to load bookings.');
     } finally {
       setBookingsLoading(false);
     }
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     loadInitialData();
   }, []);
 
@@ -363,6 +380,7 @@ export default function BookingsPage() {
       });
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO derive this instead of syncing it into state (one extra render, not a bug)
     setFilteredBookings(result);
   }, [bookings, listTab, searchQuery, statusFilter, selectedDateFilter]);
 
@@ -395,7 +413,7 @@ export default function BookingsPage() {
   const filteredCustomers = useMemo(() => {
     if (!customerSearch.trim()) return [];
     const query = customerSearch.toLowerCase();
-    return customers.filter((c: any) => {
+    return customers.filter((c) => {
       const fullName = `${c.firstName || ''} ${c.lastName || ''}`.toLowerCase();
       const email = (c.email || '').toLowerCase();
       return fullName.includes(query) || email.includes(query);
@@ -407,10 +425,10 @@ export default function BookingsPage() {
   }, [customers, selectedCustomerId]);
 
   const branchStaff = useMemo(() => {
-    return staffList.filter((s: any) => s.branch?.id === Number(selectedBranchId));
+    return staffList.filter((s) => s.branch?.id === Number(selectedBranchId));
   }, [staffList, selectedBranchId]);
 
-  const selectCustomer = (c: any) => {
+  const selectCustomer = (c: CustomerAccount) => {
     setSelectedCustomerId(c.id.toString());
     setCustomerSearch('');
   };
@@ -445,8 +463,8 @@ export default function BookingsPage() {
       if (selectedBooking?.id === bookingId) {
         setShowDetailsModal(false);
       }
-    } catch (err: any) {
-      setError(err?.message || 'Failed to update booking status.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to update booking status.');
     }
   };
 
@@ -527,7 +545,7 @@ export default function BookingsPage() {
               </div>
             </div>
             <div className={styles.statCard}>
-              <div className={styles.statIcon} style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #10b981 100%)' }}>
+              <div className={styles.statIcon} style={{ background: 'linear-gradient(135deg, #2563eb 0%, #10b981 100%)' }}>
                 <i className="fa-solid fa-circle-check" />
               </div>
               <div className={styles.statInfo}>
@@ -545,7 +563,7 @@ export default function BookingsPage() {
               </div>
             </div>
             <div className={styles.statCard}>
-              <div className={styles.statIcon} style={{ background: 'linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)' }}>
+              <div className={styles.statIcon} style={{ background: 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%)' }}>
                 <i className="fa-solid fa-clock" />
               </div>
               <div className={styles.statInfo}>
@@ -555,37 +573,38 @@ export default function BookingsPage() {
             </div>
           </div>
 
-          <Tabs
-            tabs={[
-              { id: 'list', label: 'List' },
-              { id: 'calendar', label: 'Calendar' },
-            ]}
-            active={viewMode}
-            onChange={(id) => setViewMode(id as 'list' | 'calendar')}
-          />
-
-          {viewMode === 'list' ? (
-            <>
-              {!selectedDateFilter && (
-                <Tabs
-                  tabs={[
-                    { id: 'today', label: 'Today' },
-                    { id: 'upcoming', label: 'Upcoming' },
-                    { id: 'past', label: 'History' },
-                  ]}
-                  active={listTab}
-                  onChange={(id) => setListTab(id as typeof listTab)}
-                />
-              )}
-              <FilterBar>
+          {/* One toolbar: view, period, search and filters on a single row. */}
+          <div className={styles.toolbar}>
+            <Tabs
+              tabs={[
+                { id: 'list', label: 'List' },
+                { id: 'calendar', label: 'Calendar' },
+              ]}
+              active={viewMode}
+              onChange={(id) => setViewMode(id as 'list' | 'calendar')}
+            />
+            {viewMode === 'list' && !selectedDateFilter && (
+              <Tabs
+                tabs={[
+                  { id: 'today', label: 'Today' },
+                  { id: 'upcoming', label: 'Upcoming' },
+                  { id: 'past', label: 'History' },
+                ]}
+                active={listTab}
+                onChange={(id) => setListTab(id as typeof listTab)}
+              />
+            )}
+            {viewMode === 'list' && (
+              <>
                 <input
                   type="text"
-                  className="input-field"
+                  className={`input-field ${styles.toolbarSearch}`}
                   placeholder="Search name or service..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  aria-label="Search bookings"
                 />
-                <div className={styles.dateFilterGroup} style={{ minWidth: '160px' }}>
+                <div className={styles.dateFilterGroup} style={{ width: 170 }}>
                   <CustomDatePicker
                     value={selectedDateFilter}
                     onChange={setSelectedDateFilter}
@@ -601,7 +620,7 @@ export default function BookingsPage() {
                     </button>
                   )}
                 </div>
-                <div style={{ minWidth: '160px' }}>
+                <div style={{ width: 160 }}>
                   <CustomSelect
                     options={[
                       { value: 'ALL', label: 'All statuses' },
@@ -618,7 +637,12 @@ export default function BookingsPage() {
                     placeholder="Filter by status"
                   />
                 </div>
-              </FilterBar>
+              </>
+            )}
+          </div>
+
+          {viewMode === 'list' ? (
+            <>
 
               {bookingsLoading ? (
                 <Skeleton variant="row" count={5} />
@@ -629,43 +653,48 @@ export default function BookingsPage() {
                   description="No scheduled appointments matched your current filters."
                 />
               ) : (
-                <div className={styles.bookingsList}>
-                  {filteredBookings.map((b) => (
-                    <div
-                      key={b.id}
-                      className={`surface ${styles.bookingCard}`}
-                      onClick={() => openBooking(b.id)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') openBooking(b.id);
-                      }}
-                    >
-                      <div className={styles.mainInfo}>
-                        <div className={styles.timeBlock}>
-                          <span className={styles.timeHour}>{bookingTimeLabel(b.bookingTime)}</span>
-                          <span className={styles.timeDate}>{formatBookingDate(b.bookingTime)}</span>
+                <DataTable<Booking>
+                  rows={filteredBookings}
+                  rowKey={(b) => b.id}
+                  onRowClick={(b) => openBooking(b.id)}
+                  defaultSort={{ key: 'when', dir: listTab === 'past' ? 'desc' : 'asc' }}
+                  rowClassName={(b) => (b.status === 'CANCELLED' || b.status === 'NO_SHOW' ? styles.rowMuted : undefined)}
+                  columns={[
+                    {
+                      key: 'when', header: 'Date & time', width: 150,
+                      sortValue: (b) => new Date(b.bookingTime).getTime(),
+                      render: (b) => (
+                        <div className={styles.cellStack}>
+                          <strong>{bookingTimeLabel(b.bookingTime)}</strong>
+                          <span>{formatBookingDate(b.bookingTime)}</span>
                         </div>
-                        <div className={styles.detailsBlock}>
-                          <div className={styles.serviceName}>
-                            {b.service.name}
-                            <StatusBadge status={b.status} />
-                          </div>
-                          <div className={styles.metaLine}>
-                            <i className="fa-solid fa-user" /> {b.customer.user.firstName} {b.customer.user.lastName}
-                            <span className={styles.sep}>·</span>
-                            <i className="fa-solid fa-envelope" /> {b.customer.user.email}
-                          </div>
-                          <div className={styles.metaLine}>
-                            <i className="fa-solid fa-user-doctor" /> {b.staff?.name || 'Any available'}
-                          </div>
+                      ),
+                    },
+                    {
+                      key: 'customer', header: 'Customer',
+                      sortValue: (b) => `${b.customer?.user?.firstName || ''} ${b.customer?.user?.lastName || ''}`,
+                      render: (b) => (
+                        <div className={styles.cellStack}>
+                          <strong>{`${b.customer?.user?.firstName || ''} ${b.customer?.user?.lastName || ''}`.trim() || 'Walk-in'}</strong>
+                          <span>{b.customer?.user?.email || '—'}</span>
                         </div>
-                      </div>
-
-                      <div className={styles.metaInfo} onClick={(e) => e.stopPropagation()}>
-                        <div className={styles.priceText}>{format(b.price)}</div>
-                        <div className={styles.actionArea}>
-                          {nextStatuses(b.status).includes('CONFIRMED') && (
+                      ),
+                    },
+                    { key: 'service', header: 'Service', sortValue: (b) => b.service?.name, render: (b) => b.service?.name },
+                    { key: 'staff', header: 'Staff', hideOnMobile: true, sortValue: (b) => b.staff?.name || '', render: (b) => b.staff?.name || <span className={styles.cellMuted}>Any available</span> },
+                    { key: 'status', header: 'Status', sortValue: (b) => b.status, render: (b) => <StatusBadge status={b.status} /> },
+                    {
+                      key: 'pay', header: 'Payment', hideOnMobile: true, sortValue: (b) => b.paymentMethod || '',
+                      render: (b) => <span className={styles.payTag}>{b.paymentMethod === 'TRANSFER' ? 'Bank / wallet' : b.paymentMethod === 'PACKAGE' ? 'Package' : 'At venue'}</span>,
+                    },
+                    { key: 'amount', header: 'Amount', align: 'right', sortValue: (b) => Number(b.price || 0), render: (b) => <strong>{format(b.price)}</strong> },
+                    {
+                      key: 'actions', header: '', align: 'right',
+                      render: (b) => (
+                        <div className={styles.actionArea} onClick={(e) => e.stopPropagation()}>
+                          {paysFirst(b) ? (
+                            <Link href="/business/payments" className="btn btn-sm btn-primary">Check payment</Link>
+                          ) : nextStatuses(b.status).includes('CONFIRMED') && (
                             <button type="button" className="btn btn-sm btn-primary" onClick={() => handleUpdateStatus(b.id, 'CONFIRMED')}>
                               Confirm
                             </button>
@@ -691,10 +720,10 @@ export default function BookingsPage() {
                             </button>
                           )}
                         </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                      ),
+                    },
+                  ]}
+                />
               )}
             </>
           ) : bookingsLoading ? (
@@ -817,7 +846,9 @@ export default function BookingsPage() {
                 <p className={styles.muted}>Specialist: {selectedBooking.staff?.name || 'Any available'}</p>
               </div>
               <div className={styles.actionArea}>
-                {nextStatuses(selectedBooking.status).includes('CONFIRMED') && (
+                {paysFirst(selectedBooking) ? (
+                  <Link href="/business/payments" className="btn btn-primary">Check payment to confirm</Link>
+                ) : nextStatuses(selectedBooking.status).includes('CONFIRMED') && (
                   <button type="button" className="btn btn-primary" onClick={() => handleUpdateStatus(selectedBooking.id, 'CONFIRMED')}>
                     Confirm
                   </button>
@@ -1040,7 +1071,7 @@ export default function BookingsPage() {
               id="walkin-staff"
               options={[
                 { value: 'any', label: 'Any Available Specialist' },
-                ...branchStaff.map((st: any) => ({
+                ...branchStaff.map((st) => ({
                   value: st.id.toString(),
                   label: st.displayName || st.name,
                   sublabel: st.designation || '',

@@ -1,12 +1,14 @@
 import type { Metadata, Viewport } from 'next';
-import { Plus_Jakarta_Sans } from 'next/font/google';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import '../styles/motion.css';
 import { AuthProvider } from '@/lib/auth-context';
 import { ToastProvider } from '@/components/Toast';
 import PwaRegister from '@/components/PwaRegister';
+import FlashHost from '@/components/FlashHost';
 
-const jakarta = Plus_Jakarta_Sans({
+// Inter: a neutral, highly legible UI typeface (the standard for professional business software).
+const jakarta = Inter({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
   display: 'swap',
@@ -42,7 +44,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   viewportFit: 'cover',
-  themeColor: '#f9fafb',
+  themeColor: '#f6f8fb',
 };
 
 export default function RootLayout({
@@ -63,6 +65,7 @@ export default function RootLayout({
       </head>
       <body className={jakarta.className} suppressHydrationWarning>
         <PwaRegister />
+        <FlashHost />
         <AuthProvider>
           <ToastProvider>
             {children}

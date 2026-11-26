@@ -1,13 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { apiFetch } from '@/lib/api';
 import { loginHref, registerHref } from '@/lib/auth-redirect';
 import type { CustomerPackage } from '@/lib/types';
 import styles from './booking.module.css';
 
-export type PaymentChoice = 'ONLINE' | 'VENUE' | 'PACKAGE';
+import Dropdown from '@/components/ui/Dropdown';
+import type { BookingPaymentOptions } from '@/lib/payments';
+
+/** TRANSFER: pay the business now by bank or wallet and upload the screenshot. ONLINE is the retired card checkout. */
+export type PaymentChoice = 'ONLINE' | 'VENUE' | 'PACKAGE' | 'TRANSFER';
 
 type CustomerAddress = { id: number; label?: string; addressLine: string; areaName?: string; city?: string; isDefault?: boolean };
 
@@ -37,6 +41,12 @@ interface ConfirmStepProps {
   termsAccepted: boolean;
   submitting: boolean;
   onPaymentChange: (method: PaymentChoice) => void;
+  /** What the business accepts when booking; null while loading or when it only takes payment at the visit. */
+  payOptions?: BookingPaymentOptions | null;
+  /** Account details and screenshot upload, shown when paying now. */
+  transferPanel?: ReactNode;
+  /** Why the booking can't be sent yet when paying now (e.g. no screenshot), or null when ready. */
+  transferBlocked?: string | null;
   onPackageSelect: (id: number | null) => void;
   onNotesChange: (notes: string) => void;
   onTermsChange: (accepted: boolean) => void;
@@ -70,6 +80,9 @@ export default function ConfirmStep({
   termsAccepted,
   submitting,
   onPaymentChange,
+  payOptions,
+  transferPanel,
+  transferBlocked,
   onPackageSelect,
   onNotesChange,
   onTermsChange,
@@ -126,6 +139,7 @@ export default function ConfirmStep({
 
   useEffect(() => {
     if (!isAuthenticated || !serviceId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO derive this instead of syncing it into state (one extra render, not a bug)
       setEligiblePackages([]);
       return;
     }
@@ -209,23 +223,26 @@ export default function ConfirmStep({
       )}
 
       <div className={styles.payOptions}>
-        <button
-          type="button"
-          className={`${styles.payOption} ${paymentMethod === 'ONLINE' ? styles.payOptionOn : ''}`}
-          onClick={() => {
-            onPaymentChange('ONLINE');
-            onPackageSelect(null);
-          }}
-        >
-          <span className={styles.payIcon}>
-            <i className="fa-solid fa-credit-card" />
-          </span>
-          <div>
-            <strong>Pay online</strong>
-            <p>Secure card payment via Stripe</p>
-          </div>
-          <span className={styles.payRadio} />
-        </button>
+        {payOptions?.transferAvailable && (
+          <button
+            type="button"
+            className={`${styles.payOption} ${paymentMethod === 'TRANSFER' ? styles.payOptionOn : ''}`}
+            onClick={() => {
+              onPaymentChange('TRANSFER');
+              onPackageSelect(null);
+            }}
+          >
+            <span className={styles.payIcon}>
+              <i className="fa-solid fa-building-columns" />
+            </span>
+            <div>
+              <strong>Pay now by bank or wallet</strong>
+              <p>Send to the business&apos;s account and upload the screenshot here. Confirmed once they check it.</p>
+            </div>
+            <span className={styles.payRadio} />
+          </button>
+        )}
+        {!payOptions?.transferRequired && (
         <button
           type="button"
           className={`${styles.payOption} ${paymentMethod === 'VENUE' ? styles.payOptionOn : ''}`}
@@ -243,6 +260,7 @@ export default function ConfirmStep({
           </div>
           <span className={styles.payRadio} />
         </button>
+        )}
         {eligiblePackages.length > 0 && (
           <button
             type="button"
@@ -277,32 +295,28 @@ export default function ConfirmStep({
         </div>
       )}
 
+      {paymentMethod === 'TRANSFER' && transferPanel}
+
       {repeat && paymentMethod === 'VENUE' && (
         <div className={styles.notesBlock}>
           <label htmlFor="repeatFrequency">Repeat this booking</label>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <select
-              id="repeatFrequency"
-              className="form-input"
-              value={repeat.frequency}
-              onChange={(e) => repeat.onChange(e.target.value as RepeatFrequency, repeat.occurrences)}
-            >
-              <option value="NONE">Just once</option>
-              <option value="WEEKLY">Every week</option>
-              <option value="BIWEEKLY">Every 2 weeks</option>
-              <option value="MONTHLY">Every month</option>
-            </select>
+            <div style={{ flex: '1 1 200px' }}>
+              <Dropdown id="repeatFrequency" aria-label="Repeat this booking" value={repeat.frequency} icon="fa-repeat"
+                onChange={(v) => repeat.onChange(v as RepeatFrequency, repeat.occurrences)}
+                options={[
+                  { value: 'NONE', label: 'Just once' },
+                  { value: 'WEEKLY', label: 'Every week' },
+                  { value: 'BIWEEKLY', label: 'Every 2 weeks' },
+                  { value: 'MONTHLY', label: 'Every month' },
+                ]} />
+            </div>
             {repeat.frequency !== 'NONE' && (
-              <select
-                className="form-input"
-                aria-label="Number of appointments"
-                value={repeat.occurrences}
-                onChange={(e) => repeat.onChange(repeat.frequency, Number(e.target.value))}
-              >
-                {[2, 3, 4, 6, 8, 10, 12].map((n) => (
-                  <option key={n} value={n}>{n} appointments</option>
-                ))}
-              </select>
+              <div style={{ flex: '1 1 180px' }}>
+                <Dropdown aria-label="Number of appointments" value={String(repeat.occurrences)}
+                  onChange={(v) => repeat.onChange(repeat.frequency, Number(v))}
+                  options={[2, 3, 4, 6, 8, 10, 12].map((n) => ({ value: String(n), label: `${n} appointments` }))} />
+              </div>
             )}
           </div>
         </div>
@@ -367,11 +381,17 @@ export default function ConfirmStep({
         onClick={onConfirm}
         disabled={
           submitting || !termsAccepted || addressMissing || (paymentMethod === 'PACKAGE' && !selectedPackageId)
+          || (paymentMethod === 'TRANSFER' && !!transferBlocked)
         }
       >
-        {submitting ? 'Booking…' : 'Confirm booking'}
-        {!submitting && <i className="fa-solid fa-check" />}
+        {submitting ? 'Sending…' : paymentMethod === 'TRANSFER' ? 'Send payment and request booking' : 'Confirm booking'}
+        {!submitting && <i className={`fa-solid ${paymentMethod === 'TRANSFER' ? 'fa-paper-plane' : 'fa-check'}`} />}
       </button>
+      <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary, #52607a)', textAlign: 'center' }}>
+        {paymentMethod === 'TRANSFER'
+          ? transferBlocked || 'The business checks your payment, then confirms your booking. You’ll get an email.'
+          : 'Your booking is confirmed straight away. You’ll get the details by email.'}
+      </p>
     </>
   );
 }

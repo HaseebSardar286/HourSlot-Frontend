@@ -213,11 +213,10 @@ export default function PublicProviderPage() {
     branchId: firstBranchId ? String(firstBranchId) : undefined,
   });
 
-  const stats = [
+  const allStats = [
     rating > 0
-      ? { icon: 'fa-star', label: 'Rating', value: rating.toFixed(1) }
+      ? { icon: 'fa-star', label: reviewCount > 0 ? `${reviewCount} reviews` : 'Rating', value: rating.toFixed(1) }
       : { icon: 'fa-star', label: 'Rating', value: 'New' },
-    { icon: 'fa-comments', label: 'Reviews', value: String(reviewCount) },
     individual
       ? {
           icon: 'fa-briefcase',
@@ -237,6 +236,8 @@ export default function PublicProviderPage() {
           value: String(services.length),
         },
   ];
+  // A zero count reads as "nobody uses this", so it is left out.
+  const stats = allStats.filter((s) => s.value !== '0').slice(0, 3);
 
   return (
     <div className={`${styles.page} ${individual ? styles.individualTheme : styles.businessTheme}`}>
@@ -309,44 +310,26 @@ export default function PublicProviderPage() {
             </a>
           </div>
         </div>
-        <div className={styles.coverVisual} aria-hidden>
-          {provider.logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={provider.logoUrl} alt="" />
-          ) : cover ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={cover} alt="" />
-          ) : (
-            <span className={styles.coverVisualMark}>{provider.name.charAt(0).toUpperCase()}</span>
-          )}
-        </div>
+        {/* A second photo beside the title; never the same picture as the background. */}
+        {(gallery[1] || provider.logoUrl) && (
+          <div className={styles.coverVisual} aria-hidden>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={gallery[1] || provider.logoUrl} alt="" />
+          </div>
+        )}
       </section>
 
-      <div className={styles.identityRow}>
-        <div className={styles.avatar}>
-          {provider.logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={provider.logoUrl} alt="" />
-          ) : (
-            <span>{provider.name.charAt(0).toUpperCase()}</span>
-          )}
-        </div>
-        <div className={styles.identityCopy}>
-          <strong>{provider.name}</strong>
-          <span>
-            {serviceModeLabel(provider.serviceMode)}
-            {locations[0]?.city ? ` · ${locations[0].city}` : ''}
-            {locations[0]?.region ? `, ${locations[0].region}` : ''}
-          </span>
-        </div>
-        <div className={styles.identityActions}>
-          <Link href={bookHref} className={styles.primaryBtn}>
-            Book
-          </Link>
-        </div>
-      </div>
-
       <section className={styles.stats}>
+        <article className={styles.statCard}>
+          <i className="fa-solid fa-location-dot" />
+          <div>
+            <strong>{locations[0]?.name || locations[0]?.city || 'Location'}</strong>
+            <span>
+              {serviceModeLabel(provider.serviceMode)}
+              {locations[0]?.city ? ` · ${locations[0].city}` : ''}
+            </span>
+          </div>
+        </article>
         {stats.map((stat) => (
           <article key={stat.label} className={styles.statCard}>
             <i className={`fa-solid ${stat.icon}`} />
@@ -404,35 +387,6 @@ export default function PublicProviderPage() {
               )}
             </div>
           </Reveal>
-
-          {gallery.length > 0 && (
-            <Reveal as="section" className={styles.section} id="gallery">
-              <div className={styles.sectionHead}>
-                <p className={styles.eyebrow}>Gallery</p>
-                <h2>A look inside</h2>
-              </div>
-              <div className={styles.galleryHero}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={gallery[activeGallery] || gallery[0]} alt="" />
-              </div>
-              {gallery.length > 1 && (
-                <div className={styles.galleryThumbs}>
-                  {gallery.map((url, index) => (
-                    <button
-                      key={url}
-                      type="button"
-                      className={`${styles.thumb} ${activeGallery === index ? styles.thumbOn : ''}`}
-                      onClick={() => setActiveGallery(index)}
-                      aria-label={`Gallery image ${index + 1}`}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={url} alt="" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </Reveal>
-          )}
 
           <Reveal as="section" className={styles.section} id="services">
             <div className={styles.sectionHead}>
@@ -497,6 +451,35 @@ export default function PublicProviderPage() {
               </div>
             )}
           </Reveal>
+
+          {gallery.length > 0 && (
+            <Reveal as="section" className={styles.section} id="gallery">
+              <div className={styles.sectionHead}>
+                <p className={styles.eyebrow}>Gallery</p>
+                <h2>A look inside</h2>
+              </div>
+              <div className={styles.galleryHero}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={gallery[activeGallery] || gallery[0]} alt="" />
+              </div>
+              {gallery.length > 1 && (
+                <div className={styles.galleryThumbs}>
+                  {gallery.map((url, index) => (
+                    <button
+                      key={url}
+                      type="button"
+                      className={`${styles.thumb} ${activeGallery === index ? styles.thumbOn : ''}`}
+                      onClick={() => setActiveGallery(index)}
+                      aria-label={`Gallery image ${index + 1}`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={url} alt="" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </Reveal>
+          )}
 
           {staff.length > 0 && (
             <Reveal as="section" className={styles.section} id="team">

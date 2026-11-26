@@ -10,78 +10,7 @@ import { hasFeature } from '@/lib/plan';
 import { apiFetch } from '@/lib/api';
 import NotificationPanel from '@/components/NotificationPanel';
 import styles from './business-layout.module.css';
-
-type NavLeaf = {
-  href: string;
-  icon: string;
-  label: string;
-  entitlement?: string;
-};
-
-type NavGroup = {
-  id: string;
-  label: string;
-  icon: string;
-  children: NavLeaf[];
-};
-
-const OWNER_NAV: NavGroup[] = [
-  {
-    id: 'overview',
-    label: 'Overview',
-    icon: 'fa-chart-pie',
-    children: [
-      { href: '/business/dashboard', icon: 'fa-house', label: 'Dashboard' },
-      { href: '/business/analytics', icon: 'fa-chart-line', label: 'Analytics' },
-      { href: '/business/plan', icon: 'fa-crown', label: 'Subscription' },
-      { href: '/business/organization', icon: 'fa-building', label: 'Organization' },
-      { href: '/business/verification', icon: 'fa-file-shield', label: 'Verification' },
-    ],
-  },
-  {
-    id: 'operations',
-    label: 'Operations',
-    icon: 'fa-calendar-check',
-    children: [
-      { href: '/business/bookings', icon: 'fa-calendar-check', label: 'Bookings' },
-      { href: '/business/calendar', icon: 'fa-calendar-days', label: 'Calendar' },
-      { href: '/business/requests', icon: 'fa-inbox', label: 'Requests' },
-      { href: '/business/quotes', icon: 'fa-file-invoice-dollar', label: 'Quotes' },
-      { href: '/business/jobs', icon: 'fa-briefcase', label: 'Jobs' },
-      { href: '/business/customers', icon: 'fa-users', label: 'Customers' },
-      { href: '/business/availability', icon: 'fa-clock', label: 'Availability' },
-      { href: '/business/payments', icon: 'fa-wallet', label: 'Payments' },
-    ],
-  },
-  {
-    id: 'locations',
-    label: 'Locations & team',
-    icon: 'fa-network-wired',
-    children: [
-      { href: '/business/branches', icon: 'fa-location-dot', label: 'Branches' },
-      { href: '/business/service-areas', icon: 'fa-map-location-dot', label: 'Service areas', entitlement: 'home_service' },
-      { href: '/business/staff', icon: 'fa-user-tie', label: 'Staff' },
-      { href: '/business/staff-services', icon: 'fa-handshake', label: 'Staff rates' },
-    ],
-  },
-  {
-    id: 'catalog',
-    label: 'Catalog',
-    icon: 'fa-tags',
-    children: [
-      { href: '/business/services', icon: 'fa-tags', label: 'Services' },
-      { href: '/business/packages', icon: 'fa-gift', label: 'Packages', entitlement: 'packages' },
-      { href: '/business/peak-pricing', icon: 'fa-bolt', label: 'Peak pricing', entitlement: 'peak_pricing' },
-      { href: '/business/gallery', icon: 'fa-images', label: 'Gallery' },
-    ],
-  },
-];
-
-const STAFF_LINKS: NavLeaf[] = [
-  { href: '/business/bookings', icon: 'fa-calendar-check', label: 'Bookings' },
-  { href: '/business/availability', icon: 'fa-calendar-days', label: 'My availability' },
-  { href: '/business/staff-profile', icon: 'fa-id-badge', label: 'My profile' },
-];
+import { BUSINESS_OWNER_NAV, BUSINESS_STAFF_GROUPS, BUSINESS_STAFF_NAV, PROVIDER_BLOCKED_PREFIXES, type NavItem } from '@/lib/nav';
 
 export default function BusinessLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -100,42 +29,55 @@ function BusinessLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  // Only one menu group is open at a time. Until the user picks one (on this page), the group holding the
+  // current page is open; `id: null` means the user closed everything.
+  const [openPick, setOpenPick] = useState<{ path: string; id: string | null } | null>(null);
   const [listingMode, setListingMode] = useState<string | null>(user?.listingMode || null);
 
+  // Owners: the sidebar waits until we know this is a business (not an individual) listing,
+  // so an individual provider never sees business-only menus, even for a moment.
+  const [modeChecked, setModeChecked] = useState(false);
+
   const isStaff = user?.role === 'BUSINESS_STAFF';
-  const isIndividual = listingMode === 'INDIVIDUAL' || user?.listingMode === 'INDIVIDUAL';
-  const navGroups = useMemo(
-    () =>
-      OWNER_NAV.map((group) => ({
-        ...group,
-        children: isIndividual
-          ? group.children.filter((child) => ![
-              '/business/branches',
-              '/business/staff',
-              '/business/staff-services',
-              '/business/organization',
-            ].includes(child.href))
-          : group.children,
-      })).filter((group) => group.children.length > 0),
-    [isIndividual]
+  const navGroups = isStaff ? BUSINESS_STAFF_GROUPS : BUSINESS_OWNER_NAV;
+
+  const toProvider = useMemo(
+    () => () => {
+      const mapped = pathname.replace(/^\/business/, '/provider').replace('/onboarding/individual', '/onboarding');
+      router.replace(mapped === '/provider' || PROVIDER_BLOCKED_PREFIXES.some((p) => mapped.startsWith(p)) ? '/provider/dashboard' : mapped);
+    },
+    [pathname, router]
   );
 
   useEffect(() => {
     if (user?.role !== 'BUSINESS_OWNER') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setModeChecked(true);
       return;
     }
-    apiFetch<{ business?: { listingMode?: string } }>('/api/provider/profile')
-      .then((profile) => {
-        const mode = profile.business?.listingMode || null;
+    if (pathname.startsWith('/business/onboarding') || pathname.startsWith('/business/register')) {
+      setModeChecked(true);
+    }
+    // Solo providers belong in /provider. /api/users/me says which kind of account this is.
+    apiFetch<{ listingMode?: string }>('/api/users/me')
+      .then((me) => {
+        const mode = me.listingMode || null;
         setListingMode(mode);
         if (mode === 'INDIVIDUAL') {
-          const mapped = pathname.replace(/^\/business/, '/provider').replace('/onboarding/individual', '/onboarding');
-          router.replace(mapped === '/provider' ? '/provider/dashboard' : mapped);
+          toProvider();
+          return;
         }
+        setModeChecked(true);
       })
-      .catch(() => setListingMode(null));
-  }, [user?.role, pathname, router]);
+      .catch(() => {
+        setListingMode(null);
+        setModeChecked(true);
+      });
+  }, [user?.role, pathname, toProvider]);
+
+  useEffect(() => {
+    if (user?.role === 'BUSINESS_OWNER' && user?.listingMode === 'INDIVIDUAL') toProvider();
+  }, [user?.role, user?.listingMode, toProvider]);
 
   useEffect(() => {
     if (!loading) {
@@ -144,7 +86,7 @@ function BusinessLayoutInner({ children }: { children: React.ReactNode }) {
       } else if (user?.role !== 'BUSINESS_OWNER' && user?.role !== 'BUSINESS_STAFF') {
         router.push('/profile/explore');
       } else if (isStaff) {
-        const allowed = STAFF_LINKS.some((l) => pathname.startsWith(l.href));
+        const allowed = BUSINESS_STAFF_NAV.some((l) => pathname.startsWith(l.href));
         if (!allowed && pathname !== '/business/register') {
           router.replace('/business/bookings');
         }
@@ -152,7 +94,12 @@ function BusinessLayoutInner({ children }: { children: React.ReactNode }) {
     }
   }, [loading, isAuthenticated, user, router, pathname, isStaff]);
 
-  if (loading || !isAuthenticated || (user?.role !== 'BUSINESS_OWNER' && user?.role !== 'BUSINESS_STAFF')) {
+  if (
+    loading ||
+    !isAuthenticated ||
+    (user?.role !== 'BUSINESS_OWNER' && user?.role !== 'BUSINESS_STAFF') ||
+    (!isStaff && (!modeChecked || listingMode === 'INDIVIDUAL' || user?.listingMode === 'INDIVIDUAL'))
+  ) {
     return (
       <div
         style={{
@@ -176,24 +123,28 @@ function BusinessLayoutInner({ children }: { children: React.ReactNode }) {
     router.push('/auth/login');
   };
 
-  const flatLeaves = isStaff
-    ? STAFF_LINKS
-    : navGroups.flatMap((g) => g.children);
+  const flatLeaves = navGroups.flatMap((g) => g.children);
+
+  // The most specific menu item wins (so /business/reports/team is "Team", not "Performance").
+  const activeHref = flatLeaves
+    .filter((l) => (l.exact ? pathname === l.href : pathname === l.href || pathname.startsWith(`${l.href}/`)))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   const getPageTitle = () => {
-    const match = flatLeaves.find((l) => pathname.startsWith(l.href));
-    return match?.label || 'Business dashboard';
+    const match = flatLeaves.find((l) => l.href === activeHref);
+    if (pathname.startsWith('/business/reports')) return `Reports · ${match?.label || 'Performance'}`;
+    return match?.label || 'Business';
   };
 
   const initials = `${user.firstName?.charAt(0) || ''}${user.lastName?.charAt(0) || ''}`;
 
-  const renderLeaf = (link: NavLeaf, forceShowLabel = false) => {
+  const renderLeaf = (link: NavItem, forceShowLabel = false) => {
     const locked = !!link.entitlement && planLoaded && !hasFeature(plan, link.entitlement);
     return (
       <Link
         key={link.href}
         href={link.href}
-        className={`${styles.navItem} ${styles.navChild} ${pathname.startsWith(link.href) ? styles.navActive : ''} ${locked ? styles.navLocked : ''}`}
+        className={`${styles.navItem} ${styles.navChild} ${link.href === activeHref ? styles.navActive : ''} ${locked ? styles.navLocked : ''}`}
         onClick={() => setMobileOpen(false)}
       >
         <span className={styles.navIcon}>
@@ -231,7 +182,7 @@ function BusinessLayoutInner({ children }: { children: React.ReactNode }) {
           {!collapsed && (
             <Link href={isStaff ? '/business/bookings' : '/business/dashboard'} className={styles.logoArea}>
               <img
-                src="/duemet-logo-nav.png"
+                src="/duemet-logo-nav-white.png"
                 alt="Duemet Logo"
                 style={{ height: 26, width: 'auto', objectFit: 'contain', display: 'block' }}
               />
@@ -245,7 +196,7 @@ function BusinessLayoutInner({ children }: { children: React.ReactNode }) {
               onClick={() => setCollapsed(false)}
               title="Expand sidebar"
             >
-              <img src="/duemet-mark.png" alt="Duemet" style={{ width: 29, height: 29, objectFit: 'contain', display: 'block' }} />
+              <img src="/duemet-mark-white.png" alt="Duemet" style={{ width: 29, height: 29, objectFit: 'contain', display: 'block' }} />
             </button>
           ) : (
             <button
@@ -260,20 +211,19 @@ function BusinessLayoutInner({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className={styles.sidebarNav}>
-          {isStaff
-            ? STAFF_LINKS.map((link) => renderLeaf(link))
-            : navGroups.map((group) => {
-                const open = !collapsed && (
-                  openGroups[group.id] ?? group.children.some((child) => pathname.startsWith(child.href))
-                );
+          {navGroups.map((group) => {
+                const picked = openPick && openPick.path === pathname ? openPick.id : undefined;
+                const open = !collapsed && (picked === undefined
+                  ? group.children.some((child) => pathname.startsWith(child.href))
+                  : picked === group.id);
                 const shouldRenderChildren = collapsed || open;
                 return (
-                  <div key={group.id} className={styles.navGroup}>
+                  <div key={group.id} className={`${styles.navGroup} ${open ? styles.navGroupOpen : ''}`}>
                     <button
                       type="button"
                       className={styles.navGroupBtn}
                       onClick={() =>
-                        !collapsed && setOpenGroups((prev) => ({ ...prev, [group.id]: !prev[group.id] }))
+                        !collapsed && setOpenPick({ path: pathname, id: open ? null : group.id })
                       }
                       title={group.label}
                     >
@@ -322,6 +272,10 @@ function BusinessLayoutInner({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className={styles.topbarActions}>
+            <Link href="/community" target="_blank" className={styles.roleSwitchBtn} title="Open the Duemet Community in a new tab">
+              <i className="fa-solid fa-people-group"></i>
+              <span>Community</span>
+            </Link>
             {!isStaff && (
               <Link href="/profile" className={styles.roleSwitchBtn} title="Switch to customer view">
                 <i className="fa-solid fa-users"></i>

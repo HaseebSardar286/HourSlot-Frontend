@@ -51,11 +51,8 @@
   margin-left: 8px;
 }
 
+/* Drawn on <body> by FloatingMenu, which positions it. */
 .popoverMenu {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: 400;
   width: 270px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
@@ -82,7 +79,7 @@
 .navButton {
   width: 28px;
   height: 28px;
-  border-radius: 6px;
+  border-radius: 5px;
   border: 1px solid var(--border-color);
   background: transparent;
   color: var(--text-secondary);
@@ -122,7 +119,7 @@
   aspect-ratio: 1;
   border: none;
   background: transparent;
-  border-radius: 6px;
+  border-radius: 5px;
   font-size: 0.82rem;
   font-weight: 600;
   color: var(--text-main);
@@ -162,3 +159,6 @@
     transform: translateY(0);
   }
 }
+
+/* Enterprise layer: same height and type as other inputs. */
+.triggerButton { min-height: 34px; padding: 6px 10px; font-size: 0.8125rem; }

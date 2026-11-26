@@ -42,6 +42,13 @@ const getInitials = (name: string) => {
     .toUpperCase();
 };
 
+const AVATAR_TONES = ['#0f1b33', '#2563eb', '#0f766e', '#7c2d12', '#334155', '#1d4ed8'];
+const avatarTone = (name: string) => {
+  let h = 0;
+  for (const ch of name || '') h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return AVATAR_TONES[h % AVATAR_TONES.length];
+};
+
 export default function StaffPage() {
   const { plan, loaded: planLoaded, refresh: refreshPlan } = useOwnerPlan();
   const canAdd = planLoaded && !atLimit(plan, 'staff', 'max_staff');
@@ -92,8 +99,8 @@ export default function StaffPage() {
         setSelectedBranchId(branchData[0].id.toString());
         setInviteForm((p) => ({ ...p, branchId: branchData[0].id.toString() }));
       }
-    } catch (err: any) {
-      setError(err?.message || 'Could not load directory data. Please ensure branches exist.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Could not load directory data. Please ensure branches exist.');
     } finally {
       setLoading(false);
     }
@@ -105,19 +112,21 @@ export default function StaffPage() {
     try {
       const data = await apiFetch<Staff[]>(`/api/business/branches/${branchId}/staff`);
       setStaffList(data);
-    } catch (err: any) {
-      setError(err?.message || 'Could not load staff for branch.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Could not load staff for branch.');
     } finally {
       setStaffLoading(false);
     }
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     loadInitialData();
   }, []);
 
   useEffect(() => {
     if (selectedBranchId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
       loadStaffForBranch(selectedBranchId);
     }
   }, [selectedBranchId]);
@@ -183,8 +192,8 @@ export default function StaffPage() {
       setShowForm(false);
       await loadStaffForBranch(selectedBranchId);
       await refreshPlan();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to save staff member details.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to save staff member details.');
     } finally {
       setSubmitting(false);
     }
@@ -201,8 +210,8 @@ export default function StaffPage() {
       setDeleteId(null);
       await loadStaffForBranch(selectedBranchId);
       await refreshPlan();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to remove staff member.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to remove staff member.');
     } finally {
       setDeleting(false);
     }
@@ -350,8 +359,8 @@ export default function StaffPage() {
                   setInviteForm((p) => ({ ...p, email: '', displayName: '', designation: '' }));
                   await loadInitialData();
                   await refreshPlan();
-                } catch (err: any) {
-                  setError(err?.message || 'Invite failed.');
+                } catch (err: unknown) {
+                  setError((err as { message?: string })?.message || 'Invite failed.');
                 } finally {
                   setInviting(false);
                 }
@@ -445,47 +454,44 @@ export default function StaffPage() {
               {filteredStaff.map((s) => (
                 <div key={s.id} className={styles.staffCard}>
                   <div className={styles.cardHeader}>
-                    <div className={styles.avatarCircle}>{getInitials(s.name)}</div>
+                    <div className={styles.avatarCircle} style={{ background: avatarTone(s.name) }}>
+                      {getInitials(s.name)}
+                    </div>
                     <div className={styles.headerText}>
                       <h4 className={styles.staffName}>{s.name}</h4>
-                      <span className={styles.staffDesignation}>{s.designation || 'Specialist'}</span>
+                      <span className={styles.staffDesignation}>{s.designation || 'Team member'}</span>
                     </div>
+                    <span className={styles.staffRating} title="Average rating">
+                      <i className="fa-solid fa-star" /> {s.rating ? s.rating.toFixed(1) : 'New'}
+                    </span>
                   </div>
 
-                  <div className={styles.cardDetails}>
-                    <div className={styles.detailItem}>
-                      <i className="fa-solid fa-location-dot" />
-                      <span>{s.branch.name}</span>
-                    </div>
-                    <div className={styles.detailItem}>
-                      {s.userId ? (
-                        <span className={styles.badgeLinked}>
-                          <i className="fa-solid fa-circle-user" /> Linked Account
-                        </span>
-                      ) : (
-                        <span className={styles.badgeOffline}>
-                          <i className="fa-regular fa-circle" /> Offline Specialist
-                        </span>
-                      )}
-                    </div>
+                  <div className={styles.staffMeta}>
+                    <span><i className="fa-solid fa-location-dot" /> {s.branch.name}</span>
+                    {s.userId ? (
+                      <span className={styles.staffLinked}><i className="fa-solid fa-circle-check" /> Has app login</span>
+                    ) : (
+                      <span title="Bookings can be assigned, but this person can't sign in yet.">
+                        <i className="fa-regular fa-user" /> No app login
+                      </span>
+                    )}
                   </div>
 
-                  <div className={styles.cardBottom}>
-                    <div className={styles.ratingBadge}>
-                      <i className="fa-solid fa-star" />
-                      <span>{s.rating ? s.rating.toFixed(1) : 'New'}</span>
-                    </div>
-                    <div className={styles.actions}>
-                      <button type="button" className="btn btn-sm btn-outline" onClick={() => handleEditClick(s)}>
-                        <i className="fa-regular fa-pen-to-square" style={{ marginRight: 4 }} /> Edit
-                      </button>
-                      <button type="button" className="btn btn-sm btn-danger" onClick={() => setDeleteId(s.id)}>
-                        <i className="fa-regular fa-trash-can" style={{ marginRight: 4 }} /> Delete
-                      </button>
-                    </div>
+                  <div className={styles.staffFoot}>
+                    <button type="button" className={styles.staffBtn} onClick={() => handleEditClick(s)}>
+                      <i className="fa-regular fa-pen-to-square" /> Edit
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.staffIconBtn} ${styles.staffDanger}`}
+                      onClick={() => setDeleteId(s.id)}
+                      aria-label={`Remove ${s.name}`}
+                      title="Remove from team"
+                    >
+                      <i className="fa-regular fa-trash-can" />
+                    </button>
                   </div>
-                </div>
-              ))}
+                </div>              ))}
             </div>
           )}
         </>

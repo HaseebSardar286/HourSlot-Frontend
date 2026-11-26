@@ -34,7 +34,7 @@ export default function OrganizationPage() {
     countryCode: '',
     region: '',
     city: '',
-    currency: 'USD',
+    currency: 'PKR',
     timezone: 'UTC',
   });
 
@@ -48,7 +48,7 @@ export default function OrganizationPage() {
           countryCode: data.countryCode || '',
           region: data.region || '',
           city: data.city || '',
-          currency: data.defaultCurrency || 'USD',
+          currency: data.defaultCurrency || 'PKR',
           timezone: data.timezone || 'UTC',
         });
       })
@@ -79,7 +79,7 @@ export default function OrganizationPage() {
         countryCode: updated.countryCode || '',
         region: updated.region || '',
         city: updated.city || '',
-        currency: updated.defaultCurrency || 'USD',
+        currency: updated.defaultCurrency || 'PKR',
         timezone: updated.timezone || 'UTC',
       });
       await refresh();

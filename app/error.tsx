@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import Link from 'next/link';
 
 export default function RouteError({
   error,
@@ -24,9 +25,9 @@ export default function RouteError({
           <button type="button" onClick={() => retry()} style={primaryBtn}>
             Try again
           </button>
-          <a href="/" style={secondaryBtn}>
+          <Link href="/" style={secondaryBtn}>
             Go home
-          </a>
+          </Link>
         </div>
       </div>
     </main>
@@ -38,23 +39,23 @@ const wrap: React.CSSProperties = {
   display: 'grid',
   placeItems: 'center',
   padding: 24,
-  background: '#F9FAFB',
+  background: '#f6f8fb',
 };
 const card: React.CSSProperties = {
   maxWidth: 440,
   textAlign: 'center',
   background: '#fff',
-  border: '1px solid #E5E7EB',
-  borderRadius: 16,
+  border: '1px solid #e6eaf0',
+  borderRadius: 5,
   padding: 32,
 };
-const title: React.CSSProperties = { fontSize: 22, margin: '0 0 8px', color: '#111827' };
+const title: React.CSSProperties = { fontSize: 22, margin: '0 0 8px', color: '#0f172a' };
 const text: React.CSSProperties = { color: '#6B7280', margin: '0 0 20px', lineHeight: 1.5 };
 const primaryBtn: React.CSSProperties = {
-  background: '#3B82F6', color: '#fff', border: 0, borderRadius: 10,
+  background: '#2563eb', color: '#fff', border: 0, borderRadius: 5,
   padding: '10px 18px', fontWeight: 600, cursor: 'pointer',
 };
 const secondaryBtn: React.CSSProperties = {
-  background: '#fff', color: '#374151', border: '1px solid #D1D5DB', borderRadius: 10,
+  background: '#fff', color: '#374151', border: '1px solid #D1D5DB', borderRadius: 5,
   padding: '10px 18px', fontWeight: 600, textDecoration: 'none',
 };

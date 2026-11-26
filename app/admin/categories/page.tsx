@@ -60,14 +60,15 @@ export default function AdminCategoriesPage() {
       };
       data.forEach(traverse);
       setFlatCategories(flat);
-    } catch (err: any) {
-      setError(err?.message || 'Could not load categories catalog.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Could not load categories catalog.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     loadCategories();
   }, []);
 
@@ -97,8 +98,8 @@ export default function AdminCategoriesPage() {
         setMessage('Cover image saved. It will show on the landing page.');
         await loadCategories();
       }
-    } catch (err: any) {
-      setError(err?.message || 'Image upload failed.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Image upload failed.');
     } finally {
       setUploadingImage(false);
     }
@@ -165,8 +166,8 @@ export default function AdminCategoriesPage() {
       }
       setShowModal(false);
       await loadCategories();
-    } catch (err: any) {
-      setError(err?.message || 'Action failed.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Action failed.');
     } finally {
       setSubmitting(false);
     }
@@ -182,8 +183,8 @@ export default function AdminCategoriesPage() {
       setMessage('Category deactivated successfully.');
       setDeleteId(null);
       await loadCategories();
-    } catch (err: any) {
-      setError(err?.message || 'Deactivation failed.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Deactivation failed.');
     } finally {
       setDeleting(false);
     }

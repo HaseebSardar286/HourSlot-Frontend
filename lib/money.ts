@@ -3,11 +3,11 @@
  */
 export function formatMoney(
   amount: number | string | null | undefined,
-  currency = 'USD',
+  currency = 'PKR',
   options?: Intl.NumberFormatOptions
 ): string {
   const value = Number(amount);
-  const code = (currency || 'USD').trim().toUpperCase() || 'USD';
+  const code = (currency || 'PKR').trim().toUpperCase() || 'PKR';
   const safe = Number.isFinite(value) ? value : 0;
   try {
     return new Intl.NumberFormat(undefined, {
@@ -22,6 +22,6 @@ export function formatMoney(
 }
 
 export function currencyCode(currency?: string | null): string {
-  const code = (currency || 'USD').trim().toUpperCase();
-  return code || 'USD';
+  const code = (currency || 'PKR').trim().toUpperCase();
+  return code || 'PKR';
 }

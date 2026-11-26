@@ -18,11 +18,13 @@ const OwnerPlanContext = createContext<OwnerPlanContextValue>({
 });
 
 export function OwnerPlanProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [plan, setPlan] = useState<OwnerPlan | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   const refresh = useCallback(async () => {
+    // Session not restored yet: stay "not loaded" so pages don't render a 0-seat limit.
+    if (authLoading) return;
     if (user?.role !== 'BUSINESS_OWNER') {
       setPlan(null);
       setLoaded(true);
@@ -37,9 +39,10 @@ export function OwnerPlanProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoaded(true);
     }
-  }, [user?.role, user?.listingMode]);
+  }, [authLoading, user?.role, user?.listingMode]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     void refresh();
   }, [refresh]);
 

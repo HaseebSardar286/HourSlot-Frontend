@@ -239,7 +239,7 @@
 
 /* Pending Alerts */
 .pendingAlertCard {
-  background: linear-gradient(135deg, rgba(var(--accent-primary-rgb), 0.02) 0%, rgba(59, 130, 246, 0.05) 100%);
+  background: linear-gradient(135deg, rgba(var(--accent-primary-rgb), 0.02) 0%, rgba(37, 99, 235, 0.05) 100%);
   border: 1.5px dashed var(--accent-secondary);
   border-radius: var(--radius-lg);
   padding: 20px;
@@ -250,9 +250,9 @@
 }
 
 @keyframes pulseBorder {
-  0% { border-color: rgba(59, 130, 246, 0.4); }
+  0% { border-color: rgba(37, 99, 235, 0.4); }
   50% { border-color: rgba(var(--accent-primary-rgb), 0.9); }
-  100% { border-color: rgba(59, 130, 246, 0.4); }
+  100% { border-color: rgba(37, 99, 235, 0.4); }
 }
 
 .alertLeft {
@@ -265,7 +265,7 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: rgba(59, 130, 246, 0.15);
+  background: rgba(37, 99, 235, 0.15);
   color: #059669;
   display: flex;
   align-items: center;

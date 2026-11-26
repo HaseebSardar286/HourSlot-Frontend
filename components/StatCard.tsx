@@ -1,5 +1,6 @@
 'use client';
 
+import CountUp from '@/components/CountUp';
 import { ReactNode } from 'react';
 import styles from './ui.module.css';
 
@@ -18,9 +19,11 @@ export function StatCard({ label, value, hint, icon }: StatCardProps) {
           <i className={`fa-solid ${icon}`} aria-hidden />
         </div>
       )}
-      <div className={styles.statLabel}>{label}</div>
-      <div className={styles.statValue}>{value}</div>
-      {hint && <div className={styles.statHint}>{hint}</div>}
+      <div className={styles.statInfo}>
+        <div className={styles.statLabel}>{label}</div>
+        <div className={styles.statValue}><CountUp value={value} /></div>
+        {hint && <div className={styles.statHint}>{hint}</div>}
+      </div>
     </div>
   );
 }

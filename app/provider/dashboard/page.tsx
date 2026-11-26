@@ -9,6 +9,7 @@ import PageHeader from '@/components/PageHeader';
 import Skeleton from '@/components/Skeleton';
 import StatusBadge from '@/components/StatusBadge';
 import AppAccessCard from '@/components/AppAccessCard';
+import Dropdown from '@/components/ui/Dropdown';
 import styles from './dashboard.module.css';
 
 type Checklist = {
@@ -93,6 +94,7 @@ export default function SoloDashboardPage() {
   }, [updateSession]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     void load();
   }, [load]);
 
@@ -304,22 +306,16 @@ export default function SoloDashboardPage() {
               · Stop
             </button>
           ) : (
-            <select
-              className={styles.presenceBtn}
-              value=""
-              disabled={busy}
-              aria-label="Take urgent jobs"
-              onChange={(e) => {
-                const minutes = Number(e.target.value);
-                if (minutes > 0) void setAvailableNow(minutes);
-              }}
-            >
-              <option value="">Take urgent jobs…</option>
-              <option value="60">For 1 hour</option>
-              <option value="120">For 2 hours</option>
-              <option value="240">For 4 hours</option>
-              <option value="480">For 8 hours</option>
-            </select>
+            <div style={{ minWidth: 210 }}>
+              <Dropdown aria-label="Take urgent jobs" value="" placeholder="Take urgent jobs…" icon="fa-bolt" disabled={busy}
+                onChange={(v) => { const minutes = Number(v); if (minutes > 0) void setAvailableNow(minutes); }}
+                options={[
+                  { value: '60', label: 'For 1 hour' },
+                  { value: '120', label: 'For 2 hours' },
+                  { value: '240', label: 'For 4 hours' },
+                  { value: '480', label: 'For 8 hours' },
+                ]} />
+            </div>
           )}
           {status === 'APPROVED' && !isLive && (
             <button type="button" className={styles.primaryBtn} onClick={() => void publish()} disabled={busy}>

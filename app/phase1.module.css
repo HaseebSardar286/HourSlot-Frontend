@@ -76,7 +76,7 @@
 .heroLogo {
   width: clamp(100px, 16vw, 160px);
   height: clamp(100px, 16vw, 160px);
-  border-radius: 32px;
+  border-radius: 5px;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -260,7 +260,7 @@
 .stepOn {
   flex: 1;
   height: 5px;
-  border-radius: 99px;
+  border-radius: 5px;
   background: var(--border-color);
 }
 

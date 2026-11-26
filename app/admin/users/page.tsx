@@ -40,14 +40,15 @@ export default function AdminUsersPage() {
       const url = `/api/admin/users?role=${encodeURIComponent(roleFilter)}&search=${encodeURIComponent(searchQuery)}`;
       const data = await apiFetch<User[]>(url);
       setUsers(data);
-    } catch (err: any) {
-      setError(err.message || 'Failed to retrieve user accounts.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to retrieve user accounts.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     loadUsers();
   }, [roleFilter]);
 
@@ -66,8 +67,8 @@ export default function AdminUsersPage() {
       });
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, active: updatedUser.active } : u)));
       setMessage(`User account ${updatedUser.email} ${newStatus ? 'activated' : 'suspended'} successfully.`);
-    } catch (err: any) {
-      setError(err.message || 'Failed to change user account status.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to change user account status.');
     }
   };
 
@@ -81,8 +82,8 @@ export default function AdminUsersPage() {
       setUsers((prev) => prev.filter((u) => u.id !== deleteTarget.id));
       setMessage(`User account ${deleteTarget.email} deleted successfully.`);
       setDeleteTarget(null);
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete user account.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to delete user account.');
     } finally {
       setDeleting(false);
     }

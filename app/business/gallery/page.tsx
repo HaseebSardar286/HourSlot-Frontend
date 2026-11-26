@@ -43,14 +43,15 @@ export default function GalleryPage() {
       } else {
         setPhotos([]);
       }
-    } catch (err: any) {
-      setError(err?.message || 'Could not load business details.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Could not load business details.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     loadBusiness();
   }, []);
 
@@ -72,8 +73,8 @@ export default function GalleryPage() {
         .filter(Boolean);
       setPhotos(next);
       setMessage('Photo uploaded successfully!');
-    } catch (err: any) {
-      setError(err?.message || 'Failed to upload image.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to upload image.');
     } finally {
       setSubmitting(false);
     }
@@ -106,8 +107,8 @@ export default function GalleryPage() {
       setPhotos(updatedPhotos);
       setNewPhotoUrl('');
       setMessage('Photo added to gallery successfully!');
-    } catch (err: any) {
-      setError(err?.message || 'Failed to update gallery.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to update gallery.');
     } finally {
       setSubmitting(false);
     }
@@ -133,8 +134,8 @@ export default function GalleryPage() {
       setPhotos(updatedPhotos);
       setDeleteUrl(null);
       setMessage('Photo removed from gallery.');
-    } catch (err: any) {
-      setError(err?.message || 'Failed to remove photo.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to remove photo.');
     } finally {
       setDeleting(false);
     }
@@ -160,8 +161,8 @@ export default function GalleryPage() {
       });
       setPhotos(updatedPhotos);
       setMessage('Cover photo updated successfully!');
-    } catch (err: any) {
-      setError(err?.message || 'Failed to update cover photo.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to update cover photo.');
     } finally {
       setSubmitting(false);
     }

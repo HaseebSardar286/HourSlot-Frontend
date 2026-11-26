@@ -8,6 +8,7 @@ import PageHeader from '@/components/PageHeader';
 import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
 import StatusBadge from '@/components/StatusBadge';
+import DataTable from '@/components/DataTable';
 
 type Person = { firstName?: string; lastName?: string; email?: string };
 
@@ -15,6 +16,7 @@ type Booking = {
   id: number;
   bookingTime: string;
   status: string;
+  paymentMethod?: string;
   price?: number;
   service?: { name?: string };
   customer?: Person & { user?: Person };
@@ -62,18 +64,21 @@ export default function SoloBookingsPage() {
     return `${u?.firstName || ''} ${u?.lastName || ''}`.trim() || u?.email || 'Customer';
   };
 
-  const setStatus = async (b: Booking, status: 'CANCELLED' | 'NO_SHOW') => {
+  const setStatus = async (b: Booking, status: 'CANCELLED' | 'NO_SHOW' | 'CONFIRMED') => {
     const prompt =
       status === 'NO_SHOW'
         ? 'Mark this customer as a no-show? Any no-show fee in your policy will be recorded as owed.'
-        : 'Cancel this booking? The customer will be notified and anyone on the waitlist is told the slot is free.';
-    if (!window.confirm(prompt)) return;
+        : status === 'CANCELLED'
+          ? 'Cancel this booking? The customer will be notified and anyone on the waitlist is told the slot is free.'
+          : null;
+    if (prompt && !window.confirm(prompt)) return;
     setBusyId(b.id);
     setError(null);
     setMessage(null);
     try {
       await apiFetch(`/api/bookings/${b.id}/status`, { method: 'PUT', body: JSON.stringify({ status }) });
-      setMessage(status === 'NO_SHOW' ? 'Marked as no-show.' : 'Booking cancelled.');
+      setMessage(status === 'NO_SHOW' ? 'Marked as no-show.' : status === 'CONFIRMED'
+        ? 'Booking confirmed. The customer was emailed.' : 'Booking cancelled.');
       await load();
     } catch (e: unknown) {
       setError((e as { message?: string })?.message || 'Could not update the booking.');
@@ -92,7 +97,7 @@ export default function SoloBookingsPage() {
   };
 
   return (
-    <div style={{ maxWidth: 960, margin: '0 auto', paddingBottom: 40 }}>
+    <div style={{ maxWidth: 1320, margin: '0 auto', paddingBottom: 40 }}>
       <PageHeader
         title="Bookings"
         subtitle="Appointments booked with you — not a multi-branch schedule."
@@ -109,33 +114,55 @@ export default function SoloBookingsPage() {
       ) : bookings.length === 0 ? (
         <EmptyState icon="fa-calendar-check" title="No bookings yet" description="When customers book your services, they will appear here." />
       ) : (
-        <div style={{ display: 'grid', gap: 10 }}>
-          {bookings.map((b) => {
-            const active = b.status === 'CONFIRMED' || b.status === 'PENDING';
-            const started = new Date(b.bookingTime).getTime() <= now;
-            const record = records[b.id];
-            return (
-              <article key={b.id} className="card" style={{ padding: 16, display: 'grid', gap: 10 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
-                  <div>
-                    <strong>{b.service?.name || 'Service'}</strong>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: 4 }}>
-                      {nameOf(b)} · {new Date(b.bookingTime).toLocaleString()}
-                      {b.price != null ? ` · ${format(b.price)}` : ''}
-                    </div>
-                  </div>
-                  <StatusBadge status={b.status} />
-                </div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {!record && (
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => void showRecord(b)}>
-                      Customer track record
+        <DataTable<Booking>
+          rows={bookings}
+          rowKey={(b) => b.id}
+          defaultSort={{ key: 'when', dir: 'desc' }}
+          columns={[
+            {
+              key: 'when', header: 'Date & time', width: 170, sortValue: (b) => new Date(b.bookingTime).getTime(),
+              render: (b) => new Date(b.bookingTime).toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }),
+            },
+            { key: 'customer', header: 'Customer', sortValue: (b) => nameOf(b), render: (b) => <strong>{nameOf(b)}</strong> },
+            { key: 'service', header: 'Service', sortValue: (b) => b.service?.name || '', render: (b) => b.service?.name || 'Service' },
+            { key: 'status', header: 'Status', sortValue: (b) => b.status, render: (b) => <StatusBadge status={b.status} /> },
+            {
+              key: 'record', header: 'Reliability', hideOnMobile: true,
+              render: (b) => {
+                const record = records[b.id];
+                if (!record) {
+                  return <button type="button" className="btn btn-ghost btn-sm" onClick={() => void showRecord(b)}>Check</button>;
+                }
+                return (
+                  <span title={`${record.completed} completed · ${record.noShows} no-shows · ${record.lateCancels} late cancellations (12 months)`}>
+                    {record.score == null ? 'New customer' : `${record.score}% show-up`}
+                  </span>
+                );
+              },
+            },
+            { key: 'amount', header: 'Amount', align: 'right', sortValue: (b) => Number(b.price ?? 0), render: (b) => (b.price != null ? <strong>{format(b.price)}</strong> : '—') },
+            {
+              key: 'actions', header: '', align: 'right',
+              render: (b) => {
+                const active = b.status === 'CONFIRMED' || b.status === 'PENDING';
+                const started = new Date(b.bookingTime).getTime() <= now;
+                return (
+                <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
+                  {b.status === 'PENDING' && b.paymentMethod !== 'TRANSFER' && (
+                    <button type="button" className="btn btn-primary btn-sm" disabled={busyId === b.id}
+                      onClick={() => void setStatus(b, 'CONFIRMED')}>
+                      <i className="fa-solid fa-check" /> Confirm
                     </button>
+                  )}
+                  {b.status === 'PENDING' && b.paymentMethod === 'TRANSFER' && (
+                    <Link href="/provider/payments" className="btn btn-primary btn-sm">
+                      <i className="fa-solid fa-magnifying-glass-dollar" /> Check payment
+                    </Link>
                   )}
                   {active && started && (
                     <button type="button" className="btn btn-outline btn-sm" disabled={busyId === b.id}
                       onClick={() => void setStatus(b, 'NO_SHOW')}>
-                      Mark no-show
+                      No-show
                     </button>
                   )}
                   {active && !started && (
@@ -145,19 +172,11 @@ export default function SoloBookingsPage() {
                     </button>
                   )}
                 </div>
-                {record && (
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                    {record.score == null
-                      ? 'New customer — no history yet.'
-                      : `Shows up ${record.score}% of the time`}{' '}
-                    · {record.completed} completed · {record.noShows} no-shows · {record.lateCancels} late cancellations
-                    (last 12 months)
-                  </div>
-                )}
-              </article>
-            );
-          })}
-        </div>
+                );
+              },
+            },
+          ]}
+        />
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 'use client';
 
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import styles from './ui.module.css';
 
 interface ModalProps {
@@ -12,19 +13,34 @@ interface ModalProps {
   wide?: boolean;
 }
 
+const noopSubscribe = () => () => {};
+
 export default function Modal({ open, title, onClose, children, footer, wide }: ModalProps) {
+  // True only in the browser, where document.body exists for the portal.
+  const mounted = useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false
+  );
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  // Rendered into <body> so no page wrapper (transforms, sticky headers) can sit on top of it.
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -46,6 +62,7 @@ export default function Modal({ open, title, onClose, children, footer, wide }: 
         <div>{children}</div>
         {footer && <div className={styles.modalFooter}>{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

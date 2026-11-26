@@ -80,19 +80,21 @@ export default function BranchesPage() {
     try {
       const data = await apiFetch<Branch[]>('/api/business/branches');
       setBranches(data);
-    } catch (err: any) {
-      setError(err?.message || 'Could not load branches.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Could not load branches.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     loadBranches();
   }, []);
 
   useEffect(() => {
     if (branches.length > 0 && selectedBranchId === null) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO derive this instead of syncing it into state (one extra render, not a bug)
       setSelectedBranchId(branches[0].id);
     }
   }, [branches, selectedBranchId]);
@@ -163,8 +165,8 @@ export default function BranchesPage() {
       setShowForm(false);
       await loadBranches();
       await refreshPlan();
-    } catch (err: any) {
-      setError(err?.message || 'Action failed. Your listing may need approval first.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Action failed. Your listing may need approval first.');
     } finally {
       setSubmitting(false);
     }
@@ -181,8 +183,8 @@ export default function BranchesPage() {
       setDeleteId(null);
       await loadBranches();
       await refreshPlan();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to delete branch.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to delete branch.');
     } finally {
       setDeleting(false);
     }
@@ -217,7 +219,7 @@ export default function BranchesPage() {
         title="Branches"
         subtitle={
           canAdd
-            ? 'Manage locations on the map. Coordinates are stored as latitude and longitude.'
+            ? 'Your locations on the map. Customers see these addresses and pins.'
             : limitHint(plan, 'max_branches', 'branches')
         }
         actions={
@@ -312,23 +314,28 @@ export default function BranchesPage() {
                       </div>
                     )}
                     <div className={styles.detailItem}>
-                      <i className="fa-solid fa-earth-americas" />
-                      <span className={styles.coords}>
-                        {Number(b.latitude).toFixed(5)}, {Number(b.longitude).toFixed(5)}
-                      </span>
+                      <i className="fa-solid fa-map" />
+                      <a
+                        className={styles.mapsLink}
+                        href={`https://www.google.com/maps/search/?api=1&query=${b.latitude},${b.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Open in Maps
+                      </a>
                     </div>
                   </div>
 
                   <div className={styles.cardBottom}>
                     <div className={styles.cardStats}>
-                      <div className={styles.statItem}>
+                      <a href="/business/staff" className={styles.statItem}>
                         <i className="fa-solid fa-users" />
-                        <span>HQ Staff</span>
-                      </div>
-                      <div className={styles.statItem}>
-                        <i className="fa-solid fa-calendar-check" />
-                        <span>Active Shifts</span>
-                      </div>
+                        <span>Staff</span>
+                      </a>
+                      <a href="/business/availability" className={styles.statItem}>
+                        <i className="fa-regular fa-clock" />
+                        <span>Opening hours</span>
+                      </a>
                     </div>
                     <div className={styles.cardActions}>
                       <button

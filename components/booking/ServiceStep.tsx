@@ -16,9 +16,13 @@ function serviceIcon(name: string) {
   const n = name.toLowerCase();
   if (n.includes('consult')) return 'fa-comments';
   if (n.includes('color') || n.includes('dye')) return 'fa-palette';
-  if (n.includes('cut') || n.includes('hair')) return 'fa-scissors';
-  if (n.includes('massage') || n.includes('spa') || n.includes('facial')) return 'fa-spa';
-  if (n.includes('train') || n.includes('fitness') || n.includes('yoga')) return 'fa-dumbbell';
+  if (/cut|hair|fade|beard|shave|trim/.test(n)) return 'fa-scissors';
+  if (/massage|spa|facial|skin|peel/.test(n)) return 'fa-spa';
+  if (/nail|mani|pedi/.test(n)) return 'fa-hand-sparkles';
+  if (/dental|teeth|tooth|whiten|scale|clean.*teeth/.test(n)) return 'fa-tooth';
+  if (/train|fitness|yoga|gym|pt\b|session/.test(n)) return 'fa-dumbbell';
+  if (/clean|home|deep|sofa|carpet/.test(n)) return 'fa-broom';
+  if (/check|clinic|doctor|exam/.test(n)) return 'fa-stethoscope';
   return 'fa-calendar-check';
 }
 

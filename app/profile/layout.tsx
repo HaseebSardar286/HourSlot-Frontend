@@ -11,30 +11,7 @@ import PageMotion from '@/components/PageMotion';
 import { loginHref, registerHref } from '@/lib/auth-redirect';
 import { apiFetch } from '@/lib/api';
 import styles from './profile-layout.module.css';
-
-const GUEST_NAV = [
-  { href: '/profile/explore', label: 'Explore', icon: 'fa-compass' },
-  { href: '/#pricing', label: 'Pricing', icon: 'fa-tags' },
-  { href: '/#how-it-works', label: 'How it works', icon: 'fa-circle-question' },
-];
-
-const CUSTOMER_NAV = [
-  { href: '/profile/explore', icon: 'fa-compass', label: 'Explore', short: 'Explore' },
-  { href: '/profile/bookings', icon: 'fa-calendar-check', label: 'Bookings', short: 'Bookings' },
-  { href: '/profile/requests', icon: 'fa-file-lines', label: 'Requests', short: 'Requests' },
-  { href: '/profile/jobs', icon: 'fa-briefcase', label: 'Jobs', short: 'Jobs' },
-  { href: '/community', icon: 'fa-people-group', label: 'Community', short: 'Community' },
-  { href: '/profile/packages', icon: 'fa-gift', label: 'Packages', short: 'Packages' },
-  { href: '/profile/addresses', icon: 'fa-location-dot', label: 'Addresses', short: 'Addresses' },
-  { href: '/profile', icon: 'fa-user', label: 'Account', short: 'Account', exact: true },
-] as const;
-
-const MOBILE_NAV = [
-  CUSTOMER_NAV[0],
-  CUSTOMER_NAV[1],
-  CUSTOMER_NAV[2],
-  CUSTOMER_NAV[7],
-];
+import { CUSTOMER_MOBILE_NAV as MOBILE_NAV, CUSTOMER_NAV, CUSTOMER_SIDEBAR, GUEST_NAV, type NavItem } from '@/lib/nav';
 
 export default function ProfileLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -46,6 +23,8 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
   const [providerWorkspace, setProviderWorkspace] = useState(user?.role === 'BUSINESS_OWNER');
   const [listingMode, setListingMode] = useState<string | null>(user?.listingMode || null);
   const [providerIntent, setProviderIntent] = useState<string | null>(user?.providerIntent || null);
+  // Only one sidebar group is open at a time; until one is picked (on this page) the current page's group is open.
+  const [openPick, setOpenPick] = useState<{ path: string; id: string | null } | null>(null);
 
   const isActive = (href: string, exact?: boolean) => {
     if (href.startsWith('/#')) return false;
@@ -55,7 +34,8 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
         pathname === href ||
         pathname.startsWith('/profile/explore') ||
         pathname.startsWith('/profile/business') ||
-        pathname.startsWith('/profile/book')
+        // The booking flow (/profile/book/...), not My bookings (/profile/bookings).
+        pathname.startsWith('/profile/book/')
       );
     }
     if (href === '/profile') return pathname === '/profile';
@@ -67,8 +47,27 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
     router.push('/profile/explore');
   };
 
+  const sideLink = (item: NavItem, child = false) => (
+    <Link
+      key={item.href}
+      href={item.href}
+      className={`${styles.sideLink} ${child ? styles.sideChild : ''} ${isActive(item.href, item.exact) ? styles.sideLinkActive : ''}`}
+      onClick={() => setMenuOpen(false)}
+      aria-label={item.label}
+    >
+      <span className={styles.sideLinkIcon}>
+        <i className={`fa-solid ${item.icon}`} aria-hidden />
+      </span>
+      {!sidebarCollapsed && <span>{item.label}</span>}
+      <span className={styles.sideTip} role="tooltip">
+        {item.label}
+      </span>
+    </Link>
+  );
+
   useEffect(() => {
     if (!isAuthenticated) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO derive this instead of syncing it into state (one extra render, not a bug)
       setProviderWorkspace(false);
       return;
     }
@@ -107,7 +106,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
           <div className={styles.sidebarHeader}>
             {!sidebarCollapsed ? (
               <Link href="/" className={styles.sideBrand}>
-                <BrandLogo kind="wordmark" variant="color" height={26} priority className={styles.sideLogo} />
+                <BrandLogo kind="wordmark" variant="white" height={26} priority className={styles.sideLogo} />
               </Link>
             ) : (
               <Link href="/" className={styles.sideBrandIcon} title="Duemet home">
@@ -125,23 +124,26 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
             </button>
           </div>
           <nav className={styles.sideNav} aria-label="Customer">
-            {CUSTOMER_NAV.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`${styles.sideLink} ${isActive(item.href, 'exact' in item ? item.exact : undefined) ? styles.sideLinkActive : ''}`}
-                onClick={() => setMenuOpen(false)}
-                aria-label={item.label}
-              >
-                <span className={styles.sideLinkIcon}>
-                  <i className={`fa-solid ${item.icon}`} aria-hidden />
-                </span>
-                {!sidebarCollapsed && <span>{item.label}</span>}
-                <span className={styles.sideTip} role="tooltip">
-                  {item.label}
-                </span>
-              </Link>
-            ))}
+            {sidebarCollapsed
+              ? CUSTOMER_NAV.map((item) => sideLink(item))
+              : CUSTOMER_SIDEBAR.map((entry) => {
+                  if (!('children' in entry)) return sideLink(entry);
+                  const picked = openPick && openPick.path === pathname ? openPick.id : undefined;
+                  const open = picked === undefined
+                    ? entry.children.some((c) => isActive(c.href, c.exact))
+                    : picked === entry.id;
+                  return (
+                    <div key={entry.id} className={`${styles.sideGroup} ${open ? styles.sideGroupOpen : ''}`}>
+                      <button type="button" className={styles.sideGroupBtn} aria-expanded={open}
+                        onClick={() => setOpenPick({ path: pathname, id: open ? null : entry.id })}>
+                        <span className={styles.sideLinkIcon}><i className={`fa-solid ${entry.icon}`} aria-hidden /></span>
+                        <span>{entry.label}</span>
+                        <i className={`fa-solid fa-chevron-${open ? 'down' : 'right'} ${styles.sideChevron}`} aria-hidden />
+                      </button>
+                      {open && <div className={styles.sideChildren}>{entry.children.map((c) => sideLink(c, true))}</div>}
+                    </div>
+                  );
+                })}
           </nav>
           <button type="button" className={styles.sideLogout} onClick={handleLogout} aria-label="Sign out">
             <i className="fa-solid fa-right-from-bracket" />
@@ -176,6 +178,10 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
                   <span>Provider mode</span>
                 </Link>
               )}
+              <Link href="/community" target="_blank" className={styles.businessSwitch} title="Open the Duemet Community in a new tab">
+                <i className="fa-solid fa-people-group" />
+                <span>Community</span>
+              </Link>
               <Link
                 href="/profile/favorites"
                 className={`${styles.topIconBtn} ${pathname.startsWith('/profile/favorites') ? styles.topIconBtnOn : ''}`}
@@ -210,7 +216,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
               <Link
                 key={item.href}
                 href={item.href}
-                className={`${styles.bottomLink} ${isActive(item.href, 'exact' in item ? item.exact : undefined) ? styles.bottomLinkOn : ''}`}
+                className={`${styles.bottomLink} ${isActive(item.href, item.exact) ? styles.bottomLinkOn : ''}`}
               >
                 <i className={`fa-solid ${item.icon}`} aria-hidden />
                 <span>{item.short}</span>
@@ -234,7 +240,9 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
   return (
     <div className={styles.shell}>
       <header className={`app-header ${styles.header}`}>
-        <div className={styles.headerInner}>
+        <div
+          className={`${styles.headerInner} ${pathname.startsWith('/profile/explore') ? styles.headerInnerWide : ''}`}
+        >
           <div className={styles.left}>
             <button
               type="button"
@@ -253,6 +261,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
                 <Link
                   key={item.href}
                   href={item.href}
+                  {...(item.external ? { target: '_blank' } : {})}
                   className={`${styles.navLink} ${isActive(item.href) ? styles.navActive : ''}`}
                 >
                   <i className={`fa-solid ${item.icon}`} aria-hidden />
@@ -283,6 +292,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
               <Link
                 key={item.href}
                 href={item.href}
+                {...(item.external ? { target: '_blank' } : {})}
                 className={`${styles.guestMenuLink} ${isActive(item.href) ? styles.guestMenuLinkOn : ''}`}
                 onClick={() => setMenuOpen(false)}
               >
@@ -300,7 +310,15 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
         </>
       )}
 
-      <main className={isGuestBrowseRoute ? styles.mainWide : styles.main}>
+      <main
+        className={
+          pathname.startsWith('/profile/explore')
+            ? styles.mainFlush
+            : isGuestBrowseRoute
+              ? styles.mainWide
+              : styles.main
+        }
+      >
         <PageMotion>{children}</PageMotion>
       </main>
 

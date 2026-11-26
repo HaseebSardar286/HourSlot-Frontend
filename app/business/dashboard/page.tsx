@@ -11,11 +11,17 @@ import StatusBadge from '@/components/StatusBadge';
 import CustomSelect from '@/components/CustomSelect';
 import { StatCard, MetricGrid } from '@/components/StatCard';
 import { useOrgLocale } from '@/lib/org-locale-context';
+import { useAuth } from '@/lib/auth-context';
 import styles from './dashboard.module.css';
 
 interface Category {
   id: number;
   name: string;
+}
+
+/** A category from /api/public/categories, with its children. */
+interface CategoryNode extends Category {
+  subcategories?: CategoryNode[];
 }
 
 interface Customer {
@@ -74,6 +80,7 @@ type PublishReadiness = {
 export default function BusinessDashboardPage() {
   const { format } = useOrgLocale();
   const router = useRouter();
+  const { user } = useAuth();
   const [business, setBusiness] = useState<BusinessProfile | null>(null);
   const [availableCategories, setAvailableCategories] = useState<Category[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -92,12 +99,8 @@ export default function BusinessDashboardPage() {
   const [docsReady, setDocsReady] = useState(false);
   const [publishReadiness, setPublishReadiness] = useState<PublishReadiness | null>(null);
   const [listingBusy, setListingBusy] = useState(false);
-  const [todayOps, setTodayOps] = useState<{ bookingsCount: number; jobsCount: number } | null>(null);
-  const [opsStatus, setOpsStatus] = useState('AVAILABLE');
-  const [savingOps, setSavingOps] = useState(false);
 
-  // Quote of the day and Weather states
-  const [quote, setQuote] = useState<{ quote: string; author: string } | null>(null);
+  // Weather state
   const [weather, setWeather] = useState<{ temp: number; wind: number; code: number; description: string; icon: string } | null>(null);
   const [loadingWeather, setLoadingWeather] = useState(false);
 
@@ -162,7 +165,7 @@ export default function BusinessDashboardPage() {
     try {
       const [data, categoriesData, branches, services, staff] = await Promise.all([
         apiFetch<BusinessProfile>('/api/business/profile'),
-        apiFetch<any[]>('/api/public/categories'),
+        apiFetch<CategoryNode[]>('/api/public/categories'),
         apiFetch<{ id: number; latitude?: number; longitude?: number }[]>('/api/business/branches').catch(() => []),
         apiFetch<{ id: number }[]>('/api/business/services').catch(() => []),
         apiFetch<{ id: number }[]>('/api/business/staff').catch(() => []),
@@ -171,8 +174,8 @@ export default function BusinessDashboardPage() {
 
       let hoursCount = 0;
       let bookingsData: Booking[] = [];
-      let lat = 37.7749;
-      let lng = -122.4194;
+      let lat = 24.8607;
+      let lng = 67.0011;
 
       if (branches.length > 0) {
         const primaryBranch = branches[0];
@@ -204,7 +207,7 @@ export default function BusinessDashboardPage() {
       });
 
       const flat: Category[] = [];
-      const traverse = (node: any) => {
+      const traverse = (node: CategoryNode) => {
         flat.push({ id: node.id, name: node.name });
         if (node.subcategories && node.subcategories.length > 0) {
           node.subcategories.forEach(traverse);
@@ -224,8 +227,8 @@ export default function BusinessDashboardPage() {
 
       const readiness = await apiFetch<PublishReadiness>('/api/business/publish-readiness').catch(() => null);
       setPublishReadiness(readiness);
-    } catch (err: any) {
-      setError(err?.message || 'Could not load business profile. Have you registered yet?');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Could not load business profile. Have you registered yet?');
     } finally {
       setLoading(false);
     }
@@ -239,8 +242,8 @@ export default function BusinessDashboardPage() {
       await apiFetch('/api/business/publish', { method: 'POST' });
       setMessage('Your listing is live on Explore.');
       await loadBusinessProfile();
-    } catch (err: any) {
-      setError(err?.message || 'Could not publish listing.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Could not publish listing.');
     } finally {
       setListingBusy(false);
     }
@@ -254,8 +257,8 @@ export default function BusinessDashboardPage() {
       await apiFetch('/api/business/unpublish', { method: 'POST' });
       setMessage('Listing hidden from Explore.');
       await loadBusinessProfile();
-    } catch (err: any) {
-      setError(err?.message || 'Could not unpublish listing.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Could not unpublish listing.');
     } finally {
       setListingBusy(false);
     }
@@ -269,32 +272,17 @@ export default function BusinessDashboardPage() {
       await apiFetch('/api/business/resubmit', { method: 'POST' });
       setMessage('Listing submitted for review again.');
       await loadBusinessProfile();
-    } catch (err: any) {
-      setError(err?.message || 'Could not resubmit. Re-upload rejected documents first.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Could not resubmit. Re-upload rejected documents first.');
     } finally {
       setListingBusy(false);
     }
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     loadBusinessProfile();
     
-    // Load daily inspirational business quote dynamically on mount
-    fetch('https://dummyjson.com/quotes/random')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data?.quote) {
-          setQuote({ quote: data.quote, author: data.author });
-        }
-      })
-      .catch((err) => {
-        console.warn('Failed to fetch quote of the day, using static fallback.', err);
-        setQuote({
-          quote: 'Success is not final, failure is not fatal: it is the courage to continue that counts.',
-          author: 'Winston Churchill',
-        });
-      });
-
     apiFetch<{
       readiness?: {
         tier1SubmittedCount?: number;
@@ -308,18 +296,10 @@ export default function BusinessDashboardPage() {
       })
       .catch(() => setDocsReady(false));
 
-    apiFetch<{ bookings?: unknown[]; jobs?: unknown[]; opsStatus?: string }>('/api/provider/ops/today')
-      .then((data) => {
-        setTodayOps({
-          bookingsCount: Array.isArray(data.bookings) ? data.bookings.length : 0,
-          jobsCount: Array.isArray(data.jobs) ? data.jobs.length : 0,
-        });
-        if (data.opsStatus) setOpsStatus(data.opsStatus);
-      })
-      .catch(() => setTodayOps(null));
+
   }, []);
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -355,8 +335,8 @@ export default function BusinessDashboardPage() {
       });
       setMessage('Profile updated successfully!');
       await loadBusinessProfile();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to update profile.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to update profile.');
     } finally {
       setSubmitting(false);
     }
@@ -407,12 +387,8 @@ export default function BusinessDashboardPage() {
   const setupPercent = Math.round((doneCount / checklist.length) * 100);
   const isLive =
     business?.status === 'APPROVED' && (business.publishStatus || '').toUpperCase() === 'PUBLISHED';
-  const previewPath = isLive && business?.id ? `/profile/business/${business.id}` : '';
-
-  const handlePreviewListing = () => {
-    if (!previewPath) return;
-    window.open(previewPath, '_blank', 'noopener,noreferrer');
-  };
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
   const listingStatusLabel = (() => {
     if (!business) return '';
@@ -445,8 +421,19 @@ export default function BusinessDashboardPage() {
   return (
     <div className={styles.dashboardContainer}>
       <PageHeader
-        title={business?.name || 'Business dashboard'}
-        subtitle="Manage your business operations, listing status, and public bookings page."
+        title={`${greeting}${user?.firstName ? `, ${user.firstName}` : ''}`}
+        subtitle={[
+          business?.name,
+          business?.primaryCategory?.name,
+          business?.rating ? `★ ${business.rating.toFixed(1)}` : null,
+        ].filter(Boolean).join(' · ')}
+        actions={
+          isLive && business?.slug ? (
+            <Link href={`/b/${business.slug}`} target="_blank" className="btn btn-outline">
+              <i className="fa-solid fa-arrow-up-right-from-square" /> View public profile
+            </Link>
+          ) : undefined
+        }
       />
 
       {business && (
@@ -456,8 +443,8 @@ export default function BusinessDashboardPage() {
               ? styles.statusAlertRejected
               : business.status === 'SUSPENDED'
                 ? styles.statusAlertSuspended
-                : business.status === 'PENDING'
-                  ? styles.statusAlertPending
+                : isLive
+                  ? styles.statusAlertLive
                   : styles.statusAlertPending
           }
         >
@@ -515,9 +502,6 @@ export default function BusinessDashboardPage() {
               )}
               {isLive && (
                 <>
-                  <button type="button" className="btn btn-outline btn-sm" onClick={handlePreviewListing}>
-                    View public profile
-                  </button>
                   <button type="button" className="btn btn-outline btn-sm" disabled={listingBusy} onClick={() => void unpublishListing()}>
                     Unpublish
                   </button>
@@ -566,99 +550,15 @@ export default function BusinessDashboardPage() {
 
       {activeTab === 'overview' && (
         <div className={styles.overviewWrapper}>
-          {/* Welcome Banner */}
-          <div className={styles.dashboardHero}>
-            <div className={styles.heroMain}>
-              <div className={styles.heroAvatarContainer}>
-                {business?.logoUrl ? (
-                  <img src={business.logoUrl} alt="Logo" className={styles.heroLogo} />
-                ) : (
-                  <div className={styles.heroLogoPlaceholder}>
-                    <i className="fa-solid fa-store" />
-                  </div>
-                )}
-              </div>
-              <div className={styles.heroMeta}>
-                <h3>{business?.name}</h3>
-                <p className={styles.heroSubtitle}>
-                  {business?.primaryCategory?.name || 'Service Provider'} •{' '}
-                  <span className={styles.heroRating}>
-                    <i className="fa-solid fa-star" /> {business?.rating ? business.rating.toFixed(1) : '0.0'}
-                  </span>
-                </p>
-                <div className={styles.heroBadgeRow}>
-                  <StatusBadge status={business?.status || 'PENDING'} />
-                  {business?.verified && (
-                    <span className={styles.verifiedPartnerBadge}>
-                      <i className="fa-solid fa-circle-check" /> Verified Partner
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className={styles.heroPreviewBox}>
-              <span className={styles.linkTitle}>Customer listing</span>
-              <p className={styles.previewHint}>See how clients view your profile and book appointments.</p>
-              {business?.id && (
-                <button type="button" className={`btn btn-primary ${styles.previewBtn}`} onClick={handlePreviewListing}>
-                  <i className="fa-solid fa-eye" /> Preview listing
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Inspirational Quote Banner */}
-          {quote && (
-            <div className={styles.quoteBanner}>
-              <i className="fa-solid fa-lightbulb" />
-              <div className={styles.quoteContent}>
-                <span className={styles.quoteLabel}>Tip of the day</span>
-                <span className={styles.quoteText}>
-                  "{quote.quote}" — <strong>{quote.author}</strong>
-                </span>
-              </div>
-            </div>
-          )}
-
           {/* Metric Grid */}
           <MetricGrid>
             <StatCard label="Active Bookings" value={activeBookingsCount} hint="Pending or confirmed slots" icon="fa-calendar-days" />
-            <StatCard label="Today's Bookings" value={todayOps?.bookingsCount ?? todayBookingsCount} hint="Appointments today" icon="fa-clock" />
-            <StatCard label="Today's Jobs" value={todayOps?.jobsCount ?? 0} hint="Service jobs scheduled today" icon="fa-briefcase" />
+            <StatCard label="Today's Bookings" value={todayBookingsCount} hint="Appointments today" icon="fa-clock" />
             <StatCard label="Est. Revenue" value={format(estimatedRevenue)} hint="Total active slot rates" icon="fa-wallet" />
             <StatCard label="Rating Score" value={business?.rating ? `${business.rating.toFixed(1)} / 5` : '0.0'} hint="Customer reviews feedback" icon="fa-star" />
           </MetricGrid>
 
-          <div className="surface" style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-            <strong>Availability status</strong>
-            <CustomSelect
-              searchable={false}
-              value={opsStatus}
-              onChange={(value) => {
-                setOpsStatus(value);
-                setSavingOps(true);
-                apiFetch('/api/provider/ops/status', {
-                  method: 'PATCH',
-                  body: JSON.stringify({ opsStatus: value }),
-                })
-                  .then(() => setMessage(`Status set to ${value.replaceAll('_', ' ').toLowerCase()}.`))
-                  .catch((err: { message?: string }) => setError(err?.message || 'Could not update status.'))
-                  .finally(() => setSavingOps(false));
-              }}
-              options={[
-                { value: 'AVAILABLE', label: 'Available' },
-                { value: 'BUSY', label: 'Busy' },
-                { value: 'UNAVAILABLE', label: 'Unavailable' },
-                { value: 'VACATION', label: 'Vacation' },
-              ]}
-              placeholder="Status"
-            />
-            {savingOps && <span className={styles.previewHint}>Saving…</span>}
-            <Link href="/business/calendar" className="btn btn-outline btn-sm">Open calendar</Link>
-            <Link href="/business/analytics" className="btn btn-outline btn-sm">Analytics</Link>
-          </div>
-
-          <div className={styles.dashboardLayout}>
+<div className={styles.dashboardLayout}>
             {/* Main Panel */}
             <div className={styles.dashboardMain}>
               {/* Setup checklist progress */}

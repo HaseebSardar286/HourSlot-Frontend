@@ -400,7 +400,7 @@
   gap: 6px;
   transition: var(--transition-fast);
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: 5px;
 }
 
 .copyAllBtn:hover {
@@ -452,7 +452,7 @@
   width: 50px;
   height: 24px;
   background: #cbd5e1;
-  border-radius: 12px;
+  border-radius: 5px;
   position: relative;
   cursor: pointer;
   outline: none;
@@ -648,3 +648,33 @@
   }
 }
 
+
+/* Break form: labelled, and wide enough to show "12:00 PM" in full. */
+.inlineBreakForm {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px !important;
+}
+
+.breakLabel {
+  width: 100%;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.inlineBreakForm input[type='time'] {
+  width: 128px !important;
+  min-width: 128px;
+  height: 36px;
+  padding: 0 10px !important;
+  font-size: 0.84rem;
+}
+
+.addBreakBtn {
+  height: 36px;
+  padding: 0 14px !important;
+  border-radius: 5px !important;
+  font-weight: 600 !important;
+}

@@ -55,7 +55,7 @@
   left: 0;
   height: 3px;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--accent-primary), var(--accent-primary) 50%, #3b82f6);
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-primary) 50%, #2563eb);
   box-shadow: 0 0 12px rgba(var(--accent-primary-rgb), 0.35);
   transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }

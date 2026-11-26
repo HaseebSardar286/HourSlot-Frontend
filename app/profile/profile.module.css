@@ -385,3 +385,116 @@
   flex-direction: column;
   gap: 16px;
 }
+
+/* ---------- Account v2 ---------- */
+.profileContainer {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.quickLink,
+.profileCard,
+.tabsCard {
+  border-width: 1px;
+  border-radius: 5px;
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.05));
+  background: var(--bg-card);
+}
+
+.quickLink {
+  justify-content: flex-start;
+  padding: 16px 18px;
+}
+
+.quickLink i {
+  width: 36px;
+  height: 36px;
+  border-radius: 5px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-primary-soft, #eef4ff);
+}
+
+.quickLink:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-primary-line, #c7d8fd);
+}
+
+.avatarCircle {
+  width: 84px;
+  height: 84px;
+  font-size: 1.8rem;
+  background: var(--ink-800, #0f1b33);
+  box-shadow: 0 0 0 4px #fff, 0 0 0 5px var(--border-color);
+}
+
+.roleBadge {
+  background: var(--bg-elevated, #f6f8fb);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.metaSection {
+  border-top-width: 1px;
+}
+
+.strength {
+  width: 100%;
+  margin-top: 18px;
+  padding: 12px 14px;
+  border-radius: 5px;
+  background: var(--accent-primary-soft, #eef4ff);
+  text-align: left;
+}
+
+.strengthHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.strengthHead button {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 700;
+  color: var(--accent-primary);
+  cursor: pointer;
+}
+
+.progressBarOuter {
+  background: #fff;
+  margin-top: 8px;
+}
+
+.progressBarInner {
+  background: var(--accent-primary);
+}
+
+.tabsHeader {
+  gap: 4px;
+  border-bottom-width: 1px;
+}
+
+.tabBtnActive {
+  color: var(--text-main);
+}
+
+.tabBtnActive::after {
+  background: var(--accent-primary);
+  height: 2px;
+  bottom: -2px;
+}
+
+.formActions {
+  border-top-width: 1px;
+}
+
+.securityHints {
+  border-width: 1px;
+  background: var(--bg-elevated, #f6f8fb);
+}

@@ -1,10 +1,11 @@
-﻿'use client';
+'use client';
 
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/api';
 import PageHeader from '@/components/PageHeader';
 import Skeleton from '@/components/Skeleton';
 
+import { TimePicker } from '@/components/ui/DatePicker';
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 type Hour = {
@@ -63,6 +64,7 @@ export default function SoloAvailabilityPage() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     void load();
   }, [load]);
 
@@ -98,24 +100,10 @@ export default function SoloAvailabilityPage() {
         {rows.map((row, idx) => (
           <div key={row.dayOfWeek} style={{ display: 'grid', gridTemplateColumns: '120px 1fr 1fr auto', gap: 10, alignItems: 'center' }}>
             <strong>{DAYS[row.dayOfWeek]}</strong>
-            <input
-              type="time"
-              className="form-input"
-              value={row.startTime}
-              disabled={row.closed}
-              onChange={(e) =>
-                setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, startTime: e.target.value } : r)))
-              }
-            />
-            <input
-              type="time"
-              className="form-input"
-              value={row.endTime}
-              disabled={row.closed}
-              onChange={(e) =>
-                setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, endTime: e.target.value } : r)))
-              }
-            />
+            <TimePicker aria-label={`${DAYS[row.dayOfWeek]} opens`} value={row.startTime} disabled={row.closed}
+              onChange={(v) => setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, startTime: v } : r)))} />
+            <TimePicker aria-label={`${DAYS[row.dayOfWeek]} closes`} value={row.endTime} disabled={row.closed} min={row.startTime || undefined}
+              onChange={(v) => setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, endTime: v } : r)))} />
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.85rem' }}>
               <input
                 type="checkbox"

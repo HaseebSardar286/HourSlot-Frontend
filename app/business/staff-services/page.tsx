@@ -69,14 +69,15 @@ export default function StaffServicesPage() {
       setAssignments(Array.isArray(assigns) ? assigns : []);
       setStaffList(Array.isArray(staff) ? staff : []);
       setServices(Array.isArray(svcs) ? svcs : []);
-    } catch (err: any) {
-      setError(err?.message || 'Could not load staff-services mappings.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Could not load staff-services mappings.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     loadInitialData();
   }, []);
 
@@ -125,7 +126,7 @@ export default function StaffServicesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [staffList, formData.serviceId, assignments, editingAssignment]);
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -210,8 +211,8 @@ export default function StaffServicesPage() {
       }
       setShowModal(false);
       await loadInitialData();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to save mapping.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to save mapping.');
     } finally {
       setSubmitting(false);
     }
@@ -227,8 +228,8 @@ export default function StaffServicesPage() {
       setMessage('Assignment removed successfully.');
       setDeleteId(null);
       await loadInitialData();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to delete assignment.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to delete assignment.');
     } finally {
       setDeleting(false);
     }

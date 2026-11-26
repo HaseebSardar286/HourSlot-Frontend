@@ -7,13 +7,13 @@ import LandingHero from './LandingHero';
 import LandingCategories from './LandingCategories';
 import LandingHowItWorks from './LandingHowItWorks';
 import LandingMarketplace from './LandingMarketplace';
-import LandingTrust from './LandingTrust';
 import LandingProviders from './LandingProviders';
-import LandingVoices from './LandingVoices';
 import LandingFaq from './LandingFaq';
 import LandingFinalCta from './LandingFinalCta';
 import LandingFooter from './LandingFooter';
 import { useMarketplace } from './useMarketplace';
+import LandingFeatures from './LandingFeatures';
+import { categoryPhoto } from './utils';
 import styles from './landing.module.css';
 
 export default function LandingPage() {
@@ -22,6 +22,15 @@ export default function LandingPage() {
   const [service, setService] = useState('');
   const [location, setLocation] = useState('');
   const [locating, setLocating] = useState(false);
+
+  const rated = liveListings.filter((l) => l.rating > 0);
+  const stats = {
+    providers: liveListings.length,
+    categories: categories.length,
+    rating: rated.length ? rated.reduce((s, l) => s + l.rating, 0) / rated.length : 0,
+    cities: new Set(liveListings.map((l) => l.location.split(',').pop()?.trim()).filter(Boolean)).size,
+    avatars: liveListings.map((l) => l.imageUrl || categoryPhoto(l.category)).slice(0, 4),
+  };
 
   const persistSearch = (query: string, geo?: { lat: number; lon: number }) => {
     try {
@@ -92,6 +101,7 @@ export default function LandingPage() {
           setService(term);
           goSearch(term);
         }}
+        stats={loading ? undefined : stats}
       />
       <LandingCategories
         categories={categories}
@@ -102,10 +112,9 @@ export default function LandingPage() {
         }}
       />
       <LandingHowItWorks />
+      <LandingFeatures />
       <LandingMarketplace listings={featuredListings} total={liveListings.length} loading={loading} />
       <LandingProviders />
-      <LandingTrust />
-      <LandingVoices />
       <LandingFaq />
       <LandingFinalCta />
       <LandingFooter />

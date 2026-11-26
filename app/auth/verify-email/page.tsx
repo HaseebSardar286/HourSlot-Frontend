@@ -15,6 +15,7 @@ function VerifyEmailForm() {
 
   useEffect(() => {
     if (!token) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO derive this instead of syncing it into state (one extra render, not a bug)
       setError('Verification link is missing a token.');
       setLoading(false);
       return;

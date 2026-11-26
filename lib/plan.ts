@@ -26,10 +26,11 @@ export function atLimit(
   usageKey: 'branches' | 'staff' | 'businesses',
   limitCode: string
 ): boolean {
-  if (!plan) {
-    return true;
+  // Unknown plan (fetch failed): don't lock the UI; the API still enforces the real limit.
+  if (!plan || plan.entitlements?.[limitCode] == null) {
+    return false;
   }
-  const max = Number(plan.entitlements?.[limitCode] ?? 0);
+  const max = Number(plan.entitlements[limitCode]);
   if (max >= 999) {
     return false;
   }
@@ -43,8 +44,14 @@ export function upgradeHint(plan: OwnerPlan | null, code: string, feature: strin
 }
 
 export function limitHint(plan: OwnerPlan | null, limitCode: string, unit: string): string {
-  const current = plan?.planName || 'Starter';
+  // Plan not loaded (network/DB hiccup): say nothing rather than claim a 0 limit.
+  if (!plan || plan.entitlements?.[limitCode] == null) {
+    return `Manage your ${unit} here.`;
+  }
+  const current = plan.planName || 'Starter';
   const max = Number(plan?.entitlements?.[limitCode] ?? 0);
   const target = plan?.unlocksAt?.[limitCode] || 'a higher plan';
-  return `Your ${current} plan allows ${max} ${unit}. Upgrade to ${target} to add more.`;
+  // "branches" -> "branch", "staff members" -> "staff member" when the limit is 1.
+  const label = max === 1 ? unit.replace(/(es|s)$/, (m) => (unit.endsWith('ches') ? '' : m === 'es' ? 'e' : '')) : unit;
+  return `Your ${current} plan allows ${max} ${label}. Upgrade to ${target} to add more.`;
 }

@@ -7,6 +7,7 @@ import PageHeader from '@/components/PageHeader';
 import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { categoryPhoto } from '@/components/landing/utils';
 import styles from './favorites.module.css';
 
 interface Category {
@@ -40,14 +41,15 @@ export default function FavoritesPage() {
     try {
       const data = await apiFetch<Favorite[]>('/api/favorites');
       setFavorites(data);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load favorite list.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to load favorite list.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     loadFavorites();
   }, []);
 
@@ -61,8 +63,8 @@ export default function FavoritesPage() {
       setSuccess('Removed from favorites.');
       setFavorites((prev) => prev.filter((f) => f.business.id !== removeId));
       setRemoveId(null);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to remove favorite.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to remove favorite.');
     } finally {
       setRemoving(false);
     }
@@ -111,6 +113,10 @@ export default function FavoritesPage() {
         <div className={styles.favGrid}>
           {favorites.map((f) => (
             <div key={f.id} className={`surface ${styles.favCard}`}>
+              <Link href={`/profile/business/${f.business.id}`} className={styles.favThumb} tabIndex={-1} aria-hidden>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={categoryPhoto(f.business.primaryCategory?.name || f.business.name)} alt="" loading="lazy" />
+              </Link>
               <div className={styles.cardHeader}>
                 <div>
                   <span className={styles.categoryTag}>

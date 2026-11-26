@@ -1,15 +1,15 @@
 'use client';
 
-import { useState, useEffect, FormEvent, useMemo } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { apiFetch } from '@/lib/api';
 import PageHeader from '@/components/PageHeader';
 import EmptyState from '@/components/EmptyState';
+import DataTable from '@/components/DataTable';
 import Skeleton from '@/components/Skeleton';
 import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import CustomSelect from '@/components/CustomSelect';
 import { useOrgLocale } from '@/lib/org-locale-context';
-import { fetchCurrencies, type CurrencyView } from '@/lib/geo';
 import { formatMoney } from '@/lib/money';
 import styles from './services.module.css';
 
@@ -32,7 +32,6 @@ interface Service {
 export default function ServicesPage() {
   const { format, currency } = useOrgLocale();
   const [services, setServices] = useState<Service[]>([]);
-  const [currencies, setCurrencies] = useState<CurrencyView[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -64,31 +63,17 @@ export default function ServicesPage() {
     try {
       const data = await apiFetch<Service[]>('/api/business/services');
       setServices(data);
-    } catch (err: any) {
-      setError(err?.message || 'Could not load services.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Could not load services.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     loadServices();
-    fetchCurrencies(false)
-      .then(setCurrencies)
-      .catch(() => setCurrencies([]));
   }, []);
-
-  const currencyOptions = useMemo(() => {
-    const options = currencies.map((c) => ({
-      value: c.code,
-      label: `${c.code}${c.symbol ? ` (${c.symbol})` : ''} — ${c.name || c.code}`,
-    }));
-    const selected = formData.currency || currency;
-    if (selected && !options.some((o) => o.value === selected)) {
-      options.unshift({ value: selected, label: selected });
-    }
-    return options;
-  }, [currencies, formData.currency, currency]);
 
   const handleInputChange = (field: string, value: string | number | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -171,8 +156,8 @@ export default function ServicesPage() {
       }
       setShowForm(false);
       await loadServices();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to save service.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to save service.');
     } finally {
       setSubmitting(false);
     }
@@ -188,8 +173,8 @@ export default function ServicesPage() {
       setMessage('Service removed successfully.');
       setDeleteId(null);
       await loadServices();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to remove service.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to remove service.');
     } finally {
       setDeleting(false);
     }
@@ -301,70 +286,52 @@ export default function ServicesPage() {
           onAction={handleAddClick}
         />
       ) : (
-        <div className={styles.serviceGrid}>
-          {filteredServices.map((s) => (
-            <div key={s.id} className={styles.serviceCard}>
-              <div className={styles.cardHeader}>
-                <h4 className={styles.serviceName}>{s.name}</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-end' }}>
-                  <span className={s.active ? styles.badgeActive : styles.badgeSuspended}>
-                    {s.active ? 'ACTIVE' : 'SUSPENDED'}
+        <DataTable<(typeof filteredServices)[number]>
+          rows={filteredServices}
+          rowKey={(s) => s.id}
+          onRowClick={(s) => handleEditClick(s)}
+          emptyMessage="No services match your search."
+          defaultSort={{ key: 'name', dir: 'asc' }}
+          columns={[
+            {
+              key: 'name', header: 'Service', sortValue: (s) => s.name,
+              render: (s) => (
+                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, maxWidth: 420 }}>
+                  <strong>{s.name}</strong>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {s.description || 'No description'}
                   </span>
-                  <span className={s.groupService ? styles.badgeGroup : styles.badgeIndividual}>
-                    {s.groupService ? 'GROUP' : 'INDIVIDUAL'}
-                  </span>
-                  {(s.requiresQuote || s.pricingType === 'QUOTE') && (
-                    <span className={styles.badgeSuspended}>QUOTE</span>
-                  )}
                 </div>
-              </div>
-
-              <p className={styles.descText}>{s.description || 'No description provided.'}</p>
-
-              <div className={styles.cardDetails}>
-                <div className={styles.detailItem}>
-                  <i className="fa-regular fa-clock" />
-                  <span>Duration: {s.durationMinutes} min</span>
-                </div>
-                {s.bufferMinutes > 0 && (
-                  <div className={styles.detailItem}>
-                    <i className="fa-solid fa-hourglass-half" />
-                    <span>Buffer Time: {s.bufferMinutes} min</span>
-                  </div>
-                )}
-                {s.groupService && (
-                  <div className={styles.detailItem}>
-                    <i className="fa-solid fa-users" />
-                    <span>Max Capacity: {s.capacity} clients</span>
-                  </div>
-                )}
-              </div>
-
-              <div className={styles.cardBottom}>
-                <span className={styles.priceBadge}>
-                  {s.requiresQuote || s.pricingType === 'QUOTE'
-                    ? 'Quote required'
-                    : formatMoney(s.price, s.currency || currency)}
-                </span>
-                <div className={styles.actions}>
-                  <button type="button" className="btn btn-sm btn-outline" onClick={() => handleEditClick(s)}>
-                    <i className="fa-regular fa-pen-to-square" style={{ marginRight: 4 }} /> Edit
+              ),
+            },
+            { key: 'duration', header: 'Duration', align: 'right', sortValue: (s) => s.durationMinutes, render: (s) => `${s.durationMinutes} min` },
+            { key: 'buffer', header: 'Buffer', align: 'right', hideOnMobile: true, sortValue: (s) => s.bufferMinutes || 0, render: (s) => (s.bufferMinutes > 0 ? `${s.bufferMinutes} min` : '—') },
+            {
+              key: 'type', header: 'Type', hideOnMobile: true,
+              sortValue: (s) => (s.requiresQuote || s.pricingType === 'QUOTE' ? 'Quote' : s.groupService ? 'Group' : 'Standard'),
+              render: (s) => (s.requiresQuote || s.pricingType === 'QUOTE' ? 'Quote first' : s.groupService ? `Group · up to ${s.capacity}` : 'Standard'),
+            },
+            { key: 'status', header: 'Status', sortValue: (s) => (s.active ? 1 : 0), render: (s) => <span className={s.active ? styles.svcLive : styles.svcOff}>{s.active ? 'Bookable' : 'Paused'}</span> },
+            {
+              key: 'price', header: 'Price', align: 'right', sortValue: (s) => Number(s.price || 0),
+              render: (s) => <strong>{s.requiresQuote || s.pricingType === 'QUOTE' ? 'On quote' : formatMoney(s.price, s.currency || currency)}</strong>,
+            },
+            {
+              key: 'actions', header: '', align: 'right',
+              render: (s) => (
+                <div className={styles.svcActions} onClick={(e) => e.stopPropagation()} style={{ justifyContent: 'flex-end' }}>
+                  <button type="button" className={styles.svcBtn} onClick={() => handleEditClick(s)}>
+                    <i className="fa-regular fa-pen-to-square" /> Edit
                   </button>
-                  <button type="button" className="btn btn-sm btn-danger" onClick={() => setDeleteId(s.id)}>
-                    <i className="fa-regular fa-trash-can" style={{ marginRight: 4 }} /> Delete
+                  <button type="button" className={`${styles.svcIconBtn} ${styles.svcDanger}`} onClick={() => setDeleteId(s.id)}
+                    aria-label={`Delete ${s.name}`} title="Delete service">
+                    <i className="fa-regular fa-trash-can" />
                   </button>
                 </div>
-              </div>
-            </div>
-          ))}
-
-          {filteredServices.length === 0 && (
-            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
-              <i className="fa-solid fa-magnifying-glass" style={{ fontSize: '2rem', marginBottom: 12 }} />
-              <p>No catalog offerings match your search query.</p>
-            </div>
-          )}
-        </div>
+              ),
+            },
+          ]}
+        />
       )}
 
       <Modal
@@ -415,16 +382,12 @@ export default function ServicesPage() {
               />
             </div>
             <div className="form-group">
-              <label className="form-label" htmlFor="serviceCurrency">
-                Currency:
-              </label>
-              <CustomSelect
-                id="serviceCurrency"
-                options={currencyOptions}
-                value={formData.currency || currency}
-                onChange={(value) => handleInputChange('currency', value)}
-                placeholder="Select currency"
-              />
+              <span className="form-label">Currency:</span>
+              {/* Every price uses the business's currency; it is changed once, under Organization. */}
+              <div className="input-field" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <strong>{currency}</strong>
+                <a href="/business/organization" style={{ fontSize: '0.8rem' }}>Change for the business</a>
+              </div>
             </div>
           </div>
 

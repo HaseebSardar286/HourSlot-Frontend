@@ -138,7 +138,7 @@
 .heroAvatarContainer {
   width: 72px;
   height: 72px;
-  border-radius: 20px;
+  border-radius: 5px;
   background: var(--bg-card);
   border: 1px solid rgba(var(--accent-primary-rgb), 0.15);
   display: flex;
@@ -209,7 +209,7 @@
 .heroLinkBox {
   background: var(--bg-card);
   border: 1px solid rgba(var(--accent-primary-rgb), 0.1);
-  border-radius: 16px;
+  border-radius: 5px;
   padding: 14px 18px;
   display: flex;
   flex-direction: column;
@@ -228,7 +228,7 @@
 
 .heroPreviewBox {
   border: 1px solid rgba(var(--accent-primary-rgb), 0.1);
-  border-radius: 16px;
+  border-radius: 5px;
   padding: 14px 18px;
   display: flex;
   flex-direction: column;
@@ -275,7 +275,7 @@
   font-size: 0.75rem;
   font-weight: 700;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: 5px;
   cursor: pointer;
   transition: var(--transition-fast);
   display: flex;
@@ -351,7 +351,7 @@
   color: var(--accent-primary);
   background: rgba(var(--accent-primary-rgb), 0.08);
   padding: 4px 10px;
-  border-radius: 8px;
+  border-radius: 5px;
 }
 
 .progressBarOuter {
@@ -932,7 +932,7 @@
   font-weight: 600;
   background: rgba(var(--accent-primary-rgb), 0.05);
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: 5px;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -951,3 +951,70 @@
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.08); }
 }
+
+/* Live listing: good news reads green, not as a warning. */
+.statusAlertLive {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 16px 18px;
+  margin-bottom: 20px;
+  border-radius: 5px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+}
+
+.statusAlertLive > i {
+  margin-top: 3px;
+  font-size: 1.1rem;
+  color: #059669;
+}
+
+.statusAlertLive strong {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.statusAlertLive p {
+  margin: 2px 0 0;
+  font-size: 0.86rem;
+  color: #047857;
+}
+/* ===== Enterprise layer ===== */
+/* Shortcuts: a compact list with neutral icons instead of big tiles with coloured circles. */
+.quickActionsGrid { grid-template-columns: 1fr; gap: 0; }
+.actionCard {
+  flex-direction: row;
+  justify-content: flex-start;
+  text-align: left;
+  gap: 10px;
+  padding: 9px 10px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 0;
+}
+.actionCard:last-child { border-bottom: 0; }
+.actionCard:hover { transform: none; box-shadow: none; background: var(--bg-elevated); border-color: var(--border-color); }
+.actionCardIcon { width: 26px; height: 26px; border-radius: 5px; font-size: 0.78rem; }
+.actionServices, .actionHours, .actionStaff, .actionDocs { background: var(--bg-elevated); color: var(--text-secondary); }
+.actionCard span { font-family: var(--font-body); font-size: 0.8125rem; font-weight: 500; }
+
+/* Setup checklist: tight rows */
+.setupCardHeader h4 { font-size: 0.9375rem; font-weight: 600; }
+.setupCardHeader p { font-size: 0.8125rem; }
+.setupPercentage { font-size: 0.75rem !important; font-weight: 600 !important; padding: 2px 8px !important; border-radius: 5px !important; }
+.progressBarOuter { height: 4px !important; }
+.setupList { gap: 0 !important; }
+.setupList li {
+  padding: 8px 4px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  font-size: 0.8125rem;
+  min-height: 0 !important;
+}
+.setupList li:last-child { border-bottom: 0 !important; }
+.tabsContainer { margin-bottom: 16px; }

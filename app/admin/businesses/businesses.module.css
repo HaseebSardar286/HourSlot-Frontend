@@ -27,7 +27,7 @@
 .bizInitials {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: 5px;
   object-fit: cover;
   flex-shrink: 0;
 }

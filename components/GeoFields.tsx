@@ -128,6 +128,7 @@ export default function GeoFields({
 
   useEffect(() => {
     if (value.countryCode) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
       void loadStates(value.countryCode);
       void loadTimezones(value.countryCode);
     }
@@ -135,6 +136,7 @@ export default function GeoFields({
 
   useEffect(() => {
     if (value.countryCode && value.region) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
       void loadCities(value.countryCode, value.region);
     }
   }, [value.countryCode, value.region, loadCities]);

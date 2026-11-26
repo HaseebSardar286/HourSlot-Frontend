@@ -15,7 +15,7 @@
   justify-content: space-between;
   gap: 12px;
   padding: 12px 14px;
-  border-radius: 12px;
+  border-radius: 5px;
   background: var(--bg-elevated);
   border: 1px solid var(--border-color);
 }
@@ -67,7 +67,7 @@
 .largeInitials {
   width: 64px;
   height: 64px;
-  border-radius: 16px;
+  border-radius: 5px;
   object-fit: cover;
 }
 

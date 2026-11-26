@@ -6,6 +6,7 @@ import { useOrgLocale } from '@/lib/org-locale-context';
 import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
 
+import Dropdown from '@/components/ui/Dropdown';
 type Service = {
   id: number;
   name: string;
@@ -142,43 +143,31 @@ export default function SoloServicesEditor({ onCountChange }: { onCountChange?: 
             onChange={(e) => setForm((f) => ({ ...f, durationMinutes: e.target.value }))}
             className="form-input"
           />
-          <select
-            value={form.pricingType}
-            onChange={(e) => setForm((f) => ({ ...f, pricingType: e.target.value }))}
-            className="form-input"
-          >
-            <option value="FIXED">Fixed price</option>
-            <option value="QUOTE">Quote only</option>
-          </select>
+          <Dropdown aria-label="Pricing" value={form.pricingType}
+            onChange={(v) => setForm((f) => ({ ...f, pricingType: v }))}
+            options={[
+              { value: 'FIXED', label: 'Fixed price', icon: 'fa-tag' },
+              { value: 'QUOTE', label: 'Quote only', icon: 'fa-file-invoice' },
+            ]} />
         </div>
         <div style={gridStyle}>
           <label style={{ display: 'grid', gap: 4, fontSize: '0.85rem' }}>
             Where the work happens
-            <select
-              value={form.serviceMode}
-              onChange={(e) => setForm((f) => ({ ...f, serviceMode: e.target.value }))}
-              className="form-input"
-            >
-              {Object.entries(WHERE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
+            <Dropdown aria-label="Where the work happens" value={form.serviceMode}
+              onChange={(v) => setForm((f) => ({ ...f, serviceMode: v }))}
+              options={Object.entries(WHERE_LABELS).map(([value, label]) => ({ value, label }))} />
           </label>
           {homeVisit && (
             <label style={{ display: 'grid', gap: 4, fontSize: '0.85rem' }}>
               Arrival window
-              <select
-                value={form.arrivalWindowMinutes}
-                onChange={(e) => setForm((f) => ({ ...f, arrivalWindowMinutes: e.target.value }))}
-                className="form-input"
-              >
-                <option value="0">Exact time</option>
-                <option value="30">Within 30 min</option>
-                <option value="60">Within 1 hour</option>
-                <option value="120">Within 2 hours</option>
-              </select>
+              <Dropdown aria-label="Arrival window" value={String(form.arrivalWindowMinutes)}
+                onChange={(v) => setForm((f) => ({ ...f, arrivalWindowMinutes: v }))}
+                options={[
+                  { value: '0', label: 'Exact time' },
+                  { value: '30', label: 'Within 30 min' },
+                  { value: '60', label: 'Within 1 hour' },
+                  { value: '120', label: 'Within 2 hours' },
+                ]} />
             </label>
           )}
           <label style={{ display: 'grid', gap: 4, fontSize: '0.85rem' }}>

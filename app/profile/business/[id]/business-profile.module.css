@@ -36,13 +36,13 @@
 
 .guestPillViolet {
   background: var(--tint-violet);
-  color: #2563eb;
-  border-color: rgba(59, 130, 246, 0.12);
+  color: #1d4ed8;
+  border-color: rgba(37, 99, 235, 0.12);
 }
 
 .guestPillSky {
   background: var(--tint-sky);
-  color: #2563eb;
+  color: #1d4ed8;
   border-color: rgba(14, 165, 233, 0.12);
 }
 
@@ -59,7 +59,7 @@
   border-radius: 0 0 24px 24px;
   overflow: hidden;
   margin: 0;
-  background: linear-gradient(135deg, #1f2937 0%, var(--accent-primary) 45%, #3b82f6 100%);
+  background: linear-gradient(135deg, #1f2937 0%, var(--accent-primary) 45%, #2563eb 100%);
 }
 
 .coverImg {
@@ -174,7 +174,7 @@
 
 .identityCard {
   background: var(--bg-card);
-  border-radius: 20px;
+  border-radius: 5px;
   border: 1px solid var(--border-color);
   box-shadow: var(--card-shadow);
   padding: 22px 24px 20px;
@@ -187,7 +187,7 @@
 .logoMark {
   width: 72px;
   height: 72px;
-  border-radius: 18px;
+  border-radius: 5px;
   overflow: hidden;
   background: var(--accent-gradient);
   color: #fff;
@@ -294,7 +294,7 @@
   justify-content: center;
   gap: 8px;
   padding: 14px 22px;
-  border-radius: 14px;
+  border-radius: 5px;
   background: var(--accent-gradient);
   color: #fff !important;
   font-weight: 700;
@@ -360,7 +360,7 @@
   right: 12px;
   bottom: -1px;
   height: 2px;
-  border-radius: 2px 2px 0 0;
+  border-radius: 5px 0 0;
   background: var(--accent-primary);
 }
 
@@ -372,8 +372,8 @@
   flex-wrap: wrap;
   margin-top: 16px;
   padding: 16px 20px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, rgba(var(--accent-primary-rgb), 0.08), rgba(59, 130, 246, 0.1));
+  border-radius: 5px;
+  background: linear-gradient(135deg, rgba(var(--accent-primary-rgb), 0.08), rgba(37, 99, 235, 0.1));
   border: 1px solid rgba(var(--accent-primary-rgb), 0.12);
 }
 
@@ -393,7 +393,7 @@
   align-items: center;
   gap: 8px;
   padding: 12px 20px;
-  border-radius: 12px;
+  border-radius: 5px;
   background: var(--accent-gradient);
   color: #fff !important;
   font-weight: 700;
@@ -460,7 +460,7 @@
 .panel {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 20px;
+  border-radius: 5px;
   padding: 24px;
   box-shadow: var(--card-shadow);
   animation: fadeIn 0.25s ease;
@@ -508,7 +508,7 @@
   align-items: flex-start;
   gap: 12px;
   padding: 14px 16px;
-  border-radius: 14px;
+  border-radius: 5px;
   background: var(--bg-elevated);
   border: 1px solid var(--border-color);
 }
@@ -521,7 +521,7 @@
 .featureIcon {
   width: 38px;
   height: 38px;
-  border-radius: 10px;
+  border-radius: 5px;
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -538,8 +538,8 @@
 .todayHours {
   margin-top: 24px;
   padding: 16px 18px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, rgba(var(--accent-primary-rgb), 0.06), rgba(59, 130, 246, 0.08));
+  border-radius: 5px;
+  background: linear-gradient(135deg, rgba(var(--accent-primary-rgb), 0.06), rgba(37, 99, 235, 0.08));
   border: 1px solid rgba(var(--accent-primary-rgb), 0.12);
   display: flex;
   align-items: center;
@@ -603,7 +603,7 @@
   flex-direction: column;
   gap: 0;
   border: 1px solid var(--border-color);
-  border-radius: 16px;
+  border-radius: 5px;
   overflow: hidden;
   background: var(--bg-card);
 }
@@ -716,7 +716,7 @@
 
 .packageCard {
   flex: 0 0 260px;
-  border-radius: 18px;
+  border-radius: 5px;
   padding: 20px;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -762,7 +762,7 @@
 }
 
 .teamMember {
-  border-radius: 16px;
+  border-radius: 5px;
   padding: 20px 16px;
   background: var(--bg-card);
   border: 1.5px solid var(--border-color);
@@ -830,7 +830,7 @@
   align-items: center;
   gap: 20px;
   padding: 20px;
-  border-radius: 16px;
+  border-radius: 5px;
   background: var(--bg-elevated);
   border: 1px solid var(--border-color);
   margin-bottom: 20px;
@@ -861,7 +861,7 @@
 
 .reviewItem {
   padding: 16px 18px;
-  border-radius: 14px;
+  border-radius: 5px;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
 }
@@ -910,7 +910,7 @@
 
 .hoursTable {
   border: 1px solid var(--border-color);
-  border-radius: 16px;
+  border-radius: 5px;
   overflow: hidden;
   background: var(--bg-card);
 }
@@ -943,11 +943,11 @@
 }
 
 .mapBlock {
-  border-radius: 18px;
+  border-radius: 5px;
   overflow: hidden;
   border: 1px solid var(--border-color);
   min-height: 260px;
-  background: #e5e7eb;
+  background: #e6eaf0;
 }
 
 .mapFallback {
@@ -972,7 +972,7 @@
   align-items: center;
   gap: 10px;
   padding: 12px 16px;
-  border-radius: 12px;
+  border-radius: 5px;
   background: var(--bg-elevated);
   border: 1px solid var(--border-color);
   font-size: 0.85rem;
@@ -989,7 +989,7 @@
   align-items: center;
   gap: 8px;
   padding: 12px 18px;
-  border-radius: 12px;
+  border-radius: 5px;
   background: var(--text-main);
   color: #fff !important;
   font-weight: 700;
@@ -1006,7 +1006,7 @@
 .bookingBox {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 20px;
+  border-radius: 5px;
   padding: 22px;
   box-shadow: var(--card-shadow);
 }
@@ -1072,7 +1072,7 @@
   gap: 8px;
   width: 100%;
   padding: 14px;
-  border-radius: 14px;
+  border-radius: 5px;
   background: var(--accent-gradient);
   color: #fff !important;
   font-weight: 700;
@@ -1173,7 +1173,7 @@
   flex-shrink: 0;
   min-height: 48px;
   padding: 12px 20px;
-  border-radius: 12px;
+  border-radius: 5px;
   background: var(--accent-gradient);
   color: #fff !important;
   font-weight: 700;
@@ -1327,7 +1327,7 @@
   font-size: 0.68rem;
   font-weight: 700;
   padding: 3px 8px;
-  border-radius: 6px;
+  border-radius: 5px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   background: #fffbeb;
@@ -1335,4 +1335,69 @@
   color: #d97706;
   margin-left: 10px;
   vertical-align: middle;
+}
+
+/* ---------- Legacy profile v2: same 1180px column as the header ---------- */
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding-top: 8px;
+}
+
+.flowBarWrap {
+  display: none;
+}
+
+.coverWrap {
+  border-radius: 5px;
+  background: var(--ink-800, #0f1b33);
+}
+
+.identity {
+  padding: 0 24px;
+}
+
+.identityCard {
+  border-radius: 5px;
+  box-shadow: var(--shadow-md, 0 8px 24px rgba(15, 23, 42, 0.08));
+}
+
+.logoMark {
+  background: var(--ink-800, #0f1b33) !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 640px) {
+  .coverWrap {
+    border-radius: 0;
+  }
+
+  .identity {
+    padding: 0 12px;
+  }
+}
+.identity {
+  padding: 0;
+}
+
+.identityCard {
+  margin: 0 24px;
+}
+
+.content {
+  padding: 0;
+}
+
+.guestQuickStrip {
+  margin: 20px 0 8px;
+}
+
+@media (max-width: 640px) {
+  .identity {
+    padding: 0;
+  }
+
+  .identityCard {
+    margin: 0 12px;
+  }
 }

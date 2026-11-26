@@ -5,19 +5,10 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import NotificationPanel from '@/components/NotificationPanel';
+import { ADMIN_NAV } from '@/lib/nav';
 import styles from './admin-layout.module.css';
 
-const LINKS = [
-  { href: '/admin/dashboard', icon: 'fa-chart-pie', label: 'Dashboard' },
-  { href: '/admin/users', icon: 'fa-users', label: 'User Accounts' },
-  { href: '/admin/businesses', icon: 'fa-store', label: 'Businesses' },
-  { href: '/admin/categories', icon: 'fa-tags', label: 'Categories' },
-  { href: '/admin/geo-areas', icon: 'fa-map-location-dot', label: 'Geo areas' },
-  { href: '/admin/disputes', icon: 'fa-scale-balanced', label: 'Disputes' },
-  { href: '/admin/community', icon: 'fa-flag', label: 'Community' },
-  { href: '/admin/settings', icon: 'fa-sliders', label: 'Settings' },
-  { href: '/admin/audit-logs', icon: 'fa-shield-halved', label: 'Audit Trail' },
-];
+const LINKS = ADMIN_NAV.flatMap((g) => g.children);
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, loading, logout } = useAuth();
@@ -25,6 +16,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Only one menu group is open at a time. Until the user picks one (on this page), the group holding the
+  // current page is open; `id: null` means the user closed everything.
+  const [openPick, setOpenPick] = useState<{ path: string; id: string | null } | null>(null);
 
   useEffect(() => {
     if (!loading && (!isAuthenticated || user?.role !== 'SUPER_ADMIN')) {
@@ -83,7 +77,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className={styles.sidebarHeader}>
           {!collapsed && (
             <Link href="/admin/dashboard" className={styles.logoArea}>
-              <img src="/duemet-logo-nav.png" alt="Duemet" className={styles.logoImg} />
+              <img src="/duemet-logo-nav-white.png" alt="Duemet" className={styles.logoImg} />
             </Link>
           )}
           {collapsed ? (
@@ -94,7 +88,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               onClick={() => setCollapsed(false)}
               title="Expand sidebar"
             >
-              <img src="/duemet-mark.png" alt="Duemet" style={{ width: 29, height: 29, objectFit: 'contain', display: 'block' }} />
+              <img src="/duemet-mark-white.png" alt="Duemet" style={{ width: 29, height: 29, objectFit: 'contain', display: 'block' }} />
             </button>
           ) : (
             <button type="button" className={styles.toggleBtn} onClick={() => setCollapsed(true)} title="Collapse sidebar">
@@ -104,19 +98,44 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         <nav className={styles.sidebarNav}>
-          {LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`${styles.navItem} ${pathname.startsWith(link.href) ? styles.navActive : ''}`}
-              onClick={() => setMobileOpen(false)}
-            >
-              <span className={styles.navIcon}>
-                <i className={`fa-solid ${link.icon}`} />
-              </span>
-              {!collapsed && <span>{link.label}</span>}
-            </Link>
-          ))}
+          {ADMIN_NAV.map((group) => {
+            const picked = openPick && openPick.path === pathname ? openPick.id : undefined;
+            const open = !collapsed && (picked === undefined
+              ? group.children.some((child) => pathname.startsWith(child.href))
+              : picked === group.id);
+            return (
+              <div key={group.id} className={`${styles.navGroup} ${open ? styles.navGroupOpen : ''}`}>
+                <button
+                  type="button"
+                  className={styles.navGroupBtn}
+                  onClick={() => !collapsed && setOpenPick({ path: pathname, id: open ? null : group.id })}
+                  title={group.label}
+                  aria-expanded={open}
+                >
+                  <span className={styles.navIcon}><i className={`fa-solid ${group.icon}`} /></span>
+                  {!collapsed && <span>{group.label}</span>}
+                  {!collapsed && <i className={`fa-solid fa-chevron-${open ? 'down' : 'right'} ${styles.navChevron}`} />}
+                </button>
+                {(collapsed || open) && (
+                  <div className={styles.navChildren}>
+                    {group.children.map((link) => (
+                      <Link
+                        key={link.href}
+                        href={link.href}
+                        className={`${styles.navItem} ${styles.navChild} ${pathname.startsWith(link.href) ? styles.navActive : ''}`}
+                        onClick={() => setMobileOpen(false)}
+                      >
+                        <span className={styles.navIcon}>
+                          <i className={`fa-solid ${link.icon}`} />
+                        </span>
+                        {!collapsed && <span>{link.label}</span>}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </nav>
 
         <div className={styles.sidebarFooter}>

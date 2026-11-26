@@ -26,7 +26,8 @@ function isProtectedApp(pathname: string): boolean {
     pathname === '/onboarding' ||
     pathname.startsWith('/onboarding/') ||
     pathname === '/admin' ||
-    pathname.startsWith('/admin/')
+    pathname.startsWith('/admin/') ||
+    pathname.startsWith('/docs/')
   );
 }
 

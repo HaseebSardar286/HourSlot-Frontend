@@ -6,6 +6,7 @@ import FormField from '@/components/FormField';
 import { formatMoney } from '@/lib/money';
 import styles from '@/app/phase1.module.css';
 
+import Dropdown from '@/components/ui/Dropdown';
 export type JobMaterial = { id: number; name: string; quantity: number; unitPrice: number; lineTotal: number };
 
 export type JobVisit = {
@@ -218,11 +219,12 @@ export default function JobExtras({
           {canCollect && (
             <div className={styles.quoteAcceptForm}>
               <label htmlFor="collectMethod">Received by</label>
-              <select id="collectMethod" value={method} onChange={(e) => setMethod(e.target.value)}>
-                <option value="CASH">Cash</option>
-                <option value="BANK_TRANSFER">Bank transfer</option>
-                <option value="WALLET">Mobile wallet</option>
-              </select>
+              <Dropdown id="collectMethod" aria-label="Received by" value={method} onChange={setMethod}
+                options={[
+                  { value: 'CASH', label: 'Cash', icon: 'fa-money-bill-wave' },
+                  { value: 'BANK_TRANSFER', label: 'Bank transfer', icon: 'fa-building-columns' },
+                  { value: 'WALLET', label: 'Mobile wallet', icon: 'fa-mobile-screen' },
+                ]} />
               <div className={styles.actions}>
                 <button
                   type="button"

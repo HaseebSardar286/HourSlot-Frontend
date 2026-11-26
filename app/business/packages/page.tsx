@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, FormEvent, useMemo } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { apiFetch } from '@/lib/api';
 import { useOwnerPlan } from '@/lib/owner-plan-context';
 import { hasFeature, upgradeHint } from '@/lib/plan';
@@ -9,9 +9,7 @@ import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
 import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
-import CustomSelect from '@/components/CustomSelect';
 import { useOrgLocale } from '@/lib/org-locale-context';
-import { fetchCurrencies, type CurrencyView } from '@/lib/geo';
 import { formatMoney } from '@/lib/money';
 import styles from './packages.module.css';
 
@@ -39,7 +37,6 @@ export default function PackagesPage() {
   const canManage = planLoaded && hasFeature(plan, 'packages');
   const [packages, setPackages] = useState<ServicePackage[]>([]);
   const [services, setServices] = useState<Service[]>([]);
-  const [currencies, setCurrencies] = useState<CurrencyView[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,33 +67,19 @@ export default function PackagesPage() {
       ]);
       setPackages(pkgsData);
       setServices(svcsData);
-    } catch (err: any) {
-      setError(err?.message || 'Could not load data. Ensure services have been added.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Could not load data. Ensure services have been added.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     loadData();
-    fetchCurrencies(false)
-      .then(setCurrencies)
-      .catch(() => setCurrencies([]));
   }, []);
 
-  const currencyOptions = useMemo(() => {
-    const options = currencies.map((c) => ({
-      value: c.code,
-      label: `${c.code}${c.symbol ? ` (${c.symbol})` : ''} — ${c.name || c.code}`,
-    }));
-    const selected = formData.currency || currency;
-    if (selected && !options.some((o) => o.value === selected)) {
-      options.unshift({ value: selected, label: selected });
-    }
-    return options;
-  }, [currencies, formData.currency, currency]);
-
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -182,8 +165,8 @@ export default function PackagesPage() {
       }
       setShowModal(false);
       await loadData();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to save package.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to save package.');
     } finally {
       setSubmitting(false);
     }
@@ -199,8 +182,8 @@ export default function PackagesPage() {
       setMessage('Package deleted.');
       setDeleteId(null);
       await loadData();
-    } catch (err: any) {
-      setError(err?.message || 'Delete operation failed.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Delete operation failed.');
     } finally {
       setDeleting(false);
     }
@@ -434,16 +417,12 @@ export default function PackagesPage() {
               />
             </div>
             <div className="form-group">
-              <label className="form-label" htmlFor="pkgCurrency">
-                Currency:
-              </label>
-              <CustomSelect
-                id="pkgCurrency"
-                options={currencyOptions}
-                value={formData.currency || currency}
-                onChange={(value) => handleInputChange('currency', value)}
-                placeholder="Select currency"
-              />
+              <span className="form-label">Currency:</span>
+              {/* Every price uses the business's currency; it is changed once, under Organization. */}
+              <div className="input-field" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <strong>{currency}</strong>
+                <a href="/business/organization" style={{ fontSize: '0.8rem' }}>Change for the business</a>
+              </div>
             </div>
           </div>
           <div className={styles.twoCol}>

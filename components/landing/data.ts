@@ -1,18 +1,18 @@
 export const STEPS = [
   {
     num: '01',
-    title: 'Search',
-    text: 'Browse by service, category, or place — including openings near you.',
+    title: 'Search nearby',
+    text: 'Look up a service, a business or a category, and see who has openings near you on the map.',
   },
   {
     num: '02',
-    title: 'Claim a slot',
-    text: 'Pick from live calendar openings and confirm in seconds.',
+    title: 'Pick an open slot',
+    text: 'Choose a day and time from the provider’s live calendar. Confirmation comes back instantly.',
   },
   {
     num: '03',
-    title: 'Keep it tidy',
-    text: 'Reschedule, pay, and manage every visit in one place.',
+    title: 'Manage your visit',
+    text: 'Reschedule, pay the provider by bank, wallet or at the venue, and keep every booking in your account.',
   },
 ];
 
@@ -30,7 +30,7 @@ export const CAPABILITIES = [
   {
     icon: 'fa-credit-card',
     title: 'Flexible payments',
-    text: 'Checkout with Stripe when available, or settle calmly at the venue.',
+    text: 'Pay the provider directly by bank or wallet when booking, or at the venue. Duemet never holds your money.',
   },
   {
     icon: 'fa-store',
@@ -109,7 +109,7 @@ export const FAQ = [
   },
   {
     q: 'Can I pay at the venue?',
-    a: 'Yes. Many listings offer pay-at-venue alongside online checkout when Stripe is configured.',
+    a: 'Yes. Pay at the venue is confirmed straight away. Some providers also let you pay now by bank or wallet and upload a screenshot; they confirm your booking once they see the payment.',
   },
   {
     q: 'How do staff invites work?',
@@ -126,14 +126,14 @@ export const PROVIDER_POINTS = [
   'Peak pricing shown before checkout',
   'Packages, gallery, and service areas',
   'Requests, quotes, and job tracking',
-  'Online pay or pay at the venue',
+  'Pay by bank, wallet or at the venue',
   'Verification for trusted listings',
 ];
 
 export const STORY_POINTS = [
   'Live slots instead of guesswork',
   'Verified businesses and independents',
-  'Pay online or at the venue',
+  'Pay by bank, wallet or at the venue',
   'Reschedule without the phone tag',
   'Favorites, history, and reminders in one place',
 ];

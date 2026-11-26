@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import styles from './CustomSelect.module.css';
+import FloatingMenu from './ui/FloatingMenu';
 
 interface Option {
   value: string;
@@ -39,13 +40,14 @@ export default function CustomSelect({
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
+      const t = event.target as Node;
+      if (containerRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setIsOpen(false);
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -53,6 +55,7 @@ export default function CustomSelect({
 
   // Reset search when dropdown closes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     if (!isOpen) setSearch('');
   }, [isOpen]);
 
@@ -109,7 +112,8 @@ export default function CustomSelect({
       </button>
 
       {isOpen && (
-        <div className={styles.dropdownMenu}>
+        <FloatingMenu anchor={containerRef} menuRef={menuRef} fullWidthOnPhone={false}
+          className={`${styles.dropdownMenu} ${variant === 'compact' ? styles.compactMenu : ''}`}>
           {searchable && (
             <div className={styles.searchWrapper}>
               <i className={`fa-solid fa-magnifying-glass ${styles.searchIcon}`} />
@@ -156,7 +160,7 @@ export default function CustomSelect({
               ))
             )}
           </ul>
-        </div>
+        </FloatingMenu>
       )}
     </div>
   );

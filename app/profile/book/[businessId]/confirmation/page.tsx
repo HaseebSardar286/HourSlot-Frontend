@@ -72,7 +72,7 @@ function ConfirmationContent() {
             bookingTime: dt,
             price: match.price,
             currency: match.currency || match.service.currency,
-            paymentMethod: paymentParam === 'ONLINE' ? 'ONLINE' : paymentParam === 'PACKAGE' ? 'PACKAGE' : 'VENUE',
+            paymentMethod: paymentParam === 'TRANSFER' ? 'TRANSFER' : paymentParam === 'ONLINE' ? 'ONLINE' : paymentParam === 'PACKAGE' ? 'PACKAGE' : 'VENUE',
             durationMinutes: match.service.durationMinutes,
           });
         }
@@ -118,12 +118,15 @@ function ConfirmationContent() {
   const timePart = dt.includes('T') ? dt.split('T')[1]?.slice(0, 5) : '';
   const money = (n: number) => formatMoney(n, snapshot.currency);
 
+  const paid = snapshot.paymentMethod === 'TRANSFER';
   const paymentLabel =
-    snapshot.paymentMethod === 'ONLINE'
-      ? 'Pay online (Stripe)'
-      : snapshot.paymentMethod === 'PACKAGE'
-        ? 'Package session'
-        : 'Pay at venue';
+    paid
+      ? 'Paid by bank or wallet (being checked)'
+      : snapshot.paymentMethod === 'ONLINE'
+        ? 'Pay online'
+        : snapshot.paymentMethod === 'PACKAGE'
+          ? 'Package session'
+          : 'Pay at venue';
 
   const bookAgainHref = buildBookingHref(businessId as string, {
     step: 'service',
@@ -140,13 +143,18 @@ function ConfirmationContent() {
       />
       <div className={styles.card}>
         <div className={styles.icon}>
-          <i className="fa-solid fa-circle-check" />
+          <i className={`fa-solid ${paid ? 'fa-hourglass-half' : 'fa-circle-check'}`} />
         </div>
-        <h1>You&apos;re booked!</h1>
+        <h1>{paid ? 'Payment sent for checking' : "You're booked!"}</h1>
         <p className={styles.lead}>
-          {snapshot.businessName ? `${snapshot.businessName} — ` : ''}
-          Your appointment is confirmed. We&apos;ve saved the details below.
+          {paid
+            ? `${snapshot.businessName || 'The business'} will check your payment and then confirm your booking. Your slot is held, and you'll get an email as soon as it's confirmed.`
+            : `Your appointment${snapshot.businessName ? ` at ${snapshot.businessName}` : ''} is confirmed. We've emailed you the details.`}
         </p>
+        <div className={styles.row} style={{ justifyContent: 'center' }}>
+          <span>Status</span>
+          <strong>{paid ? `Pending, waiting for ${snapshot.businessName || 'the business'}` : 'Confirmed'}</strong>
+        </div>
 
         <div className={styles.details}>
           <div className={styles.row}>
@@ -205,11 +213,6 @@ function ConfirmationContent() {
           <Link href="/profile/explore">Explore more</Link>
         </div>
 
-        {snapshot.paymentMethod === 'ONLINE' && (
-          <p className={styles.paymentNote}>
-            If you were redirected from Stripe, payment status will update in My bookings shortly.
-          </p>
-        )}
       </div>
     </div>
   );

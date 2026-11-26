@@ -112,7 +112,7 @@
   font-size: 0.65rem;
   font-weight: 700;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: 5px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   background: rgba(var(--accent-primary-rgb), 0.1);
@@ -123,7 +123,7 @@
   font-size: 0.65rem;
   font-weight: 700;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: 5px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   background: rgba(16, 185, 129, 0.1);
@@ -228,4 +228,27 @@ a.detailItem:hover {
     min-height: 360px;
     order: -1;
   }
+}
+
+.mapsLink {
+  color: var(--accent-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.mapsLink:hover {
+  text-decoration: underline;
+}
+
+a.statItem {
+  text-decoration: none;
+  color: var(--text-secondary);
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--bg-elevated, #f6f8fb);
+}
+
+a.statItem:hover {
+  color: var(--accent-primary);
+  background: #eef4ff;
 }

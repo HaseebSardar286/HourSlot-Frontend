@@ -9,13 +9,9 @@ interface BookingProgressProps {
 
 export default function BookingProgress({ currentStep }: BookingProgressProps) {
   const currentIdx = stepIndex(currentStep);
-  const progressPct = ((currentIdx + 1) / BOOKING_STEPS.length) * 100;
 
   return (
-    <div className={styles.progress} aria-label="Booking progress">
-      <div className={styles.progressTrack}>
-        <div className={styles.progressFill} style={{ width: `${progressPct}%` }} />
-      </div>
+    <div className={styles.progress} aria-label={`Step ${currentIdx + 1} of ${BOOKING_STEPS.length}`}>
       <div className={styles.steps}>
         {BOOKING_STEPS.map((step, i) => {
           const done = i < currentIdx;

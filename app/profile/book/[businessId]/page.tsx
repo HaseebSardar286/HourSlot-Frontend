@@ -3,6 +3,9 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
+import { formatMoney } from '@/lib/money';
+import type { BookingPaymentOptions, PaymentMethod } from '@/lib/payments';
+import { ProofPicker, TransferAccounts, sendProof, type ProofValue } from '@/components/payments/PayByTransfer';
 import { useAuth } from '@/lib/auth-context';
 import type { PublicBusinessProfile } from '@/lib/types';
 import type { AvailableSlot } from '@/lib/slots';
@@ -105,7 +108,41 @@ function BookWizardInner() {
   const [submitting, setSubmitting] = useState(false);
 
   const [flow, setFlow] = useState<BookingFlowState>(defaultBookingState());
-  const [paymentMethod, setPaymentMethod] = useState<PaymentChoice>('ONLINE');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentChoice>('VENUE');
+  const [payOptions, setPayOptions] = useState<BookingPaymentOptions | null>(null);
+  const [transferAccounts, setTransferAccounts] = useState<PaymentMethod[]>([]);
+  const [transferMethodId, setTransferMethodId] = useState<number | null>(null);
+  const [proof, setProof] = useState<ProofValue>({ file: null, amount: '', reference: '' });
+
+  // The business's accounts, loaded once the customer chooses to pay now.
+  const wantsTransfer = paymentMethod === 'TRANSFER' && isAuthenticated;
+  useEffect(() => {
+    if (!wantsTransfer || !businessId || transferAccounts.length > 0) return;
+    let alive = true;
+    apiFetch<PaymentMethod[]>(`/api/customer/businesses/${businessId}/payment-methods`)
+      .then((list) => { if (alive) setTransferAccounts(Array.isArray(list) ? list : []); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [wantsTransfer, businessId, transferAccounts.length]);
+
+  // Whether this business takes payment by transfer when booking, and whether it requires it.
+  useEffect(() => {
+    if (!businessId) return;
+    let alive = true;
+    apiFetch<BookingPaymentOptions>(`/api/public/businesses/${businessId}/payment-options`, { skipAuth: true })
+      .then((o) => {
+        if (!alive) return;
+        setPayOptions(o);
+        setPaymentMethod((m) => {
+          if (m === 'PACKAGE') return m;
+          if (o.transferRequired) return 'TRANSFER';
+          if (m === 'TRANSFER' && !o.transferAvailable) return 'VENUE';
+          return m === 'ONLINE' ? 'VENUE' : m;
+        });
+      })
+      .catch(() => { if (alive) setPayOptions(null); });
+    return () => { alive = false; };
+  }, [businessId]);
   const [selectedPackageId, setSelectedPackageId] = useState<number | null>(null);
   const [clientNotes, setClientNotes] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -189,7 +226,11 @@ function BookWizardInner() {
 
         const draft = loadBookingDraft(businessId);
         if (draft) {
-          if (draft.paymentMethod) setPaymentMethod(draft.paymentMethod);
+          // Card checkout is retired; an old draft that chose it falls back to the business's own options.
+          if (draft.paymentMethod && draft.paymentMethod !== 'ONLINE') {
+            const saved = draft.paymentMethod;
+            setPaymentMethod((m) => (m === 'TRANSFER' && saved === 'VENUE' ? m : saved));
+          }
           if (draft.clientNotes) setClientNotes(draft.clientNotes);
           if (draft.termsAccepted) setTermsAccepted(draft.termsAccepted);
           if (draft.selectedPackageId != null) setSelectedPackageId(draft.selectedPackageId);
@@ -379,7 +420,7 @@ function BookWizardInner() {
     }
 
     try {
-      const created = await apiFetch<{ id: number }>('/api/bookings', {
+      const created = await apiFetch<{ id: number; totalPrice?: number }>('/api/bookings', {
         method: 'POST',
         body: JSON.stringify({
           branchId: Number.parseInt(flow.branchId, 10),
@@ -414,13 +455,17 @@ function BookWizardInner() {
 
       clearBookingDraft(businessId as string);
 
-      if (paymentMethod === 'ONLINE' && created?.id) {
-        const checkout = await apiFetch<{ url: string }>(
-          `/api/payments/checkout?bookingId=${created.id}`,
-          { method: 'POST' }
-        );
-        if (checkout?.url) {
-          window.location.href = checkout.url;
+      // Pay now: the screenshot goes with the booking request. If the upload fails, the booking page
+      // lets the customer send it again while the slot is still held.
+      if (paymentMethod === 'TRANSFER' && created?.id) {
+        const method = transferAccounts.find((m) => m.id === transferMethodId) ?? transferAccounts[0];
+        try {
+          await sendProof(created.id, method.methodType, {
+            ...proof,
+            amount: String(Number(created.totalPrice ?? quotedPrice)),
+          });
+        } catch {
+          router.push(`/profile/bookings/${created.id}?upload=failed`);
           return;
         }
       }
@@ -576,6 +621,23 @@ function BookWizardInner() {
           termsAccepted={termsAccepted}
           submitting={submitting}
           onPaymentChange={setPaymentMethod}
+          payOptions={payOptions}
+          transferPanel={
+            <div style={{ display: 'grid', gap: 16, padding: 18, borderRadius: 5, border: '1px solid #e3e8f1', background: '#fff' }}>
+              {transferAccounts.length === 0 ? (
+                <p style={{ margin: 0 }}>Loading the business&apos;s account details…</p>
+              ) : (
+                <>
+                  <TransferAccounts methods={transferAccounts}
+                    amountLabel={formatMoney(quotedPrice, quotedSlot?.currency || service?.currency || profile.business.currency)}
+                    methodId={transferMethodId} onMethod={setTransferMethodId} />
+                  <ProofPicker value={proof} onChange={setProof} showAmount={false}
+                    currency={quotedSlot?.currency || service?.currency || profile.business.currency || 'PKR'} />
+                </>
+              )}
+            </div>
+          }
+          transferBlocked={transferAccounts.length === 0 ? 'Loading account details…' : !proof.file ? 'Upload the payment screenshot to continue.' : null}
           onPackageSelect={setSelectedPackageId}
           onNotesChange={setClientNotes}
           onTermsChange={setTermsAccepted}

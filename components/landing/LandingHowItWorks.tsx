@@ -1,28 +1,34 @@
+﻿import { STEPS } from './data';
 import Reveal from '@/components/Reveal';
-import { STEPS } from './data';
 import styles from './landing.module.css';
+import { BookingWebMockup } from './ProductMockups';
 
 export default function LandingHowItWorks() {
   return (
     <Reveal as="section" className={`${styles.band} ${styles.bandAlt}`} id="how">
-      <div className={styles.wrap}>
-        <div className={styles.sectionHead}>
-          <div>
-            <p className={styles.eyebrow}>How it works</p>
-            <h2 className={styles.displayTitle}>From search to seat</h2>
-            <p className={styles.sectionSub}>Three steps. Real openings. No chase.</p>
-          </div>
-        </div>
+      <div className={`${styles.wrap} ${styles.howGrid}`}>
+        <BookingWebMockup />
 
-        <ol className={`${styles.stepTrack} hs-stagger`}>
-          {STEPS.map((step) => (
-            <li key={step.num} className={styles.stepItem}>
-              <span className={styles.stepNum}>{step.num}</span>
-              <h3>{step.title}</h3>
-              <p>{step.text}</p>
-            </li>
-          ))}
-        </ol>
+        <div className={styles.howCopy}>
+          <p className={styles.eyebrow}>How it works</p>
+          <h2 className={styles.displayTitle}>From search to a confirmed seat</h2>
+          <p className={styles.sectionSub}>
+            Every slot you see comes from the provider&apos;s live calendar, so what you book is
+            what&apos;s actually open.
+          </p>
+
+          <ol className={styles.stepList}>
+            {STEPS.map((step) => (
+              <li key={step.num} className={styles.stepItem}>
+                <span className={styles.stepNum}>{step.num}</span>
+                <div>
+                  <h3>{step.title}</h3>
+                  <p>{step.text}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
       </div>
     </Reveal>
   );

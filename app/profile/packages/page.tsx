@@ -36,6 +36,7 @@ function CustomerPackagesContent() {
   useEffect(() => {
     const payment = searchParams.get('payment');
     if (payment === 'success') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO derive this instead of syncing it into state (one extra render, not a bug)
       setSuccess('Package payment completed successfully.');
       setError(null);
     }
@@ -46,6 +47,7 @@ function CustomerPackagesContent() {
   }, [searchParams]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     loadPackages();
   }, []);
 
@@ -110,8 +112,13 @@ function CustomerPackagesContent() {
                   sessions left (of {cp.servicePackage.sessionsCount})
                 </span>
               </div>
+              {cp.status === 'WAITING_PAYMENT' && (
+                <p style={{ margin: '6px 0 0', fontSize: '0.86rem', color: 'var(--text-secondary)' }}>
+                  Pay {cp.servicePackage.business?.name || 'the business'} directly. Your sessions become usable once they confirm your payment.
+                </p>
+              )}
               <div className={styles.meta}>
-                <span>Purchased {formatDate(cp.createdAt)}</span>
+                <span>{cp.status === 'WAITING_PAYMENT' ? 'Requested' : 'Purchased'} {formatDate(cp.createdAt)}</span>
                 {cp.expiresAt && <span>Expires {formatDate(cp.expiresAt)}</span>}
               </div>
               {cp.servicePackage.business?.id && cp.status === 'ACTIVE' && cp.sessionsRemaining > 0 && (

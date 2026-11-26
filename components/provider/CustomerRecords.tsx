@@ -6,7 +6,10 @@ import { useOrgLocale } from '@/lib/org-locale-context';
 import EmptyState from '@/components/EmptyState';
 import Skeleton from '@/components/Skeleton';
 import StatusBadge from '@/components/StatusBadge';
+import DataTable from '@/components/DataTable';
+import Modal from '@/components/Modal';
 
+import Dropdown from '@/components/ui/Dropdown';
 type Row = {
   customer_id: number;
   email?: string;
@@ -130,90 +133,101 @@ export default function CustomerRecords() {
         <input className="form-input" style={{ flex: '1 1 220px' }} placeholder="Search name, email or phone"
           value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search customers" />
         {allTags.length > 0 && (
-          <select className="form-input" style={{ flex: '0 1 180px' }} value={tagFilter}
-            onChange={(e) => setTagFilter(e.target.value)} aria-label="Filter by tag">
-            <option value="">All tags</option>
-            {allTags.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
+          <div style={{ flex: '0 1 200px' }}>
+            <Dropdown aria-label="Filter by tag" value={tagFilter} onChange={setTagFilter} icon="fa-tag"
+              options={[{ value: '', label: 'All tags' }, ...allTags.map((t) => ({ value: t, label: t }))]} />
+          </div>
         )}
       </div>
 
-      {visible.map((r) => (
-        <article key={r.customer_id} className="card" style={{ padding: 14, display: 'grid', gap: 8 }}>
-          <button type="button" onClick={() => void open(r.customer_id)} aria-expanded={openId === r.customer_id}
-            style={{ all: 'unset', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-            <span>
-              <strong>{nameOf(r)}</strong>
-              {r.tags.map((t) => (
-                <span key={t} style={{ marginLeft: 6, fontSize: '0.72rem', padding: '2px 8px', borderRadius: 999,
-                  border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>{t}</span>
-              ))}
-              <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: 4 }}>
-                {r.phone_number || r.email} · last visit {fmtDate(r.last_visit_at)}
-                {r.next_booking_at ? ` · next ${fmtDate(r.next_booking_at)}` : ''}
+      <DataTable<Row>
+        rows={visible}
+        rowKey={(r) => r.customer_id}
+        onRowClick={(r) => void open(r.customer_id)}
+        emptyMessage="No customers match."
+        defaultSort={{ key: 'last', dir: 'desc' }}
+        columns={[
+          {
+            key: 'name', header: 'Customer', sortValue: (r) => nameOf(r),
+            render: (r) => (
+              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                <strong>{nameOf(r)}</strong>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{r.phone_number || r.email || '—'}</span>
+              </div>
+            ),
+          },
+          {
+            key: 'tags', header: 'Tags', hideOnMobile: true,
+            render: (r) => r.tags.length ? (
+              <span style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                {r.tags.map((t) => (
+                  <span key={t} style={{ fontSize: '0.7rem', padding: '1px 6px', borderRadius: 5, background: '#eef4ff', color: '#1d4ed8' }}>{t}</span>
+                ))}
               </span>
-            </span>
-            <span style={{ textAlign: 'right', fontSize: '0.85rem' }}>
-              <strong style={{ display: 'block' }}>{format(r.total_spent)}</strong>
-              <span style={{ color: 'var(--text-muted)' }}>
-                {r.completed_count} visit{r.completed_count === 1 ? '' : 's'}
-                {r.no_show_count > 0 ? ` · ${r.no_show_count} no-show${r.no_show_count === 1 ? '' : 's'}` : ''}
-              </span>
-            </span>
-          </button>
+            ) : <span style={{ color: 'var(--text-muted)' }}>—</span>,
+          },
+          { key: 'visits', header: 'Visits', align: 'right', sortValue: (r) => r.completed_count, render: (r) => r.completed_count },
+          {
+            key: 'noshow', header: 'No-shows', align: 'right', hideOnMobile: true, sortValue: (r) => r.no_show_count,
+            render: (r) => <span style={{ color: r.no_show_count > 0 ? '#b91c1c' : undefined }}>{r.no_show_count}</span>,
+          },
+          { key: 'spent', header: 'Total spent', align: 'right', sortValue: (r) => Number(r.total_spent || 0), render: (r) => <strong>{format(r.total_spent)}</strong> },
+          { key: 'last', header: 'Last visit', align: 'right', sortValue: (r) => (r.last_visit_at ? new Date(r.last_visit_at).getTime() : null), render: (r) => fmtDate(r.last_visit_at) },
+          { key: 'next', header: 'Next booking', align: 'right', hideOnMobile: true, sortValue: (r) => (r.next_booking_at ? new Date(r.next_booking_at).getTime() : null), render: (r) => fmtDate(r.next_booking_at) },
+        ]}
+      />
 
-          {openId === r.customer_id && (
-            detail === null ? <Skeleton variant="row" count={2} /> : (
-              <div style={{ display: 'grid', gap: 12, borderTop: '1px solid var(--border-color)', paddingTop: 10 }}>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <input className="form-input" style={{ flex: '1 1 220px' }} value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)} placeholder="Tags, comma-separated (e.g. VIP, Has dog)"
-                    aria-label="Tags" />
-                  <button type="button" className="btn btn-outline btn-sm" onClick={saveTags}>Save tags</button>
-                  {detail.customer.phone_number && (
-                    <a className="btn btn-outline btn-sm" target="_blank" rel="noreferrer"
-                      href={`https://wa.me/${detail.customer.phone_number.replace(/\D/g, '')}`}>
-                      <i className="fa-brands fa-whatsapp" /> WhatsApp
-                    </a>
-                  )}
+      <Modal open={openId !== null} title={openId !== null ? nameOf((rows || []).find((x) => x.customer_id === openId) || {}) : ''} onClose={() => setOpenId(null)} wide>
+        {openId !== null && (
+          detail === null ? <Skeleton variant="row" count={3} /> : (
+            <div style={{ display: 'grid', gap: 12 }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <input className="form-input" style={{ flex: '1 1 220px' }} value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)} placeholder="Tags, comma-separated (e.g. VIP, Has dog)"
+                  aria-label="Tags" />
+                <button type="button" className="btn btn-outline btn-sm" onClick={saveTags}>Save tags</button>
+                {detail.customer.phone_number && (
+                  <a className="btn btn-outline btn-sm" target="_blank" rel="noreferrer"
+                    href={`https://wa.me/${detail.customer.phone_number.replace(/\D/g, '')}`}>
+                    <i className="fa-brands fa-whatsapp" /> WhatsApp
+                  </a>
+                )}
+              </div>
+
+              <form onSubmit={addNote} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <input className="form-input" style={{ flex: '1 1 260px' }} value={note} maxLength={2000}
+                  onChange={(e) => setNote(e.target.value)} placeholder="Private note (only you can see it)"
+                  aria-label="New note" />
+                <button type="submit" className="btn btn-primary btn-sm" disabled={!note.trim()}>Add note</button>
+              </form>
+              {detail.notes.map((n) => (
+                <div key={n.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: '0.9rem' }}>
+                  <span>{n.note} <span style={{ color: 'var(--text-muted)' }}>· {fmtDate(n.created_at)}</span></span>
+                  <button type="button" className="btn btn-ghost btn-sm" aria-label="Delete note"
+                    onClick={() => void act(async () => {
+                      await apiFetch(`/api/provider-tools/customers/${openId}/notes/${n.id}`, { method: 'DELETE' });
+                      setDetail((d) => (d ? { ...d, notes: d.notes.filter((x) => x.id !== n.id) } : d));
+                    })}>
+                    <i className="fa-solid fa-trash" />
+                  </button>
                 </div>
+              ))}
 
-                <form onSubmit={addNote} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <input className="form-input" style={{ flex: '1 1 260px' }} value={note} maxLength={2000}
-                    onChange={(e) => setNote(e.target.value)} placeholder="Private note (only you can see it)"
-                    aria-label="New note" />
-                  <button type="submit" className="btn btn-primary btn-sm" disabled={!note.trim()}>Add note</button>
-                </form>
-                {detail.notes.map((n) => (
-                  <div key={n.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: '0.9rem' }}>
-                    <span>{n.note} <span style={{ color: 'var(--text-muted)' }}>· {fmtDate(n.created_at)}</span></span>
-                    <button type="button" className="btn btn-ghost btn-sm" aria-label="Delete note"
-                      onClick={() => void act(async () => {
-                        await apiFetch(`/api/provider-tools/customers/${r.customer_id}/notes/${n.id}`, { method: 'DELETE' });
-                        setDetail((d) => (d ? { ...d, notes: d.notes.filter((x) => x.id !== n.id) } : d));
-                      })}>
-                      <i className="fa-solid fa-trash" />
-                    </button>
+              <div style={{ display: 'grid', gap: 4 }}>
+                <strong style={{ fontSize: '0.85rem' }}>History</strong>
+                {detail.bookings.map((b) => (
+                  <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: '0.85rem', flexWrap: 'wrap' }}>
+                    <span>{fmtDate(b.booking_time)} · {b.service_name || 'Service'}</span>
+                    <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      {format(b.total_price)} <StatusBadge status={b.status} />
+                    </span>
                   </div>
                 ))}
-
-                <div style={{ display: 'grid', gap: 4 }}>
-                  <strong style={{ fontSize: '0.85rem' }}>History</strong>
-                  {detail.bookings.map((b) => (
-                    <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: '0.85rem', flexWrap: 'wrap' }}>
-                      <span>{fmtDate(b.booking_time)} · {b.service_name || 'Service'}</span>
-                      <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        {format(b.total_price)} <StatusBadge status={b.status} />
-                      </span>
-                    </div>
-                  ))}
-                </div>
               </div>
-            )
-          )}
-        </article>
-      ))}
-      {visible.length === 0 && <p style={{ color: 'var(--text-muted)' }}>No customers match.</p>}
+            </div>
+          )
+        )}
+      </Modal>
     </div>
   );
 }

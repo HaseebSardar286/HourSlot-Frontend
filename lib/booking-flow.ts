@@ -246,7 +246,7 @@ export interface BookingConfirmationSnapshot {
   bookingTime: string;
   price: number;
   currency?: string;
-  paymentMethod: 'ONLINE' | 'VENUE' | 'PACKAGE';
+  paymentMethod: 'ONLINE' | 'VENUE' | 'PACKAGE' | 'TRANSFER';
   durationMinutes?: number;
 }
 
@@ -269,7 +269,7 @@ export function loadConfirmationSnapshot(bookingId: number): BookingConfirmation
 const DRAFT_STORAGE_PREFIX = 'duemet_booking_draft_';
 
 export interface BookingDraft {
-  paymentMethod?: 'ONLINE' | 'VENUE' | 'PACKAGE';
+  paymentMethod?: 'ONLINE' | 'VENUE' | 'PACKAGE' | 'TRANSFER';
   clientNotes?: string;
   termsAccepted?: boolean;
   selectedPackageId?: number | null;

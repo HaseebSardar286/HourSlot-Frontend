@@ -74,6 +74,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (activeTab !== 'notifications') return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     setPrefsLoading(true);
     apiFetch<NotificationPrefs>('/api/users/me/notification-preferences')
       .then((prefs) => {
@@ -209,30 +210,6 @@ export default function ProfilePage() {
         </Link>
       </div>
 
-      <div className={styles.statsRow}>
-        <div className={styles.statCard}>
-          <div className={styles.statIcon}>
-            <i className="fa-solid fa-user-shield" />
-          </div>
-          <div className={styles.statInfo}>
-            <div className={styles.statValue}>{completionPercent}%</div>
-            <div className={styles.statLabel}>Profile Strength</div>
-            <div className={styles.progressBarOuter}>
-              <div className={styles.progressBarInner} style={{ width: `${completionPercent}%` }} />
-            </div>
-          </div>
-        </div>
-        <div className={styles.statCard}>
-          <div className={styles.statIcon}>
-            <i className="fa-solid fa-shield-halved" style={{ color: newPassword ? '#d97706' : '#059669' }} />
-          </div>
-          <div className={styles.statInfo}>
-            <div className={styles.statValue}>{newPassword ? 'Updating' : 'Secure'}</div>
-            <div className={styles.statLabel}>Credentials Status</div>
-          </div>
-        </div>
-      </div>
-
       <div className={styles.profileGrid}>
         <div className={styles.profileCard}>
           <div className={styles.avatarCircle}>{initials}</div>
@@ -246,15 +223,25 @@ export default function ProfilePage() {
               <i className="fa-regular fa-envelope" />
               <span>{profile.email}</span>
             </div>
-            <div className={styles.metaItem}>
-              <i className="fa-solid fa-id-badge" />
-              <span>User ID: #{profile.id}</span>
-            </div>
-            <div className={styles.metaItem}>
-              <i className="fa-solid fa-circle-check" style={{ color: '#059669' }} />
-              <span>Account Status: Active</span>
-            </div>
+            {phoneNumber && (
+              <div className={styles.metaItem}>
+                <i className="fa-solid fa-phone" />
+                <span>{phoneNumber}</span>
+              </div>
+            )}
           </div>
+
+          {completionPercent < 100 && (
+            <div className={styles.strength}>
+              <div className={styles.strengthHead}>
+                <span>Profile {completionPercent}% complete</span>
+                <button type="button" onClick={() => setActiveTab('personal')}>Finish</button>
+              </div>
+              <div className={styles.progressBarOuter}>
+                <div className={styles.progressBarInner} style={{ width: `${completionPercent}%` }} />
+              </div>
+            </div>
+          )}
 
           <button type="button" className={styles.logoutBtn} onClick={handleLogout}>
             <i className="fa-solid fa-right-from-bracket" style={{ marginRight: 6 }} /> Sign out
@@ -305,7 +292,7 @@ export default function ProfilePage() {
                 <div className={styles.detailsGrid}>
                   <div className="form-group">
                     <label className="form-label" htmlFor="firstNameInput">
-                      First name:
+                      First name
                     </label>
                     <input
                       id="firstNameInput"
@@ -317,7 +304,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="form-group">
                     <label className="form-label" htmlFor="lastNameInput">
-                      Last name:
+                      Last name
                     </label>
                     <input
                       id="lastNameInput"
@@ -329,7 +316,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="form-group">
                     <label className="form-label" htmlFor="emailInput">
-                      Email address:
+                      Email address
                     </label>
                     <input
                       id="emailInput"
@@ -341,7 +328,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="form-group">
                     <label className="form-label" htmlFor="phoneInput">
-                      Phone:
+                      Phone
                     </label>
                     <input
                       id="phoneInput"
@@ -368,7 +355,7 @@ export default function ProfilePage() {
                 <div className={styles.detailsGrid}>
                   <div className="form-group">
                     <label className="form-label" htmlFor="currentPassInput">
-                      Current password:
+                      Current password
                     </label>
                     <input
                       id="currentPassInput"
@@ -383,7 +370,7 @@ export default function ProfilePage() {
                     <div className={styles.twoCol} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                       <div className="form-group">
                         <label className="form-label" htmlFor="newPassInput">
-                          New password:
+                          New password
                         </label>
                         <input
                           id="newPassInput"
@@ -396,7 +383,7 @@ export default function ProfilePage() {
                       </div>
                       <div className="form-group">
                         <label className="form-label" htmlFor="confirmPassInput">
-                          Confirm new password:
+                          Confirm new password
                         </label>
                         <input
                           id="confirmPassInput"
@@ -413,7 +400,7 @@ export default function ProfilePage() {
 
                 {newPassword && (
                   <div className={styles.securityHints}>
-                    <span className={styles.securityTitle}>Password requirements checklist:</span>
+                    <span className={styles.securityTitle}>Your new password needs</span>
                     <div className={styles.securityHint}>
                       <i className={`fa-solid ${isLengthValid ? 'fa-circle-check ' + styles.securityHintCheck : 'fa-circle-xmark ' + styles.securityHintCross}`} />
                       <span>At least 8 characters long</span>

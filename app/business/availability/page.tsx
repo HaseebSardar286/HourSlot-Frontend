@@ -13,6 +13,7 @@ import CustomDatePicker from '@/components/CustomDatePicker';
 import CustomTimePicker from '@/components/CustomTimePicker';
 import styles from './availability.module.css';
 
+import { TimePicker } from '@/components/ui/DatePicker';
 interface Branch {
   id: number;
   name: string;
@@ -316,8 +317,8 @@ export default function AvailabilityPage() {
       setMessage('Weekly working hours configured successfully!');
       setShowBulkModal(false);
       await loadScheduleData(selectedBranchId, scheduleType, selectedStaffId);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to configure weekly working hours.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to configure weekly working hours.');
     } finally {
       setBulkSubmitting(false);
     }
@@ -353,8 +354,8 @@ export default function AvailabilityPage() {
         const branchStaff = staffData.filter((s) => s.branch.id === parseInt(defaultBranchId));
         setFilteredStaff(branchStaff);
       }
-    } catch (err: any) {
-      setError(err?.message || 'Could not load availability. Please ensure branches exist.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Could not load availability. Please ensure branches exist.');
     } finally {
       setLoading(false);
     }
@@ -382,20 +383,22 @@ export default function AvailabilityPage() {
       setHolidays(holData);
       const step = whData.find((wh) => wh.slotStepMinutes && wh.slotStepMinutes > 0)?.slotStepMinutes;
       if (step) setTimeInterval(step);
-    } catch (err: any) {
-      setError(err?.message || 'Could not load schedule configurations.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Could not load schedule configurations.');
     } finally {
       setScheduleLoading(false);
     }
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     loadInitialData();
   }, []);
 
   useEffect(() => {
     if (selectedBranchId) {
       const branchStaff = allStaff.filter((s) => s.branch.id === parseInt(selectedBranchId));
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO derive this instead of syncing it into state (one extra render, not a bug)
       setFilteredStaff(branchStaff);
 
       setScheduleType('general');
@@ -411,6 +414,7 @@ export default function AvailabilityPage() {
       } else if (scheduleType === 'staff' && selectedStaffId) {
         loadScheduleData(selectedBranchId, 'staff', selectedStaffId);
       } else {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO derive this instead of syncing it into state (one extra render, not a bug)
         setWorkingHours([]);
         setHolidays([]);
       }
@@ -439,8 +443,8 @@ export default function AvailabilityPage() {
       });
       setMessage('Break period added.');
       await loadScheduleData(selectedBranchId, scheduleType, selectedStaffId);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to add break.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to add break.');
     }
   };
 
@@ -453,8 +457,8 @@ export default function AvailabilityPage() {
       setMessage('Day configuration reset.');
       setPendingHourDelete(null);
       await loadScheduleData(selectedBranchId, scheduleType, selectedStaffId);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to reset day.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to reset day.');
     } finally {
       setConfirmLoading(false);
     }
@@ -469,8 +473,8 @@ export default function AvailabilityPage() {
       setMessage('Break removed.');
       setPendingBreakDelete(null);
       await loadScheduleData(selectedBranchId, scheduleType, selectedStaffId);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to remove break.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to remove break.');
     } finally {
       setConfirmLoading(false);
     }
@@ -496,8 +500,8 @@ export default function AvailabilityPage() {
       setShowHolidayForm(false);
       setHolidayForm({ date: '', description: '' });
       await loadScheduleData(selectedBranchId, scheduleType, selectedStaffId);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to schedule closure.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to schedule closure.');
     }
   };
 
@@ -510,8 +514,8 @@ export default function AvailabilityPage() {
       setMessage('Closure cancelled.');
       setPendingHolidayDelete(null);
       await loadScheduleData(selectedBranchId, scheduleType, selectedStaffId);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to cancel closure.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to cancel closure.');
     } finally {
       setConfirmLoading(false);
     }
@@ -683,21 +687,14 @@ export default function AvailabilityPage() {
 
                           {!config.closed && (
                             <form onSubmit={(e) => handleBreakSubmit(e, config.id)} className={styles.inlineBreakForm}>
-                              <input
-                                type="time"
-                                className="input-field"
-                                value={inlineBreak.startTime}
-                                onChange={(e) => handleBreakChange(config.id, 'startTime', e.target.value)}
-                              />
+                              <span className={styles.breakLabel}>Add a break</span>
+                              <TimePicker aria-label="Break starts" value={inlineBreak.startTime}
+                                onChange={(v) => handleBreakChange(config.id, 'startTime', v)} />
                               <span>to</span>
-                              <input
-                                type="time"
-                                className="input-field"
-                                value={inlineBreak.endTime}
-                                onChange={(e) => handleBreakChange(config.id, 'endTime', e.target.value)}
-                              />
+                              <TimePicker aria-label="Break ends" value={inlineBreak.endTime} min={inlineBreak.startTime || undefined}
+                                onChange={(v) => handleBreakChange(config.id, 'endTime', v)} />
                               <button type="submit" className={styles.addBreakBtn} title="Add break period">
-                                + Break
+                                Add
                               </button>
                             </form>
                           )}

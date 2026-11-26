@@ -53,7 +53,7 @@ export async function fetchTimezones(country?: string): Promise<string[]> {
 }
 
 export function defaultCurrencyForCountry(country: CountryView | undefined): string {
-  return country?.currencies?.[0]?.code || 'USD';
+  return country?.currencies?.[0]?.code || 'PKR';
 }
 
 export function defaultTimezoneForCountry(country: CountryView | undefined): string {

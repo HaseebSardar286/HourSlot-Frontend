@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
+import { formatMoney } from '@/lib/money';
 import PageHeader from '@/components/PageHeader';
 import Skeleton from '@/components/Skeleton';
 import StatusBadge from '@/components/StatusBadge';
@@ -68,14 +69,15 @@ export default function AdminDashboardPage() {
       setStats(statsData);
       setRecent(recentData);
       setTrend(trendData);
-    } catch (err: any) {
-      setError(err.message || 'Could not retrieve admin dashboard statistics.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Could not retrieve admin dashboard statistics.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     loadData();
   }, []);
 
@@ -159,10 +161,7 @@ export default function AdminDashboardPage() {
         <MetricGrid>
           <StatCard
             label="Commission earnings"
-            value={`$${stats.totalCommissionEarnings.toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}`}
+            value={formatMoney(stats.totalCommissionEarnings, 'PKR')}
             icon="fa-wallet"
           />
           <StatCard label="Total bookings" value={stats.totalBookings} icon="fa-calendar-check" />
@@ -176,7 +175,7 @@ export default function AdminDashboardPage() {
           <div className={`surface ${styles.chartCard}`}>
             <div className={styles.cardHeader}>
               <span className={styles.cardTitle}>Platform commission trends (last 6 months)</span>
-              <span className={styles.muted}>Estimated USD</span>
+              <span className={styles.muted}>Estimated, in PKR</span>
             </div>
             <div className={styles.svgChartContainer}>
               <svg viewBox="0 0 500 150" className={styles.svgChart}>
@@ -195,7 +194,7 @@ export default function AdminDashboardPage() {
                 {svgPath && <path d={svgPath} className={styles.chartLine} />}
                 {svgPoints.map((p, index) => (
                   <circle key={index} cx={p.x} cy={p.y} r="5" className={styles.chartPoint}>
-                    <title>{`${p.label}: $${p.value}`}</title>
+                    <title>{`${p.label}: ${formatMoney(p.value, 'PKR')}`}</title>
                   </circle>
                 ))}
                 {svgPoints.map((p, index) => (
@@ -213,7 +212,7 @@ export default function AdminDashboardPage() {
               {trend.slice(-3).map((t, idx) => (
                 <div key={idx} className={styles.earnRow}>
                   <span>{t.month} commission</span>
-                  <strong>${t.commissionEarnings.toFixed(2)}</strong>
+                  <strong>{formatMoney(t.commissionEarnings, 'PKR')}</strong>
                 </div>
               ))}
             </div>

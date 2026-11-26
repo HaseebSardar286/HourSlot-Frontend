@@ -76,7 +76,27 @@ export default function AuthShell({
           </ul>
         </div>
 
-        <p className={styles.brandFoot}>Trusted by service teams & independents</p>
+        <div className={styles.agenda} aria-hidden>
+          <div className={styles.agendaHead}>
+            <strong>Today</strong>
+            <span>3 bookings</span>
+          </div>
+          <div className={styles.agendaRow}>
+            <time>09:30</time>
+            <span>Haircut &amp; style</span>
+            <em>Confirmed</em>
+          </div>
+          <div className={`${styles.agendaRow} ${styles.agendaRowAlt}`}>
+            <time>11:00</time>
+            <span>Home cleaning quote</span>
+            <em>Pending</em>
+          </div>
+          <div className={styles.agendaRow}>
+            <time>14:15</time>
+            <span>Dental check-up</span>
+            <em>Confirmed</em>
+          </div>
+        </div>
       </aside>
 
       <div className={`${styles.formPanel} ${isRegister ? styles.formPanelRegister : ''}`}>

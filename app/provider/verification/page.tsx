@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch, openAuthedFile } from '@/lib/api';
@@ -6,6 +6,7 @@ import PageHeader from '@/components/PageHeader';
 import Skeleton from '@/components/Skeleton';
 import StatusBadge from '@/components/StatusBadge';
 
+import Dropdown from '@/components/ui/Dropdown';
 type DocType = { code: string; label?: string; name?: string };
 type Doc = {
   id: number;
@@ -52,6 +53,7 @@ export default function SoloVerificationPage() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     void load();
   }, [load]);
 
@@ -117,13 +119,8 @@ export default function SoloVerificationPage() {
 
       <div className="card" style={{ padding: 16, marginBottom: 16, display: 'grid', gap: 10 }}>
         <strong>Upload document</strong>
-        <select className="form-input" value={docType} onChange={(e) => setDocType(e.target.value)}>
-          {types.map((t) => (
-            <option key={t.code} value={t.code}>
-              {t.label || t.name || t.code}
-            </option>
-          ))}
-        </select>
+        <Dropdown aria-label="Document type" value={docType} onChange={setDocType} icon="fa-file-shield"
+          options={types.map((t) => ({ value: t.code, label: t.label || t.name || t.code }))} />
         <input type="file" accept="image/*,.pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
         <button type="button" className="btn btn-primary" disabled={busy || !file} onClick={() => void upload()}>
           {busy ? 'Uploading…' : 'Upload'}

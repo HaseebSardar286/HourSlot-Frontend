@@ -12,6 +12,7 @@ export function useMarketplace() {
 
   useEffect(() => {
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     setLoading(true);
 
     Promise.all([
@@ -56,18 +57,21 @@ export function useMarketplace() {
 
         const flat: LandingCategory[] = [];
         for (const root of roots || []) {
-          let childListings = 0;
-          for (const child of root.subcategories || []) {
-            childListings += counts.get(child.id) || 0;
-          }
-          const listingCount = (counts.get(root.id) || 0) + childListings;
+          const ids = new Set<number>([root.id, ...(root.subcategories || []).map((c) => c.id)]);
+          const inCategory = listings.filter((l) => l.categoryId !== undefined && ids.has(l.categoryId));
+          const rated = inCategory.filter((l) => l.rating > 0);
           flat.push({
             id: root.id,
             name: root.name,
             slug: root.slug,
             icon: categoryIconClass(root.name, root.icon),
             imageUrl: root.imageUrl || coverByCategory.get(root.id) || null,
-            listingCount,
+            listingCount: inCategory.length,
+            subcategories: (root.subcategories || []).map((c) => c.name),
+            providers: [...inCategory].sort((a, b) => b.rating - a.rating).slice(0, 3).map((l) => ({
+              id: l.businessId, name: l.name, slug: l.slug, rating: l.rating, location: l.location, imageUrl: l.imageUrl,
+            })),
+            avgRating: rated.length ? rated.reduce((n, l) => n + l.rating, 0) / rated.length : 0,
           });
         }
         // Prefer categories that have a cover image, then by listing activity.
@@ -76,7 +80,7 @@ export function useMarketplace() {
           if (img !== 0) return img;
           return b.listingCount - a.listingCount || a.name.localeCompare(b.name);
         });
-        setCategories(flat.slice(0, 8));
+        setCategories(flat);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

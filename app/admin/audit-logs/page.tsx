@@ -35,14 +35,15 @@ export default function AdminAuditLogsPage() {
     try {
       const data = await apiFetch<AuditLog[]>('/api/admin/audit-logs');
       setLogs(data);
-    } catch (err: any) {
-      setError(err.message || 'Failed to retrieve platform audit logs.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to retrieve platform audit logs.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     loadLogs();
   }, []);
 

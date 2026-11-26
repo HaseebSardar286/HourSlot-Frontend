@@ -125,7 +125,6 @@ function MyBookingsContent() {
       // keep the default message
     }
   };
-  const [payingId, setPayingId] = useState<number | null>(null);
 
   const paymentStatus = searchParams.get('payment');
   const seriesBooked = searchParams.get('series');
@@ -140,6 +139,7 @@ function MyBookingsContent() {
     }
   }, [seriesBooked, seriesSkipped]);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     if (paymentStatus === 'success') setSuccess('Payment completed successfully.');
     if (paymentStatus === 'cancelled') setError('Online payment was cancelled.');
   }, [paymentStatus]);
@@ -166,8 +166,8 @@ function MyBookingsContent() {
       setSuccess('Appointment rescheduled successfully.');
       setShowRescheduleModal(false);
       await loadBookings();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to reschedule appointment.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to reschedule appointment.');
     } finally {
       setRescheduleSubmitting(false);
     }
@@ -179,8 +179,8 @@ function MyBookingsContent() {
     try {
       const data = await apiFetch<Booking[]>('/api/customer/bookings');
       setBookings(data);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load bookings.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to load bookings.');
     } finally {
       setLoading(false);
     }
@@ -200,6 +200,7 @@ function MyBookingsContent() {
       if (activeTab === 'upcoming') return isUpcoming;
       return !isUpcoming;
     });
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO derive this instead of syncing it into state (one extra render, not a bug)
     setFilteredBookings(result);
   }, [bookings, activeTab]);
 
@@ -213,29 +214,10 @@ function MyBookingsContent() {
       setSuccess(res?.message || 'Appointment cancelled successfully.');
       setCancelId(null);
       await loadBookings();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to cancel appointment.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to cancel appointment.');
     } finally {
       setCancelLoading(false);
-    }
-  };
-
-  const handlePayOnline = async (bookingId: number) => {
-    setPayingId(bookingId);
-    setError(null);
-    setSuccess(null);
-    try {
-      const data = await apiFetch<{ url: string }>(`/api/payments/checkout?bookingId=${bookingId}`, {
-        method: 'POST',
-      });
-      if (data?.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error('Could not start checkout.');
-      }
-    } catch (err: any) {
-      setError(err?.message || 'Failed to start online payment.');
-      setPayingId(null);
     }
   };
 
@@ -257,8 +239,8 @@ function MyBookingsContent() {
       setSuccess('Review submitted. Thank you for your feedback!');
       setReviewedBookingIds((prev) => [...prev, reviewForm.bookingId]);
       setShowReviewModal(false);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to submit review.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to submit review.');
     } finally {
       setReviewSubmitting(false);
     }
@@ -279,6 +261,7 @@ function MyBookingsContent() {
     const unpaid =
       !b.paymentStatus ||
       b.paymentStatus.toUpperCase() === 'UNPAID' ||
+      b.paymentStatus.toUpperCase() === 'PARTIALLY_PAID' ||
       b.paymentStatus.toUpperCase() === 'PENDING';
     const active = b.status === 'PENDING' || b.status === 'CONFIRMED' || b.status === 'RESCHEDULED';
     return unpaid && active;
@@ -397,6 +380,9 @@ function MyBookingsContent() {
                 </div>
 
                 <div className={styles.cardFooter}>
+                  <Link href={`/profile/bookings/${b.id}`} className="btn btn-primary btn-sm">
+                    <i className="fa-solid fa-ticket" /> {needsPayment(b) ? 'Ticket & pay' : 'Ticket & receipts'}
+                  </Link>
                   {b.branch.business?.id && (
                     <Link
                       href={buildBookingHref(b.branch.business.id, {
@@ -411,16 +397,6 @@ function MyBookingsContent() {
                   )}
                   {activeTab === 'upcoming' && b.status !== 'IN_PROGRESS' && (
                     <>
-                      {needsPayment(b) && (
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => handlePayOnline(b.id)}
-                          disabled={payingId === b.id}
-                        >
-                          {payingId === b.id ? 'Redirecting…' : 'Pay online'}
-                        </button>
-                      )}
                       <button
                         type="button"
                         className="btn btn-outline btn-sm"

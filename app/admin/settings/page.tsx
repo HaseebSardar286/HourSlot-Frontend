@@ -24,7 +24,7 @@ export default function AdminSettingsPage() {
 
   const [defaultCommissionRate, setDefaultCommissionRate] = useState(10);
   const [supportedList, setSupportedList] = useState<string[]>(['USD', 'PKR', 'AED', 'EUR', 'GBP']);
-  const [defaultCurrency, setDefaultCurrency] = useState('USD');
+  const [defaultCurrency, setDefaultCurrency] = useState('PKR');
   const [registrationOpen, setRegistrationOpen] = useState(true);
   const [catalog, setCatalog] = useState<CurrencyView[]>([]);
   const [addCode, setAddCode] = useState('');
@@ -43,18 +43,19 @@ export default function AdminSettingsPage() {
         .split(',')
         .map((c) => c.trim().toUpperCase())
         .filter(Boolean);
-      setSupportedList(parsed.length ? parsed : ['USD']);
-      setDefaultCurrency(data.defaultCurrency || parsed[0] || 'USD');
+      setSupportedList(parsed.length ? parsed : ['PKR']);
+      setDefaultCurrency(data.defaultCurrency || 'PKR');
       setRegistrationOpen(data.registrationOpen);
       setCatalog(currencies);
-    } catch (err: any) {
-      setError(err.message || 'Failed to retrieve system settings.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to retrieve system settings.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     loadSettings();
   }, []);
 
@@ -76,8 +77,8 @@ export default function AdminSettingsPage() {
       });
       setSettings(updated);
       setSuccess('Global platform configuration settings saved successfully.');
-    } catch (err: any) {
-      setError(err.message || 'Failed to persist platform configuration.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to persist platform configuration.');
     } finally {
       setSaving(false);
     }

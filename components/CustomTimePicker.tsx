@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react';
 import styles from './CustomTimePicker.module.css';
+import FloatingMenu from './ui/FloatingMenu';
 
 interface CustomTimePickerProps {
   value: string; // "HH:mm"
@@ -34,6 +35,7 @@ export default function CustomTimePicker({
 }: CustomTimePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   // Generate time options dynamically based on interval
   const timeOptions = useMemo(() => {
@@ -58,9 +60,9 @@ export default function CustomTimePicker({
   // Close dropdown on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
+      const t = event.target as Node;
+      if (containerRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setIsOpen(false);
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -97,7 +99,7 @@ export default function CustomTimePicker({
       </button>
 
       {isOpen && (
-        <div className={styles.dropdownMenu}>
+        <FloatingMenu anchor={containerRef} menuRef={menuRef} fullWidthOnPhone={false} className={styles.dropdownMenu}>
           <ul className={styles.optionsList} role="listbox">
             {timeOptions.map((opt) => (
               <li
@@ -114,7 +116,7 @@ export default function CustomTimePicker({
               </li>
             ))}
           </ul>
-        </div>
+        </FloatingMenu>
       )}
     </div>
   );

@@ -294,7 +294,7 @@
   font-size: 0.68rem;
   font-weight: 700;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: 5px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   background: rgba(5, 150, 105, 0.1);
@@ -308,7 +308,7 @@
   font-size: 0.68rem;
   font-weight: 700;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: 5px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   background: rgba(107, 114, 128, 0.1);
@@ -328,7 +328,7 @@
 .ratingBadge {
   background: #fffbeb;
   border: 1.5px solid #fef3c7;
-  border-radius: 8px;
+  border-radius: 5px;
   padding: 4px 8px;
   font-size: 0.82rem;
   font-weight: 700;
@@ -348,4 +348,142 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+/* ---------- Staff cards v2 ---------- */
+.staffCard {
+  display: flex !important;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px !important;
+  border-radius: 5px !important;
+  border: 1px solid var(--border-color) !important;
+  background: var(--bg-card) !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.staffCard:hover {
+  border-color: var(--accent-primary-line, #c7d8fd) !important;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06) !important;
+  transform: translateY(-2px);
+}
+
+.staffCard .cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 !important;
+  border: 0 !important;
+  margin: 0 !important;
+}
+
+.staffCard .avatarCircle {
+  width: 46px !important;
+  height: 46px !important;
+  font-size: 0.95rem !important;
+  box-shadow: none !important;
+  color: #fff;
+}
+
+.staffCard .headerText {
+  flex: 1;
+  min-width: 0;
+}
+
+.staffCard .staffName {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.staffRating {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.staffRating i {
+  color: #f59e0b;
+  font-size: 0.75rem;
+}
+
+.staffMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.staffMeta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--bg-elevated, #f6f8fb);
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.staffMeta i {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.staffMeta .staffLinked {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.staffMeta .staffLinked i {
+  color: #059669;
+}
+
+.staffFoot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.staffBtn,
+.staffIconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  border-radius: 5px;
+  border: 1px solid var(--border-color);
+  background: #fff;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.staffBtn {
+  padding: 0 12px;
+}
+
+.staffIconBtn {
+  width: 34px;
+}
+
+.staffBtn:hover {
+  border-color: var(--accent-primary-line, #c7d8fd);
+  color: var(--accent-primary);
+  background: #eef4ff;
+}
+
+.staffDanger:hover {
+  border-color: #fecaca;
+  color: #dc2626;
+  background: #fef2f2;
 }

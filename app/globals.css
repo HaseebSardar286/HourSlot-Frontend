@@ -9,35 +9,42 @@
 :root {
   color-scheme: light;
 
-  /* Core palette */
-  --primary: #3b82f6;
-  --primary-hover: #2563eb;
-  --background: #f9fafb;
+  /* Core palette — Refined Calm Blue */
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --background: #f6f8fb;
   --surface: #ffffff;
-  --border: #e5e7eb;
-  --text: #111827;
-  --text-2: #6b7280;
-  --primary-soft: #eff6ff;
+  --border: #e6eaf0;
+  --text: #0f172a;
+  --text-2: #5b6474;
+  --primary-soft: #eef4ff;
 
-  --bg-primary: #f9fafb;
+  /* Navy ink, used for rails, dark bands and headings accents */
+  --ink-900: #0b1428;
+  --ink-800: #0f1b33;
+  --ink-700: #17264a;
+  --ink-600: #22345e;
+
+  --bg-primary: #f6f8fb;
   --bg-secondary: #ffffff;
-  --bg-elevated: #f3f4f6;
-  --bg-subtle: #f3f4f6;
+  --bg-elevated: #f1f4f9;
+  --bg-subtle: #f1f4f9;
   --bg-card: #ffffff;
-  --bg-card-hover: #fbfcfd;
-  --bg-atmosphere: #f9fafb;
+  --bg-card-hover: #fbfcfe;
+  --bg-atmosphere: #f6f8fb;
 
-  --accent-primary: #3b82f6;
-  --accent-primary-hover: #2563eb;
-  --accent-primary-soft: #eff6ff;
-  --accent-secondary: #2563eb;
-  --accent-gradient: #3b82f6;
-  --accent-primary-rgb: 59, 130, 246;
+  --accent-primary: #2563eb;
+  --accent-primary-hover: #1d4ed8;
+  --accent-primary-soft: #eef4ff;
+  --accent-primary-line: #c7d8fd;
+  --accent-secondary: #1d4ed8;
+  --accent-gradient: #2563eb;
+  --accent-primary-rgb: 37, 99, 235;
   --on-accent: #ffffff;
 
-  --accent-cta: #3b82f6;
-  --accent-cta-hover: #2563eb;
-  --accent-cta-soft: #eff6ff;
+  --accent-cta: #2563eb;
+  --accent-cta-hover: #1d4ed8;
+  --accent-cta-soft: #eef4ff;
 
   --accent-green: #059669;
   --accent-yellow: #b45309;
@@ -73,47 +80,50 @@
   --tint-sky: #eff6ff;
   --tint-rose: #fff1f2;
 
-  --text-main: #111827;
-  --text-heading: #111827;
-  --text-secondary: #6b7280;
-  --text-muted: #9ca3af;
+  --text-main: #0f172a;
+  --text-heading: #0b1428;
+  --text-secondary: #5b6474;
+  --text-muted: #8a93a3;
 
-  --border-color: #e5e7eb;
-  --border-strong: #d1d5db;
-  --border-focus: rgba(59, 130, 246, 0.22);
+  --border-color: #e6eaf0;
+  --border-strong: #d3d9e3;
+  --border-focus: rgba(37, 99, 235, 0.22);
 
-  --shadow-sm: 0 1px 2px rgba(17, 24, 39, 0.04);
-  --shadow-md: 0 1px 2px rgba(17, 24, 39, 0.03), 0 4px 16px rgba(17, 24, 39, 0.04);
-  --shadow-lg: 0 12px 32px rgba(17, 24, 39, 0.08);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 1px 2px rgba(15, 23, 42, 0.04), 0 2px 8px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 4px 12px rgba(15, 23, 42, 0.08), 0 12px 32px rgba(15, 23, 42, 0.10);
   --glow-shadow: none;
   --glass-shadow: var(--shadow-sm);
-  --card-shadow: var(--shadow-sm);
-  --overlay: rgba(17, 24, 39, 0.4);
-  --scrollbar: #d1d5db;
+  --card-shadow: 0 1px 2px rgba(15, 27, 51, 0.04), 0 1px 3px rgba(15, 27, 51, 0.03);
+  --overlay: rgba(11, 20, 40, 0.5);
+  --scrollbar: #cbd3df;
 
   --transition-smooth: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
   --transition-fast: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease;
 
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
+  /* Tight, business-software corners. */
+  --radius-sm: 5px;
+  --radius-md: 5px;
+  --radius-lg: 5px;
+  --radius-xl: 5px;
   --radius-full: 9999px;
 
   --space-page: 32px;
-  --font-headers: var(--font-sans), "Plus Jakarta Sans", "Segoe UI", sans-serif;
-  --font-body: var(--font-sans), "Plus Jakarta Sans", "Segoe UI", sans-serif;
-  --font-display: var(--font-sans), "Plus Jakarta Sans", "Segoe UI", sans-serif;
+  --font-headers: var(--font-sans), "Inter", "Segoe UI", sans-serif;
+  --font-body: var(--font-sans), "Inter", "Segoe UI", sans-serif;
+  --font-display: var(--font-sans), "Inter", "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "Cascadia Code", Consolas, monospace;
 
-  /* Light sidebar; active item is a soft blue pill with blue text. */
-  --rail: #ffffff;
-  --rail-text: #374151;
-  --rail-muted: #9ca3af;
-  --rail-line: #e5e7eb;
-  --rail-hover: #f3f4f6;
-  --rail-active: #eff6ff;
-  --rail-active-text: #2563eb;
+  /* Navy sidebar; active item is a blue pill with white text. */
+  --rail: #0f1b33;
+  --rail-text: #c9d3e6;
+  --rail-strong: #ffffff;
+  --rail-muted: #7d8bab;
+  --rail-line: rgba(255, 255, 255, 0.08);
+  --rail-hover: rgba(255, 255, 255, 0.06);
+  --rail-active: #2563eb;
+  --rail-active-text: #ffffff;
+  --rail-flyout: #17264a;
 }
 
 /* ==========================================================================
@@ -135,7 +145,8 @@ html, body {
   background: var(--bg-primary);
   color: var(--text-main);
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: 14px;
+  font-feature-settings: "cv11", "ss01";
   line-height: 1.5;
   overflow-x: hidden;
   overflow-y: auto;
@@ -169,8 +180,8 @@ i[class*=' fa-'] {
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-weight: 600;
+  letter-spacing: -0.011em;
   color: var(--text-heading);
 }
 
@@ -257,7 +268,7 @@ a {
   width: 0;
   height: 2px;
   background: var(--accent-primary);
-  border-radius: 1px;
+  border-radius: 5px;
   transition: width 0.3s ease;
 }
 
@@ -380,6 +391,13 @@ a {
 a.glass-card:hover {
   background: var(--bg-card-hover);
   border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.glass-card.interactive,
+a.glass-card {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
 .btn-sm {
@@ -419,17 +437,20 @@ textarea {
   letter-spacing: -0.01em;
   min-height: 40px;
   padding: 9px 18px;
-  border-radius: 10px;
+  border-radius: 5px;
   border: 1px solid transparent;
   cursor: pointer;
   outline: none;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
   gap: 8px;
   text-decoration: none;
   white-space: nowrap;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0) scale(0.98); }
 
 .btn:focus-visible {
   outline: none;
@@ -448,7 +469,7 @@ textarea {
 .btn-violet {
   background: var(--accent-primary);
   color: #ffffff;
-  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.18);
+  box-shadow: 0 1px 2px rgba(29, 78, 216, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .btn-primary:hover,
@@ -456,6 +477,7 @@ textarea {
 .btn-cool:hover,
 .btn-violet:hover {
   background: var(--accent-primary-hover);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.28);
 }
 
 .btn-cta {
@@ -474,7 +496,7 @@ textarea {
 }
 
 .btn-secondary:hover {
-  background: #dbeafe;
+  background: #e0eaff;
 }
 
 .btn-outline {
@@ -523,6 +545,11 @@ textarea {
 .input-field::placeholder {
   color: var(--text-muted);
   opacity: 0.7;
+}
+
+.input-field:hover:not(:focus),
+.select-field:hover:not(:focus) {
+  border-color: var(--border-strong);
 }
 
 .input-field:focus {
@@ -769,6 +796,13 @@ textarea {
   .successWrapper .glass-card {
     animation: none;
   }
+
+  .btn:hover,
+  .btn:active,
+  a.glass-card:hover,
+  .glass-card.interactive:hover {
+    transform: none;
+  }
 }
 
 /* ==========================================================================
@@ -785,7 +819,7 @@ textarea {
 .icon-chip {
   width: 36px;
   height: 36px;
-  border-radius: 8px;
+  border-radius: 5px;
   display: grid;
   place-items: center;
   font-size: 0.95rem;
@@ -802,3 +836,120 @@ textarea {
 .icon-chip-amber { background: var(--tint-coral); color: #9a3412; }
 .icon-chip-rose { background: var(--tint-rose); color: #9f1239; }
 .icon-chip-emerald { background: var(--success-soft); color: var(--accent-green); }
+
+/* ==========================================================================
+   ENTERPRISE LAYER
+   Compact, neutral controls in the style of professional business software:
+   smaller type, 6-8px corners, thin borders, no lift-on-hover or glow.
+   ========================================================================== */
+
+.btn {
+  min-height: 34px;
+  padding: 6px 14px;
+  border-radius: 5px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  gap: 6px;
+}
+
+.btn:hover,
+.btn:active { transform: none; }
+
+.btn-sm {
+  min-height: 28px;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+}
+
+.btn-primary,
+.btn-warm,
+.btn-cool,
+.btn-violet,
+.btn-cta {
+  box-shadow: 0 1px 1px rgba(15, 23, 42, 0.08);
+}
+
+.btn-primary:hover,
+.btn-warm:hover,
+.btn-cool:hover,
+.btn-violet:hover,
+.btn-cta:hover { box-shadow: 0 1px 1px rgba(15, 23, 42, 0.08); }
+
+.btn-secondary {
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+  color: var(--text-main);
+}
+
+.btn-secondary:hover { background: var(--bg-elevated); border-color: var(--border-strong); }
+
+.form-label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.input-field,
+.form-input,
+input.input-field,
+select.input-field,
+textarea.input-field {
+  min-height: 34px;
+  padding: 6px 10px;
+  border-radius: 5px;
+  font-size: 0.875rem;
+}
+
+textarea.input-field { min-height: 72px; }
+
+.surface,
+.glass-card {
+  border-radius: 5px;
+  box-shadow: none;
+  padding: 20px;
+}
+
+.glass-card.interactive:hover,
+a.glass-card:hover {
+  transform: none;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ==========================================================================
+   FLASH MESSAGES: success / error boxes float top-right, then leave (components/FlashHost)
+   ========================================================================== */
+.flash {
+  position: fixed !important;
+  right: 20px;
+  top: 72px;
+  z-index: 5000;
+  width: min(380px, calc(100vw - 32px));
+  max-width: none !important;
+  margin: 0 !important;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.16), 0 2px 6px rgba(15, 23, 42, 0.08) !important;
+  border-radius: 5px !important;
+  cursor: pointer;
+  animation: flashIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition: top 0.25s ease;
+}
+
+.flash-out { animation: flashOut 0.28s ease forwards !important; }
+
+@keyframes flashIn {
+  from { opacity: 0; transform: translateX(24px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes flashOut {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateX(24px); }
+}
+
+@media (max-width: 600px) {
+  .flash { right: 16px; left: 16px; width: auto; top: 64px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flash, .flash-out { animation-duration: 0.01s !important; }
+}

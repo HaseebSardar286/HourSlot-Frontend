@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -7,6 +7,7 @@ import PageHeader from '@/components/PageHeader';
 import Skeleton from '@/components/Skeleton';
 import StatusBadge from '@/components/StatusBadge';
 
+import { MonthPicker } from '@/components/ui/DatePicker';
 type CalendarPayload = {
   bookings?: Array<{ id: number; bookingTime: string; status: string; service?: { name?: string } }>;
   jobs?: Array<{ id: number; status?: string; title?: string; scheduledAt?: string }>;
@@ -30,6 +31,7 @@ export default function SoloCalendarPage() {
   }, [month]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     setLoading(true);
     apiFetch<CalendarPayload>(`/api/provider/ops/calendar?from=${range.from}&to=${range.to}`)
       .then(setData)
@@ -43,13 +45,9 @@ export default function SoloCalendarPage() {
         title="Calendar"
         subtitle="Your solo schedule for the month."
         actions={
-          <input
-            type="month"
-            className="form-input"
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-            style={{ width: 180 }}
-          />
+          <div style={{ width: 210 }}>
+            <MonthPicker aria-label="Month" value={month} onChange={setMonth} align="right" />
+          </div>
         }
       />
       {error && <div className="error-alert">{error}</div>}

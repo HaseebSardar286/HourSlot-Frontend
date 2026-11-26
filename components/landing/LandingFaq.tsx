@@ -16,6 +16,14 @@ export default function LandingFaq() {
             <p className={styles.eyebrow}>FAQ</p>
             <h2 className={styles.displayTitle}>Before you book</h2>
             <p className={styles.sectionSub}>Short answers for every account type.</p>
+            <div className={styles.faqHelp}>
+              <span className={styles.faqHelpIcon} aria-hidden><i className="fa-solid fa-headset" /></span>
+              <strong>Still have a question?</strong>
+              <p>Send us a message and we will help you get booked.</p>
+              <a href="mailto:hello@duemet.app" className={styles.textLink}>
+                Email support <i className="fa-solid fa-arrow-right" />
+              </a>
+            </div>
           </div>
           <div className={`${styles.faqList} hs-stagger`}>
             {FAQ.map((item, i) => (

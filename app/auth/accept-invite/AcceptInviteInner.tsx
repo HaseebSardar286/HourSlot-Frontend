@@ -29,6 +29,7 @@ export default function AcceptInviteInner() {
 
   useEffect(() => {
     if (!token) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO derive this instead of syncing it into state (one extra render, not a bug)
       setError('Invite token is missing.');
       setLoading(false);
       return;

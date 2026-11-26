@@ -5,7 +5,7 @@ import { apiFetch } from '@/lib/api';
 import { useOwnerPlan } from '@/lib/owner-plan-context';
 import PageHeader from '@/components/PageHeader';
 import Skeleton from '@/components/Skeleton';
-import Modal from '@/components/Modal';
+import SubscriptionBilling from '@/components/workspace/SubscriptionBilling';
 import styles from './plan.module.css';
 
 type PlanRow = {
@@ -65,7 +65,6 @@ export default function PlanPage() {
   const [usage, setUsage] = useState<UsagePayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedPlan, setSelectedPlan] = useState<PlanRow | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -105,9 +104,13 @@ export default function PlanPage() {
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Subscription plans"
-        subtitle={`You are currently subscribed to the ${payload?.current?.planName || 'Starter'} plan. Upgrade to unlock more features, branches, and seats.`}
+        title="Subscription"
+        subtitle="Your Duemet plan, invoices and usage. Pay with card in one tap and renew automatically, or pay by bank or wallet."
       />
+
+      <SubscriptionBilling />
+
+      <h3 style={{ margin: '8px 0 0' }}>Usage and plan features</h3>
       {error && (
         <div className="error-alert">
           <i className="fa-solid fa-triangle-exclamation" /> {error}
@@ -134,7 +137,7 @@ export default function PlanPage() {
               </div>
               {maxBranches < 999 ? (
                 <div className={styles.progressTrack}>
-                  <div className={styles.progressBar} style={{ width: `${branchPercent}%`, background: 'linear-gradient(90deg, #2563eb, #10b981)' }} />
+                  <div className={styles.progressBar} style={{ width: `${branchPercent}%`, background: 'linear-gradient(90deg, #1d4ed8, #10b981)' }} />
                 </div>
               ) : (
                 <div className={styles.unlimitedBar} />
@@ -150,7 +153,7 @@ export default function PlanPage() {
               </div>
               {maxStaff < 999 ? (
                 <div className={styles.progressTrack}>
-                  <div className={styles.progressBar} style={{ width: `${staffPercent}%`, background: 'linear-gradient(90deg, #2563eb, #60a5fa)' }} />
+                  <div className={styles.progressBar} style={{ width: `${staffPercent}%`, background: 'linear-gradient(90deg, #1d4ed8, #60a5fa)' }} />
                 </div>
               ) : (
                 <div className={styles.unlimitedBar} />
@@ -165,7 +168,7 @@ export default function PlanPage() {
                 </strong>
               </div>
               <div className={styles.progressTrack}>
-                <div className={styles.progressBar} style={{ width: '0%', background: 'linear-gradient(90deg, #2563eb, #3b82f6)' }} />
+                <div className={styles.progressBar} style={{ width: '0%', background: 'linear-gradient(90deg, #1d4ed8, #2563eb)' }} />
               </div>
             </div>
           </div>
@@ -220,20 +223,6 @@ export default function PlanPage() {
               <p className={styles.copy}>Configure your organization with premium tools.</p>
             )}
 
-            {plan.current ? (
-              <button type="button" className={`btn btn-secondary ${styles.ctaBtn}`} disabled>
-                <i className="fa-solid fa-circle-check" /> Current Plan
-              </button>
-            ) : (
-              <button
-                type="button"
-                className={`btn btn-primary ${styles.ctaBtn}`}
-                onClick={() => setSelectedPlan(plan)}
-              >
-                Upgrade to {plan.name}
-              </button>
-            )}
-
             <ul className={styles.featuresList}>
               {FEATURE_ROWS.map((row) => (
                 <li key={row.key} className={styles.featureItem}>
@@ -253,35 +242,6 @@ export default function PlanPage() {
         </div>
       )}
 
-      {/* Upgrade Checkout Modal */}
-      <Modal
-        open={selectedPlan !== null}
-        title="Upgrade Subscription Plan"
-        onClose={() => setSelectedPlan(null)}
-        footer={
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-            <button type="button" className="btn btn-secondary" onClick={() => setSelectedPlan(null)}>
-              Close
-            </button>
-            <a href="mailto:support@duemet.com?subject=Subscription Upgrade Request" className="btn btn-primary">
-              <i className="fa-solid fa-envelope" /> Contact Sales
-            </a>
-          </div>
-        }
-      >
-        <div className={styles.modalBody}>
-          <div className={styles.modalIcon}>
-            <i className="fa-solid fa-credit-card" />
-          </div>
-          <h4>Stripe Checkout Coming Soon</h4>
-          <p>
-            We are currently integrating Stripe payment gateways to support automated subscription checkout and monthly invoices.
-          </p>
-          <p>
-            If you need headroom immediately to add more branches or staff seats to your <strong>{selectedPlan?.name}</strong> upgrade, please contact our support team at <strong>support@duemet.com</strong> to expedite your plan update manually.
-          </p>
-        </div>
-      </Modal>
     </div>
   );
 }

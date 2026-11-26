@@ -6,7 +6,6 @@ import BookingProgress from './BookingProgress';
 import BookingSummary from './BookingSummary';
 import BookingPrefillBar from './BookingPrefillBar';
 import GuestBrowseBanner from '@/components/guest/GuestBrowseBanner';
-import CustomerFlowBar from '@/components/CustomerFlowBar';
 import type { Branch, Service, Staff } from '@/lib/types';
 import type { BookingFlowState, BookingStep } from '@/lib/booking-flow';
 import { formatMoney } from '@/lib/money';
@@ -67,13 +66,8 @@ export default function BookingShell({
 }: BookingShellProps) {
   const money = (amount: number) => formatMoney(amount, currency || service?.currency);
 
-  const flowStep =
-    currentStep === 'confirm' ? 'confirm' : currentStep === 'service' ? 'book' : 'book';
-
   return (
     <div className={styles.shell}>
-      <CustomerFlowBar businessId={businessId} businessName={businessName} current={flowStep} />
-
       <header className={styles.header}>
         <div className={styles.backRow}>
           <button type="button" className={styles.backLink} onClick={onBack}>
@@ -88,13 +82,15 @@ export default function BookingShell({
                 businessName.charAt(0)
               )}
             </span>
-            {businessName}
+            Booking at <strong>{businessName}</strong>
           </span>
         </div>
-        <BookingProgress currentStep={currentStep} />
-        <div className={styles.titleBlock}>
-          <h1>{stepTitle}</h1>
-          <p>{stepLead}</p>
+        <div className={styles.headRow}>
+          <div className={styles.titleBlock}>
+            <h1>{stepTitle}</h1>
+            <p>{stepLead}</p>
+          </div>
+          <BookingProgress currentStep={currentStep} />
         </div>
       </header>
 

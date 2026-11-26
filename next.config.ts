@@ -13,11 +13,26 @@ const imageHosts = [
 ];
 
 const nextConfig: NextConfig = {
+  experimental: {
+    // Community video uploads (up to 50 MB) pass through middleware, which buffers 10 MB by default.
+    proxyClientMaxBodySize: '55mb',
+  },
   images: {
     remotePatterns: Array.from(new Set(imageHosts)).map((hostname) => ({
       protocol: "https" as const,
       hostname,
     })),
+  },
+  async redirects() {
+    return [
+      // The rota was renamed "Staff schedule"; keep old links and bookmarks working.
+      { source: "/business/rota", destination: "/business/staff-schedule", permanent: true },
+      // Requests and jobs (quote requests, home-visit jobs) are for solo providers, not multi-staff businesses.
+      { source: "/business/requests", destination: "/business/bookings", permanent: false },
+      { source: "/business/requests/:path*", destination: "/business/bookings", permanent: false },
+      { source: "/business/jobs", destination: "/business/bookings", permanent: false },
+      { source: "/business/jobs/:path*", destination: "/business/bookings", permanent: false },
+    ];
   },
   async rewrites() {
     return [

@@ -73,18 +73,19 @@ export default function PeakPricingPage() {
       ]);
       setRules(rulesData);
       setServices(svcsData);
-    } catch (err: any) {
-      setError(err?.message || 'Could not load peak pricing rules.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Could not load peak pricing rules.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     loadData();
   }, []);
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -147,8 +148,8 @@ export default function PeakPricingPage() {
       }
       setShowModal(false);
       await loadData();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to save peak pricing rule.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to save peak pricing rule.');
     } finally {
       setSubmitting(false);
     }
@@ -164,8 +165,8 @@ export default function PeakPricingPage() {
       setMessage('Peak pricing rule deleted.');
       setDeleteId(null);
       await loadData();
-    } catch (err: any) {
-      setError(err?.message || 'Deactivation failed.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Deactivation failed.');
     } finally {
       setDeleting(false);
     }

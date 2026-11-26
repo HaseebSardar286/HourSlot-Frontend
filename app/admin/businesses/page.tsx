@@ -9,6 +9,8 @@ import Skeleton from '@/components/Skeleton';
 import FilterBar from '@/components/FilterBar';
 import Tabs from '@/components/Tabs';
 import StatusBadge from '@/components/StatusBadge';
+import DataTable from '@/components/DataTable';
+import { useRouter } from 'next/navigation';
 import styles from './businesses.module.css';
 
 interface Business {
@@ -33,6 +35,7 @@ interface Business {
 }
 
 export default function AdminBusinessesPage() {
+  const router = useRouter();
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [statusFilter, setStatusFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,14 +49,15 @@ export default function AdminBusinessesPage() {
       const url = `/api/admin/businesses?status=${encodeURIComponent(statusFilter)}&search=${encodeURIComponent(searchQuery)}`;
       const data = await apiFetch<Business[]>(url);
       setBusinesses(data);
-    } catch (err: any) {
-      setError(err.message || 'Failed to retrieve business listings.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to retrieve business listings.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     loadBusinesses();
   }, [statusFilter]);
 
@@ -116,43 +120,54 @@ export default function AdminBusinessesPage() {
       ) : businesses.length === 0 ? (
         <EmptyState icon="fa-store" title="No businesses found" description="No business applications match this filter." />
       ) : (
-        <div className={styles.businessGrid}>
-          {businesses.map((b) => (
-            <div key={b.id} className={`surface ${styles.businessCard}`}>
-              <div className={styles.cardTop}>
-                {b.logoUrl ? (
-                  <img src={b.logoUrl} alt={b.name} className={styles.bizLogo} />
-                ) : (
-                  <div className={styles.bizInitials}>{b.name.charAt(0)}</div>
-                )}
-                <div className={styles.bizMeta}>
-                  <h3 className={styles.bizName}>{b.name}</h3>
-                  <span className={styles.bizCategory}>
-                    {b.listingMode === 'INDIVIDUAL' ? 'Individual' : b.category || 'Service provider'}
-                    {b.verified ? ' · Verified' : ''}
-                  </span>
+        <DataTable<Business>
+          rows={businesses}
+          rowKey={(b) => b.id}
+          onRowClick={(b) => router.push(`/admin/businesses/${b.id}`)}
+          defaultSort={{ key: 'created', dir: 'desc' }}
+          columns={[
+            {
+              key: 'name', header: 'Business', sortValue: (b) => b.name,
+              render: (b) => (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                  {b.logoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- uploaded logo
+                    <img src={b.logoUrl} alt="" className={styles.bizLogo} style={{ width: 28, height: 28 }} />
+                  ) : (
+                    <div className={styles.bizInitials} style={{ width: 28, height: 28, fontSize: '0.75rem' }}>{b.name.charAt(0)}</div>
+                  )}
+                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                    <strong>{b.name}{b.verified ? <i className="fa-solid fa-circle-check" style={{ color: '#2563eb', marginLeft: 6, fontSize: '0.75rem' }} title="Verified" /> : null}</strong>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      {b.listingMode === 'INDIVIDUAL' ? 'Individual' : b.category || 'Service provider'}
+                    </span>
+                  </div>
                 </div>
-                <StatusBadge status={b.status} />
-              </div>
-
-              <p className={styles.bizDesc}>{b.description || 'No description provided.'}</p>
-              <div className={styles.detailRow}>
-                <span>
-                  Owner: {b.owner?.firstName} {b.owner?.lastName}
-                </span>
-                <span>{b.owner?.email}</span>
-                <span>Registered: {formatDate(b.createdAt)}</span>
-                <span>Publish: {b.publishStatus || 'DRAFT'}</span>
-              </div>
-
-              <div className={styles.cardFooter}>
-                <Link href={`/admin/businesses/${b.id}`} className="btn btn-primary btn-sm">
-                  {b.status === 'PENDING' ? 'Review' : 'Details'}
+              ),
+            },
+            {
+              key: 'owner', header: 'Owner', sortValue: (b) => `${b.owner?.firstName || ''} ${b.owner?.lastName || ''}`,
+              render: (b) => (
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span>{`${b.owner?.firstName || ''} ${b.owner?.lastName || ''}`.trim() || '—'}</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{b.owner?.email}</span>
+                </div>
+              ),
+            },
+            { key: 'status', header: 'Status', sortValue: (b) => b.status, render: (b) => <StatusBadge status={b.status} /> },
+            { key: 'publish', header: 'Listing', hideOnMobile: true, sortValue: (b) => b.publishStatus || 'DRAFT', render: (b) => <StatusBadge status={b.publishStatus || 'DRAFT'} /> },
+            { key: 'rating', header: 'Rating', align: 'right', hideOnMobile: true, sortValue: (b) => b.rating || 0, render: (b) => (b.rating ? b.rating.toFixed(1) : '—') },
+            { key: 'created', header: 'Registered', align: 'right', sortValue: (b) => new Date(b.createdAt).getTime(), render: (b) => formatDate(b.createdAt) },
+            {
+              key: 'go', header: '', align: 'right',
+              render: (b) => (
+                <Link href={`/admin/businesses/${b.id}`} className={`btn btn-sm ${b.status === 'PENDING' ? 'btn-primary' : 'btn-outline'}`} onClick={(e) => e.stopPropagation()}>
+                  {b.status === 'PENDING' ? 'Review' : 'Open'}
                 </Link>
-              </div>
-            </div>
-          ))}
-        </div>
+              ),
+            },
+          ]}
+        />
       )}
     </div>
   );

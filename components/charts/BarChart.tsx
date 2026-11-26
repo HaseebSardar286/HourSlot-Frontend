@@ -3,7 +3,7 @@
 import { useState } from 'react';
 
 /** Single-series bar colour: brand teal, validated for contrast and chroma on the light card surface. */
-const BAR = '#3b82f6';
+const BAR = '#2563eb';
 
 export type BarDatum = { label: string; value: number; /** Shown in the tooltip/table instead of the raw value. */ display?: string };
 
@@ -104,10 +104,10 @@ export default function BarChart({
                 top: -6,
                 left: `${((active + 0.5) / data.length) * 100}%`,
                 transform: 'translate(-50%, -100%)',
-                background: 'var(--text-primary, #111827)',
+                background: 'var(--text-primary, #0f172a)',
                 color: '#fff',
                 padding: '4px 8px',
-                borderRadius: 6,
+                borderRadius: 5,
                 fontSize: '0.8rem',
                 whiteSpace: 'nowrap',
                 pointerEvents: 'none',

@@ -128,6 +128,7 @@ function NewRequestForm() {
     if (!addressId) return;
     const address = addresses.find((row) => String(row.id) === addressId);
     if (!address) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO derive this instead of syncing it into state (one extra render, not a bug)
     setGeo({
       countryCode: address.countryCode || '',
       region: address.region || '',

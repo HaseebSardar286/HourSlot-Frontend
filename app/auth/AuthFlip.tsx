@@ -72,6 +72,7 @@ export default function AuthFlipStage({ children }: { children: ReactNode }) {
   }, [onFlip]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO derive this instead of syncing it into state (one extra render, not a bug)
     setPhase('enter');
     const t = window.setTimeout(() => setPhase('idle'), 560);
     return () => window.clearTimeout(t);

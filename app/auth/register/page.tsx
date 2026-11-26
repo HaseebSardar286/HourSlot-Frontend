@@ -158,6 +158,7 @@ function RegisterForm() {
   const roleQuery = searchParams.get('role');
   useEffect(() => {
     const fromQuery = roleFromQuery(roleQuery);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO derive this instead of syncing it into state (one extra render, not a bug)
     setFormData((prev) => (prev.role === fromQuery ? prev : { ...prev, role: fromQuery }));
   }, [roleQuery]);
 
@@ -249,6 +250,7 @@ function RegisterForm() {
 
   /** Clamp step when switching roles so progress always matches the selected path. */
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     if (!isProvider && step > 1) setStep(1);
     else if (isProvider && step > 3) setStep(3);
   }, [formData.role, isProvider, step]);

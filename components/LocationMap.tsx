@@ -24,12 +24,30 @@ export interface MapMarker {
   lat: number;
   lng: number;
   label?: string;
+  /** Font Awesome class (e.g. "fa-solid fa-scissors"). Turns the pin into a marketplace pill. */
+  icon?: string;
+  /** Short text shown in the pill next to the icon, e.g. a rating "4.8". */
+  badge?: string;
 }
+
+/**
+ * Esri World Street Map: English labels, areas, landmarks and places worldwide, no API key.
+ * LocationMap.module.css softens it toward the Duemet blue theme.
+ */
+const TILE_URL =
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
+const TILE_ATTRIBUTION = 'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors';
+const TILE_OPTIONS: L.TileLayerOptions = {
+  maxZoom: 19,
+  attribution: TILE_ATTRIBUTION,
+};
 
 interface LocationMapProps {
   markers: MapMarker[];
-  /** Live GPS pin, drawn distinctly from business markers. */
-  userLocation?: { lat: number; lng: number } | null;
+  /** Live GPS pin, drawn distinctly from business markers. `accuracy` is in metres. */
+  userLocation?: { lat: number; lng: number; accuracy?: number } | null;
+  /** Shows a spinner on the locate control while the browser looks up the position. */
+  locating?: boolean;
   height?: number | string;
   zoom?: number;
   className?: string;
@@ -47,8 +65,22 @@ function idsMatch(a: string | number | null | undefined, b: string | number | nu
   return String(a) === String(b);
 }
 
+function pillIcon(icon: string, badge: string | undefined, selected: boolean) {
+  const safeIcon = icon.replace(/[^a-z0-9 -]/gi, '');
+  const text = badge ? `<span class="${styles.pillText}">${escapeHtml(badge)}</span>` : '';
+  const w = badge ? (selected ? 76 : 66) : selected ? 44 : 38;
+  const h = selected ? 44 : 38;
+  return L.divIcon({
+    className: `${styles.pillPin} ${selected ? styles.pillPinOn : ''}`,
+    html: `<span class="${styles.pill}"><i class="${safeIcon}"></i>${text}</span><span class="${styles.pillTip}"></span>`,
+    iconSize: [w, h + 8],
+    iconAnchor: [w / 2, h + 8],
+    popupAnchor: [0, -h - 6],
+  });
+}
+
 function pinIcon(selected: boolean) {
-  const fill = selected ? '#1d4ed8' : '#3b82f6';
+  const fill = selected ? '#1d4ed8' : '#2563eb';
   const w = selected ? 27 : 24;
   const h = selected ? 40 : 36;
   return L.divIcon({
@@ -131,6 +163,7 @@ function safeInvalidateSize(map: L.Map | null | undefined) {
 export default function LocationMap({
   markers,
   userLocation = null,
+  locating = false,
   height = 280,
   zoom = 13,
   className = '',
@@ -159,7 +192,7 @@ export default function LocationMap({
         ? L.latLng(markers[0].lat, markers[0].lng)
         : userLocation && Number.isFinite(userLocation.lat) && Number.isFinite(userLocation.lng)
           ? L.latLng(userLocation.lat, userLocation.lng)
-          : L.latLng(37.7749, -122.4194);
+          : L.latLng(24.8607, 67.0011);
 
     const map = L.map(containerRef.current, {
       scrollWheelZoom,
@@ -167,10 +200,7 @@ export default function LocationMap({
       zoomControl: !showControls,
     }).setView(center, zoom);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap',
-    }).addTo(map);
+    L.tileLayer(TILE_URL, TILE_OPTIONS).addTo(map);
 
     layerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
@@ -229,7 +259,7 @@ export default function LocationMap({
       latLngs.push(ll);
       const selected = idsMatch(m.id, selectedId);
       const marker = L.marker(ll, {
-        icon: pinIcon(selected),
+        icon: m.icon ? pillIcon(m.icon, m.badge, selected) : pinIcon(selected),
         zIndexOffset: selected ? 600 : 0,
         riseOnHover: true,
       });
@@ -248,6 +278,13 @@ export default function LocationMap({
     if (userLocation && Number.isFinite(userLocation.lat) && Number.isFinite(userLocation.lng)) {
       const you = L.latLng(userLocation.lat, userLocation.lng);
       latLngs.push(you);
+      if (userLocation.accuracy && userLocation.accuracy > 25 && userLocation.accuracy < 20000) {
+        L.circle(you, {
+          radius: userLocation.accuracy,
+          className: styles.accuracyRing,
+          interactive: false,
+        }).addTo(layer);
+      }
       L.marker(you, {
         icon: userLocationIcon(),
         zIndexOffset: 400,
@@ -265,7 +302,17 @@ export default function LocationMap({
 
     const t = setTimeout(() => safeInvalidateSize(map), 80);
     return () => clearTimeout(t);
-  }, [markers, userLocation?.lat, userLocation?.lng, zoom, fitMarkers, selectedId]);
+  }, [markers, userLocation?.lat, userLocation?.lng, userLocation?.accuracy, zoom, fitMarkers, selectedId]);
+
+  // A new position fix: bring the user into view even if results are far away.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !userLocation || !Number.isFinite(userLocation.lat) || !Number.isFinite(userLocation.lng)) return;
+    const you = L.latLng(userLocation.lat, userLocation.lng);
+    if (!map.getBounds().pad(-0.1).contains(you)) {
+      map.flyTo(you, Math.max(map.getZoom(), 13), { duration: 0.8 });
+    }
+  }, [userLocation?.lat, userLocation?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const heightStyle = typeof height === 'number' ? `${height}px` : height;
 
@@ -278,9 +325,11 @@ export default function LocationMap({
             type="button"
             className={styles.ctrlBtn}
             aria-label="Use my location"
+            title="Show my location"
             onClick={() => onLocate?.()}
+            disabled={locating}
           >
-            <i className="fa-solid fa-location-crosshairs" />
+            <i className={`fa-solid ${locating ? 'fa-spinner fa-spin' : 'fa-location-crosshairs'}`} />
           </button>
           <button
             type="button"
@@ -365,16 +414,13 @@ export function LocationPicker({
     if (!containerRef.current || mapRef.current) return;
     ensureDefaultIcon();
 
-    const startLat = Number.isFinite(latitude) ? latitude : 37.7749;
-    const startLng = Number.isFinite(longitude) ? longitude : -122.4194;
+    const startLat = Number.isFinite(latitude) ? latitude : 24.8607;
+    const startLng = Number.isFinite(longitude) ? longitude : 67.0011;
     const map = L.map(containerRef.current, { scrollWheelZoom: true }).setView(
       [startLat, startLng],
       14
     );
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap',
-    }).addTo(map);
+    L.tileLayer(TILE_URL, TILE_OPTIONS).addTo(map);
 
     map.on('click', (e: L.LeafletMouseEvent) => {
       skipNextGeocode.current = true;

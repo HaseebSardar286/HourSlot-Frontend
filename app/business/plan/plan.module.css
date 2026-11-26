@@ -35,7 +35,7 @@
   color: var(--accent-primary);
   background: rgba(var(--accent-primary-rgb), 0.08);
   padding: 4px 10px;
-  border-radius: 8px;
+  border-radius: 5px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -137,7 +137,7 @@
   font-weight: 700;
   text-transform: uppercase;
   padding: 4px 10px;
-  border-radius: 6px;
+  border-radius: 5px;
   letter-spacing: 0.04em;
 }
 

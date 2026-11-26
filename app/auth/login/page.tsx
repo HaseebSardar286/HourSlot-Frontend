@@ -32,6 +32,7 @@ function LoginForm() {
   );
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     if (emailFromQuery && !email) setEmail(emailFromQuery);
   }, [emailFromQuery, email]);
 

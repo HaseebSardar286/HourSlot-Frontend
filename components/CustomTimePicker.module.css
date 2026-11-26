@@ -47,12 +47,8 @@
   font-size: 0.72rem;
 }
 
+/* Drawn on <body> by FloatingMenu, which positions it and matches the trigger's width. */
 .dropdownMenu {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  z-index: 300;
-  width: 100%;
   max-height: 220px;
   overflow-y: auto;
   background: var(--bg-secondary);
@@ -68,7 +64,7 @@
 
 .dropdownMenu::-webkit-scrollbar-thumb {
   background: var(--border-color);
-  border-radius: 3px;
+  border-radius: 5px;
 }
 
 .optionsList {
@@ -103,3 +99,6 @@
 .checkIcon {
   color: var(--accent-primary);
 }
+
+/* Enterprise layer: same height and type as other inputs. */
+.timeTrigger { min-height: 34px; padding: 6px 10px; font-size: 0.8125rem; }

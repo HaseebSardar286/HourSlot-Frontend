@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react';
 import styles from './CustomDatePicker.module.css';
+import FloatingMenu from './ui/FloatingMenu';
 
 interface CustomDatePickerProps {
   value: string; // YYYY-MM-DD
@@ -27,6 +28,7 @@ export default function CustomDatePicker({
 }: CustomDatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   // Initialize display month to selected date or current date
   const [currentDate, setCurrentDate] = useState(() => {
@@ -37,6 +39,7 @@ export default function CustomDatePicker({
 
   useEffect(() => {
     if (value) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO derive this instead of syncing it into state (one extra render, not a bug)
       setCurrentDate(new Date(value));
     }
   }, [value]);
@@ -44,9 +47,9 @@ export default function CustomDatePicker({
   // Close dropdown on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
+      const t = event.target as Node;
+      if (containerRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setIsOpen(false);
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -121,7 +124,7 @@ export default function CustomDatePicker({
       </button>
 
       {isOpen && (
-        <div className={styles.popoverMenu}>
+        <FloatingMenu anchor={containerRef} menuRef={menuRef} fullWidthOnPhone={false} className={styles.popoverMenu} style={{ minWidth: 0 }}>
           <div className={styles.calendarHeader}>
             <button
               type="button"
@@ -171,7 +174,7 @@ export default function CustomDatePicker({
               );
             })}
           </div>
-        </div>
+        </FloatingMenu>
       )}
     </div>
   );

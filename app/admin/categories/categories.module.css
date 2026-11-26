@@ -34,7 +34,7 @@
 .nodeIcon {
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: 5px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -46,7 +46,7 @@
 .nodeThumb {
   width: 40px;
   height: 40px;
-  border-radius: 10px;
+  border-radius: 5px;
   object-fit: cover;
   flex-shrink: 0;
   background: var(--accent-primary-soft);
@@ -104,7 +104,7 @@
   width: 120px;
   height: 80px;
   object-fit: cover;
-  border-radius: 12px;
+  border-radius: 5px;
   border: 1px solid rgba(var(--accent-primary-rgb), 0.18);
   background: var(--accent-primary-soft);
 }
@@ -115,7 +115,7 @@
   gap: 10px;
   min-height: 80px;
   padding: 14px 16px;
-  border-radius: 12px;
+  border-radius: 5px;
   border: 1px dashed rgba(var(--accent-primary-rgb), 0.28);
   background: rgba(var(--accent-primary-rgb), 0.04);
   color: var(--text-muted);
@@ -134,7 +134,7 @@
   gap: 8px;
   align-self: flex-start;
   padding: 10px 14px;
-  border-radius: 10px;
+  border-radius: 5px;
   background: var(--accent-primary);
   color: #fff;
   font-weight: 600;

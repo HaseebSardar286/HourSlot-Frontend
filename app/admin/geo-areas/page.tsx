@@ -55,6 +55,7 @@ export default function AdminGeoAreasPage() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     void load();
   }, []);
 

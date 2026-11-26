@@ -110,14 +110,15 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
     try {
       const data = await apiFetch<BusinessDetailResponse>(`/api/admin/businesses/${businessId}`);
       setDetail(data);
-    } catch (err: any) {
-      setError(err.message || 'Could not load business details.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Could not load business details.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     loadDetails();
   }, [businessId]);
 
@@ -130,8 +131,8 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
       await apiFetch(`/api/admin/businesses/${businessId}/approve`, { method: 'PUT' });
       setMessage('Listing approved. Customers can book once setup is complete.');
       await loadDetails();
-    } catch (err: any) {
-      setError(err.message || 'Failed to approve listing.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to approve listing.');
     } finally {
       setActionLoading(false);
     }
@@ -146,8 +147,8 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
       await apiFetch(`/api/admin/businesses/${businessId}/verify`, { method: 'PUT' });
       setMessage('Verified badge granted.');
       await loadDetails();
-    } catch (err: any) {
-      setError(err.message || 'Failed to grant verified badge. Approve Tax ID and Bank statement first.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to grant verified badge. Approve Tax ID and Bank statement first.');
     } finally {
       setActionLoading(false);
     }
@@ -181,8 +182,8 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
       setDocReviewTarget(null);
       setDocReviewNotes('');
       await loadDetails();
-    } catch (err: any) {
-      setError(err.message || 'Document review failed.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Document review failed.');
     } finally {
       setActionLoading(false);
     }
@@ -206,8 +207,8 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
       setMessage('Business application rejected and reason logged.');
       setRejectionReason('');
       await loadDetails();
-    } catch (err: any) {
-      setError(err.message || 'Failed to reject business.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to reject business.');
     } finally {
       setActionLoading(false);
     }
@@ -222,8 +223,8 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
       setMessage('Business has been suspended.');
       setShowSuspendConfirm(false);
       await loadDetails();
-    } catch (err: any) {
-      setError(err.message || 'Failed to suspend business.');
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || 'Failed to suspend business.');
     } finally {
       setActionLoading(false);
     }

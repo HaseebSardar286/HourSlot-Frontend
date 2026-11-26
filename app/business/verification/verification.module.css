@@ -112,3 +112,126 @@
   color: var(--text-secondary);
   margin: 0;
 }
+
+/* ---------- Verification v2 ---------- */
+.tierRow {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
+  gap: 14px !important;
+  margin-bottom: 20px;
+}
+
+.readiness {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 14px !important;
+  padding: 18px !important;
+  border-radius: 5px !important;
+}
+
+.readinessDone {
+  border-color: #a7f3d0 !important;
+  background: #f6fefa !important;
+}
+
+.stepNo {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--ink-800, #0f1b33);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+
+.readinessDone .stepNo {
+  background: #059669;
+}
+
+.readinessBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.readinessHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.readinessHead strong {
+  font-size: 1rem;
+}
+
+.readinessCount {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.readinessBar {
+  height: 6px;
+  margin: 10px 0 12px;
+  border-radius: 999px;
+  background: #e6eaf0;
+  overflow: hidden;
+}
+
+.readinessBar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent-primary);
+  transition: width 0.4s ease;
+}
+
+.readinessDone .readinessBar span {
+  background: #059669;
+}
+
+.readinessBody p {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.readinessBody .readinessNote {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.empty {
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 40px 20px !important;
+  border: 1px dashed var(--border-strong, #d3d9e3);
+  border-radius: 5px;
+  background: var(--bg-elevated, #f6f8fb);
+}
+
+.empty i {
+  font-size: 1.6rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.empty strong {
+  color: var(--text-main);
+}
+
+.empty span {
+  max-width: 300px;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}

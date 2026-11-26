@@ -43,4 +43,10 @@ export interface LandingCategory {
   icon: string;
   imageUrl: string | null;
   listingCount: number;
+  /** Specialties inside this category (subcategory names). */
+  subcategories: string[];
+  /** Best-rated live providers in this category. */
+  providers: { id: number; name: string; slug?: string; rating: number; location: string; imageUrl: string | null }[];
+  /** Average rating of rated providers here; 0 when none are rated yet. */
+  avgRating: number;
 }

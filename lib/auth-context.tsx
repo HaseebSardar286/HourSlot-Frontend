@@ -48,6 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const stored = readSession();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads data when the page opens
     if (stored) setUser(stored as unknown as UserSession);
     setLoading(false);
   }, []);
